@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* โทนม่วงของระบบ — ใช้ร่วมกันทั้งแอปและตารางข้อมูล */
+  --background: #0c0716;
+  --foreground: #e7e3f2;
+
+  /* ละตินจาก Geist, อักษรไทยตกมาที่ IBM Plex Sans Thai (เบราว์เซอร์เลือกทีละตัวอักษร) */
+  --font-app: var(--font-geist-sans), var(--font-thai), system-ui, sans-serif;
+
+  /* สีประจำชนิดการรับยา — ใช้ทั้งหัวคอลัมน์ พื้นคอลัมน์ และคำอธิบายสี */
+  --opd-head: #1f9d63;
+  --opd-body: #eef8f2;
+  --hme-head: #c94664;
+  --hme-body: #fdeef1;
+  --bch-head: #5560c4;
+  --bch-body: #eef0fc;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-app);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-app);
+}
+
+/* เซลล์ในตารางทุกตัวของแอป — ชิดขอบบนเสมอ
+   ค่าเริ่มต้นของ td คือกึ่งกลาง พอมีช่องหนึ่งยาวหลายบรรทัด (เช่น บันทึกทันตกรรม
+   หรือ PE) ช่องอื่นในแถวเดียวกันจะลอยไปอยู่กลางแถว อ่านคู่กันไม่ตรงบรรทัด */
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  vertical-align: top;
+}
+
+/* ───────── ตารางประวัติยา ─────────
+   ใช้ธีมมืดของ antd ตามปกติเหมือนตารางอื่นในแอป กฎที่เหลือด้านล่างเป็นแค่
+   ส่วนที่ antd ไม่มีให้ตั้งผ่าน token (ตรึงความกว้างคอลัมน์ / เน้นแถวที่ชี้อยู่) */
+
+/* ไฮไลต์แถวตอนชี้เมาส์ให้เห็นชัดกว่าค่าเริ่มต้น
+   ตารางกว้างเต็มจอ ถ้าไล่แถวไม่ออกจะอ่านผิดคอลัมน์ได้ง่าย */
+.data-sheet .ant-table-wrapper .ant-table-tbody > tr:hover > td,
+.data-sheet .ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > td,
+.data-sheet .ant-table-wrapper .ant-table-tbody > tr > td.ant-table-cell-row-hover {
+  background: #2a1c4d;
+}
+
+/* ขีดสีม่วงหน้าแถวที่ชี้อยู่ ช่วยจับตำแหน่งแถวตอนกวาดสายตาไปทางขวา */
+.data-sheet .ant-table-wrapper .ant-table-tbody > tr:hover > td:first-child {
+  box-shadow: inset 3px 0 0 0 #a78bfa;
+}
+
+/* คอลัมน์ชื่อยา — ตรึงความกว้างไว้ ไม่ให้ยืดตามชื่อยาที่ยาวที่สุด
+   (scroll.x = 'max-content' ของ antd จะขยายคอลัมน์ให้พอดีเนื้อหาถ้าไม่บังคับไว้) */
+.data-sheet .ant-table-wrapper th.drug-col,
+.data-sheet .ant-table-wrapper td.drug-col {
+  width: 340px;
+  min-width: 340px;
+  max-width: 340px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ตัวเลขจำนวนยา — ความกว้างตัวเลขเท่ากันทุกตัว อ่านเทียบกันง่าย */
+.data-sheet .qty {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
 }
