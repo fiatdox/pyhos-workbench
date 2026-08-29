@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# pyhos-workbench
 
-## Getting Started
+เครื่องมือช่วยงานทางคลินิกของโรงพยาบาลพะเยา สำหรับเปิดดูข้อมูลผู้ป่วยจากระบบ HIS
+ในมุมมองที่ระบบเดิมยังทำให้ไม่ได้ — ประวัติการได้รับยาแบบเทียบข้ามครั้ง การทบทวนรายการยา
+พร้อมใบพิมพ์ และหน้าดูผลตรวจกับภาพเวชระเบียนจากหลายตารางในที่เดียว
 
-First, run the development server:
+ระบบนี้ **อ่านอย่างเดียว** ไม่มีการเขียนกลับเข้าฐาน HIS
+
+## ต้องมีก่อน
+
+- [Bun](https://bun.sh) 1.3 ขึ้นไป (ใช้เป็นทั้ง package manager และ runtime)
+- สิทธิ์เข้าถึงฐานข้อมูลสามชุดตามหัวข้อ [ตั้งค่า](#ตั้งค่า) — ควรใช้บัญชีที่มีสิทธิ์อ่านเท่านั้น
+
+## เริ่มใช้งาน
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+cp .env.example .env   # แล้วแก้ค่าให้ตรงกับเซิร์ฟเวอร์จริง
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+เปิด [http://localhost:4001](http://localhost:4001)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> แก้ `.env` แล้วต้องรีสตาร์ท `bun run dev` ทุกครั้ง — connection pool ถูกแคชไว้บน
+> `globalThis` ระหว่าง hot reload ค่าที่แก้จึงยังไม่ถูกนำไปใช้
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ตั้งค่า
 
-## Learn More
+คัดลอกจาก [`.env.example`](.env.example) ซึ่งอธิบายทุกตัวแปรไว้แล้ว โดยสรุปมีสามฐานข้อมูล
 
-To learn more about Next.js, take a look at the following resources:
+| กลุ่ม | ตัวแปร | ใช้ทำอะไร |
+| --- | --- | --- |
+| HIS หลัก | `HIS_*` | MariaDB ของ HIS — ยา ผลตรวจ บันทึกผู้ป่วย ผลอ่านภาพรังสี |
+| ฐานภาพ | `HIS_SCAN_*` | MariaDB อีกเครื่อง — ภาพสแกนเวชระเบียนและรูปผู้ป่วย |
+| CoreKon | `CORE_KON_*` | PostgreSQL (HRIS) — บัญชีผู้ใช้และสิทธิ์เข้าใช้งาน |
+| อื่น ๆ | `JWT_SECRET`, `MOPH_ALERT_*` | กุญแจเซ็น session และการส่งรหัส OTP ผ่านหมอพร้อม |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+ชื่อตัวแปรของฐานภาพต้องขึ้นต้นด้วย `HIS_SCAN_` เท่านั้น ห้ามใช้ชื่อชุดเดียวกับ `HIS_*`
+ไม่งั้นค่าบล็อกล่างจะทับบล็อกบนทั้งหมดจนแอปไปต่อฐานผิดเครื่อง
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### ข้อควรรู้เรื่องภาษาไทย
 
-## Deploy on Vercel
+เซิร์ฟเวอร์ HIS ใช้ **TIS-620** ทั้งเครื่อง ตัว driver จึงถูกกำหนด `charset: 'TIS620_THAI_CI'` ไว้
+ถ้าถอดออก การค้นด้วยข้อความไทยจะไม่เจอสักแถวโดยไม่มี error ให้เห็น
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## คำสั่ง
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| คำสั่ง | ทำอะไร |
+| --- | --- |
+| `bun run dev` | เปิดเซิร์ฟเวอร์สำหรับพัฒนา (พอร์ต 4001) |
+| `bun run build` / `bun run start` | build และรันโหมด production |
+| `bun run lint` | ตรวจด้วย ESLint |
+| `bunx tsc --noEmit` | ตรวจชนิดข้อมูล |
+| `bun run db:pull:his` | ดึง schema ของ HIS มาเป็น drizzle schema |
+| `bun run db:pull:core-kon` | ดึง schema ของ CoreKon |
+| `bun run db:studio:his` / `db:studio:core-kon` | เปิด Drizzle Studio |
+
+## โครงสร้าง
+
+```
+app/
+  page.tsx                    หน้าเข้าสู่ระบบ (Server Component) + login-form.tsx
+  home/                       ส่วนที่ต้องเข้าสู่ระบบก่อน — layout ตรวจ JWT ทุกครั้ง
+    medication-history/       ประวัติการได้รับยา + Med Reconcile + ใบพิมพ์ PDF
+    hla-b5801/                ค้นผลตรวจ HLA-B*5801 ตามช่วงวันที่ / HN / ชื่อ
+  api/
+    auth/                     เข้าสู่ระบบ ยืนยัน OTP ออกจากระบบ
+    his/                      อ่านข้อมูลจาก HIS ทีละเรื่อง
+lib/
+  auth/                       รหัสผ่าน (argon2), JWT, OTP หมอพร้อม
+  db/                         connection pool และ schema ของทั้งสามฐาน
+  his/                        คิวรีแยกตามเรื่อง + แปลง RTF + ใส่ลายน้ำภาพ
+  client/                     โมดูลที่ฝั่งเบราว์เซอร์เรียกได้ (apiFetch, จัดการ session)
+public/fonts/                 Sarabun (OFL) สำหรับฝังลงไฟล์ PDF
+```
+
+`lib/` ทุกไฟล์ (ยกเว้น `lib/client/`) มี `import 'server-only'` กำกับ เพื่อไม่ให้ค่าเชื่อมต่อ
+หรือคิวรีหลุดไปรวมอยู่ใน bundle ฝั่งเบราว์เซอร์
+
+## ความสามารถ
+
+- **เข้าสู่ระบบ** ด้วยบัญชี CoreKon ตรวจรหัสผ่านด้วย argon2 รองรับ OTP ผ่านหมอพร้อม
+  (Line หมอพร้อม) สำหรับบัญชีที่เปิดใช้ อายุ session 8 ชั่วโมง หมดอายุเมื่อไรก็กลับหน้า
+  เข้าสู่ระบบพร้อมข้อความแจ้ง
+- **ประวัติการได้รับยา** เรียงเป็นคอลัมน์ตามครั้งที่รับยา (ผู้ป่วยนอก / ยากลับบ้าน / ยาต่อเนื่อง)
+  แยกสีครั้งที่ผ่านห้องฉุกเฉิน พร้อมกลุ่มโรคสำคัญและประวัติแพ้ยา
+- **Med Reconcile** ทบทวนจำนวนและวิธีใช้ยาล่าสุด เลือกรายการที่ต้องการแล้วสั่งพิมพ์เป็น PDF
+  (จัดกลุ่มตามวันที่รับยา หน้าละ 15 รายการ มีช่อง Continue / off ให้ติ๊กบนกระดาษ)
+- **หน้าดูข้อมูลรายเรื่อง** จากการ์ดผู้ป่วย — บันทึกผู้ป่วย (ptnote), การตรวจร่างกาย,
+  บันทึกทันตกรรม, ภาพสแกนเวชระเบียน, ผลตรวจ HLA-B*5801, ผลอ่านภาพรังสี และรูปผู้ป่วย
+- **ค้นหาผู้ป่วย** ด้วย HN เลขบัตรประชาชน หรือชื่อ-สกุล ชื่อซ้ำจะให้เลือกจากรายการ
+
+## ความปลอดภัยและข้อมูลผู้ป่วย
+
+- **เลขบัตรประชาชน เบอร์โทร และที่อยู่ ถูกตัดออกตั้งแต่ชั้น API** ไม่ได้ซ่อนแค่ในหน้าจอ
+  จึงไม่มีทางหลุดไปถึงเบราว์เซอร์
+- ทุก endpoint ตรวจ JWT จาก cookie และมี rate limit รายผู้ใช้คู่กับ IP
+- คิวรีที่ดึงภาพผูกตัวระบุเจ้าของไว้เสมอ (เช่น `scan_id` คู่กับ `hn`) เดาเลขของผู้ป่วยคนอื่น
+  แล้วเปิดดูไม่ได้
+- ภาพเวชระเบียนและผลตรวจถูกเผาลายน้ำ "โรงพยาบาลพะเยา" ลงในไฟล์ก่อนส่งออก
+  ไม่ใช่วางทับด้วย CSS
+- ทุกการตอบกลับที่มีข้อมูลผู้ป่วยตั้ง `Cache-Control: private, no-store`
+- ข้อมูลผู้ป่วยใช้เฉพาะภายในระบบนี้ ห้ามส่งออกไประบบอื่นหรือนำไปประมวลผลต่อ
+
+## หมายเหตุทางเทคนิค
+
+- Next.js เวอร์ชันนี้มีการเปลี่ยนแปลงจากที่คุ้นเคย ให้อ่านคู่มือใน `node_modules/next/dist/docs/`
+  ก่อนแก้โค้ด (ดูรายละเอียดใน [AGENTS.md](AGENTS.md))
+- ฟอนต์ Sarabun ถูกฝังลงไฟล์ PDF เพราะฟอนต์มาตรฐานของ `@react-pdf/renderer` ไม่มีอักขระไทย
+  ถ้าไม่ลงทะเบียนฟอนต์ ตัวหนังสือจะหายทั้งหน้า
+- ยังพบว่า `@react-pdf/renderer` ทำอักขระไทยบางตัวหายท้ายบรรทัดในคำที่มีสระอำ
+  (เกิดจากการ shape ที่ทำให้จำนวน glyph ไม่ตรงกับจำนวนตัวอักษร) ยังไม่ได้แก้
