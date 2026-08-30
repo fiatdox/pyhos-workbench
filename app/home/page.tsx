@@ -27,11 +27,11 @@ export default function HomePage() {
   return (
     <>
       <section className="mb-8">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-white/4 px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-violet-200/90 backdrop-blur">
-          <span className="h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_10px_#a78bfa]" />
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent-line bg-panel px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-accent backdrop-blur">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_#a78bfa]" />
           เข้าสู่ระบบแล้ว
         </div>
-        <Title level={2} style={{ color: '#fff', marginBottom: 8 }}>
+        <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           เลือกเมนูที่ต้องการใช้งาน
         </Title>
         <div className="mb-4 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
@@ -44,17 +44,17 @@ export default function HomePage() {
       <section className="grid gap-4 sm:grid-cols-2">
         {FEATURES.map(feature => (
           <Link key={feature.href} href={feature.href}>
-            <Card hoverable variant="borderless" className="h-full border! border-white/10!">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
               <div className="flex items-start gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-violet-500/15 text-lg text-violet-200">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg text-accent">
                   {feature.icon}
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-ink">
                     {feature.title}
-                    <RightOutlined className="text-[10px] text-violet-300/60" />
+                    <RightOutlined className="text-[10px] text-accent/60" />
                   </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-400">{feature.desc}</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-3">{feature.desc}</p>
                 </div>
               </div>
             </Card>

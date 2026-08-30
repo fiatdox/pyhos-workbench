@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
+import { THEME_INIT_SCRIPT } from "./theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="th"
       className={`${geistSans.variable} ${geistMono.variable} ${thaiSans.variable} h-full antialiased`}
+      // สคริปต์ธีมแก้ data-theme ก่อน hydrate — markup ฝั่งเซิร์ฟเวอร์จึงไม่ตรงโดยตั้งใจ
+      suppressHydrationWarning
     >
+      <head>
+        {/* ต้องรันก่อน paint แรก ไม่งั้นผู้ใช้ธีมสว่างจะเห็นหน้าจอมืดกระพริบก่อน */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>

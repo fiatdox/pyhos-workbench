@@ -163,11 +163,11 @@ export default function HlaB5801Page() {
   return (
     <>
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-violet-500/15 text-lg text-violet-200">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg text-accent">
           <ExperimentOutlined />
         </div>
         <div>
-          <Title level={3} style={{ color: '#fff', margin: 0 }}>ผลตรวจ HLA-B*5801</Title>
+          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>ผลตรวจ HLA-B*5801</Title>
           <Paragraph type="secondary" style={{ margin: 0, fontSize: 12 }}>
             ผู้ป่วยที่มีการรายงานผลแล้วในช่วงวันที่ที่เลือก คลิกเพื่อดูรูปใบรายงาน
           </Paragraph>
@@ -224,7 +224,7 @@ export default function HlaB5801Page() {
       <Spin spinning={loading}>
         {results ? (
           <>
-            <div className="mb-2.5 text-xs text-slate-400">
+            <div className="mb-2.5 text-xs text-ink-3">
               พบ {results.length} รายการ
               {searchedKeyword
                 ? ` จากคำค้น "${searchedKeyword}" (ทุกช่วงวันที่)`
@@ -254,7 +254,7 @@ export default function HlaB5801Page() {
           </>
         ) : (
           !loading && (
-            <div className="rounded-2xl border border-white/10 bg-white/3 py-16 backdrop-blur-md">
+            <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
               <Empty description="เลือกช่วงวันที่แล้วกดค้นหา" />
             </div>
           )
@@ -277,7 +277,7 @@ export default function HlaB5801Page() {
       >
         {selected && (
           <>
-            <div className="mb-3 text-xs text-slate-400">
+            <div className="mb-3 text-xs text-ink-3">
               รายงานเมื่อ {toThaiDate(selected.reportDate) ?? '—'} {selected.reportTime ?? ''}
               {selected.formName ? ` · ${selected.formName}` : ''}
             </div>

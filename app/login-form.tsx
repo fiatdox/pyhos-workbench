@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
+import { ThemeToggleButton } from '@/app/theme'
 import {
   FaUser,
   FaLock,
@@ -168,8 +169,10 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#0c0716] text-slate-200 selection:bg-violet-500/30">
-      {/* ───────────── พื้นหลัง: ภาพเต็มจอ + ชั้นไล่สีม่วงเข้ม ───────────── */}
+    <div className="relative min-h-screen w-full overflow-hidden bg-background text-foreground selection:bg-accent-soft">
+      {/* ───────────── พื้นหลัง: ภาพเต็มจอ + ชั้นไล่สีตามธีม ─────────────
+          ทุกชั้นอ่านค่าจาก token --hero-* ธีมสว่างจึงหรี่ภาพลงแล้วไล่เป็นขาวอมม่วง
+          แทนที่จะไล่เป็นม่วงเกือบดำ */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <Image
           src={BG_IMAGE}
@@ -177,26 +180,36 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
           fill
           priority
           sizes="100vw"
-          className="object-cover opacity-45"
+          className="object-cover"
+          style={{ opacity: 'var(--hero-image-opacity)' }}
         />
-        {/* ย้อมม่วง + ไล่ทึบเพื่อให้ข้อความอ่านง่าย */}
-        <div className="absolute inset-0 bg-[#1a0f33] mix-blend-color opacity-70" />
-        <div className="absolute inset-0 bg-linear-to-br from-[#0c0716]/95 via-[#160c2b]/85 to-[#2a1152]/70" />
-        <div className="absolute inset-0 bg-linear-to-t from-[#0c0716] via-transparent to-[#0c0716]/60" />
+        {/* ย้อมสี + ไล่ทึบเพื่อให้ข้อความอ่านง่าย */}
+        <div
+          className="absolute inset-0 mix-blend-color"
+          style={{ background: 'var(--hero-tint)', opacity: 'var(--hero-tint-opacity)' }}
+        />
+        <div className="absolute inset-0" style={{ backgroundImage: 'var(--hero-wash)' }} />
+        <div className="absolute inset-0" style={{ backgroundImage: 'var(--hero-fade)' }} />
         {/* vignette */}
-        <div className="absolute inset-0 shadow-[inset_0_0_220px_80px_#0c0716]" />
+        <div className="absolute inset-0" style={{ boxShadow: 'var(--hero-vignette)' }} />
         {/* แสงม่วงนวล */}
-        <div className="absolute -top-40 -left-40 h-120 w-120 rounded-full bg-violet-600/25 blur-[150px]" />
-        <div className="absolute top-1/3 -right-40 h-130 w-130 rounded-full bg-purple-500/20 blur-[170px]" />
+        <div className="absolute -top-40 -left-40 h-120 w-120 rounded-full bg-(--glow-1) blur-[150px]" />
+        <div className="absolute top-1/3 -right-40 h-130 w-130 rounded-full bg-(--glow-2) blur-[170px]" />
         {/* เส้นตารางบางๆ */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0"
           style={{
+            opacity: 'var(--grid-opacity)',
             backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)',
+              'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
             backgroundSize: '56px 56px',
           }}
         />
+      </div>
+
+      {/* ปุ่มสลับธีม — หน้านี้ยังไม่มีแถบบน จึงลอยไว้มุมขวาบน */}
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <ThemeToggleButton />
       </div>
 
       <div className="relative z-10 flex min-h-screen w-full flex-col lg:flex-row">
@@ -205,53 +218,57 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
           <div className="flex h-full w-full flex-col justify-between p-10 xl:p-16">
             {/* Brand mark */}
             <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-linear-to-br from-violet-500 to-purple-800 shadow-lg shadow-violet-950/60">
-                <FaLayerGroup className="text-xl text-white" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-accent-line bg-linear-to-br from-violet-500 to-purple-800 shadow-lg shadow-violet-500/25">
+                <FaLayerGroup className="text-xl text-ink" />
               </div>
               <div className="leading-tight">
-                <div className="text-lg font-semibold tracking-[0.18em] text-white">PYHOS WORKBENCH</div>
-                <div className="text-xs tracking-wide text-violet-300/70">Hospital Data Workspace</div>
+                <div className="text-lg font-semibold tracking-[0.18em] text-ink">PYHOS WORKBENCH</div>
+                <div className="text-xs tracking-wide text-accent/80">Hospital Data Workspace</div>
               </div>
             </div>
 
             {/* Hero text */}
             <div className="max-w-lg">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-white/4 px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-violet-200/90 backdrop-blur">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_10px_#a78bfa]" />
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-accent-line bg-panel px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-accent backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_#a78bfa]" />
                 Secure Access
               </div>
-              <h1 className="mb-5 text-4xl font-semibold leading-[1.15] tracking-tight text-white xl:text-5xl">
+              <h1 className="mb-5 text-4xl font-semibold leading-[1.15] tracking-tight text-ink xl:text-5xl">
                 เวิร์กเบนช์<br />
-                <span className="bg-linear-to-r from-violet-200 via-purple-200 to-violet-300 bg-clip-text font-bold text-transparent">
+                {/* ไล่สีของหัวข้อสลับตามธีม — ม่วงอ่อนบนพื้นมืด, ม่วงเข้มบนพื้นขาว */}
+                <span
+                  className="bg-clip-text font-bold text-transparent"
+                  style={{ backgroundImage: 'var(--headline-grad)' }}
+                >
                   สืบค้นข้อมูลโรงพยาบาล
                 </span>
               </h1>
               <div className="mb-5 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-              <p className="text-base leading-relaxed text-slate-300/75">
+              <p className="text-base leading-relaxed text-ink-2/75">
                 ค้นหา กรอง และเปรียบเทียบข้อมูลจากทุกระบบในที่เดียว — เปิดดูเป็นตาราง สรุปเป็นแดชบอร์ด
                 หรือส่งออกไปทำงานต่อ ได้ในไม่กี่คลิก
               </p>
 
               {/* Mini dashboard preview */}
-              <div className="mt-8 rounded-2xl border border-white/10 bg-white/3 p-4 shadow-2xl shadow-black/40 backdrop-blur-md">
+              <div className="mt-8 rounded-2xl border border-line bg-panel p-4 shadow-2xl shadow-black/40 backdrop-blur-md">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">
                     ภาพรวมวันนี้
                   </span>
-                  <span className="flex items-center gap-1.5 text-[10px] text-violet-200/80">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-300" />
+                  <span className="flex items-center gap-1.5 text-[10px] text-accent">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
                     อัปเดตสด
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
                   {PREVIEW_STATS.map((s) => (
-                    <div key={s.label} className="rounded-xl border border-white/5 bg-[#0c0716]/60 p-3">
-                      <div className="truncate text-[10px] text-slate-400">{s.label}</div>
-                      <div className="mt-1 font-mono text-lg font-semibold text-white">{s.value}</div>
+                    <div key={s.label} className="rounded-xl border border-line-faint bg-raised p-3">
+                      <div className="truncate text-[10px] text-ink-3">{s.label}</div>
+                      <div className="mt-1 font-mono text-lg font-semibold text-ink">{s.value}</div>
                       <div
                         className={`mt-0.5 flex items-center gap-1 text-[10px] ${
-                          s.up ? 'text-violet-300' : 'text-slate-400'
+                          s.up ? 'text-accent' : 'text-ink-3'
                         }`}
                       >
                         {s.up ? <FaArrowUp className="text-[8px]" /> : <FaArrowDown className="text-[8px]" />}
@@ -278,7 +295,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                 {['สืบค้นข้อมูล', 'แดชบอร์ด', 'รายงาน', 'เปรียบเทียบย้อนหลัง', 'ส่งออก Excel/CSV'].map((f) => (
                   <span
                     key={f}
-                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200/90 backdrop-blur"
+                    className="rounded-full border border-line bg-panel px-3 py-1 text-xs text-ink-2/90 backdrop-blur"
                   >
                     {f}
                   </span>
@@ -287,8 +304,8 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
             </div>
 
             {/* Footer note */}
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <FaShieldAlt className="text-violet-300" />
+            <div className="flex items-center gap-2 text-xs text-ink-3">
+              <FaShieldAlt className="text-accent" />
               เข้ารหัสด้วย TLS 1.3 · เข้าถึงข้อมูลตามสิทธิ์ที่ได้รับมอบหมาย
             </div>
           </div>
@@ -299,25 +316,25 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
           <div className="w-full max-w-md">
             {/* Mobile-only branding */}
             <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-linear-to-br from-violet-500 to-purple-800 shadow-lg shadow-violet-950/60">
-                <FaLayerGroup className="text-lg text-white" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-accent-line bg-linear-to-br from-violet-500 to-purple-800 shadow-lg shadow-violet-500/25">
+                <FaLayerGroup className="text-lg text-ink" />
               </div>
               <div className="leading-tight">
-                <div className="text-base font-semibold tracking-[0.16em] text-white">PYHOS WORKBENCH</div>
-                <div className="text-[11px] text-violet-300/70">Hospital Data Workspace</div>
+                <div className="text-base font-semibold tracking-[0.16em] text-ink">PYHOS WORKBENCH</div>
+                <div className="text-[11px] text-accent/80">Hospital Data Workspace</div>
               </div>
             </div>
 
             {/* Glass card */}
-            <div className="relative rounded-3xl border border-white/10 bg-[#120a22]/70 p-6 shadow-2xl shadow-black/60 backdrop-blur-2xl sm:p-8">
+            <div className="relative rounded-3xl border border-line bg-card p-6 shadow-2xl shadow-(color:--card-shadow) backdrop-blur-2xl sm:p-8">
               {/* corner glow */}
-              <div className="pointer-events-none absolute -top-px left-10 right-10 h-px bg-linear-to-r from-transparent via-violet-300/60 to-transparent" />
+              <div className="pointer-events-none absolute -top-px left-10 right-10 h-px bg-linear-to-r from-transparent via-accent/60 to-transparent" />
 
               <div className="mb-7 text-center">
-                <h2 className="mb-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                <h2 className="mb-1.5 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
                   {challengeToken ? 'ยืนยันตัวตน' : 'เข้าสู่ระบบ'}
                 </h2>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-ink-3">
                   {challengeToken
                     ? 'กรอกรหัส 6 หลักที่ส่งไปยัง Line หมอพร้อม'
                     : 'ยินดีต้อนรับกลับ — ลงชื่อเข้าใช้เพื่อเปิดพื้นที่ทำงานข้อมูลของท่าน'}
@@ -327,18 +344,18 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
               {/* ─────────────── ขั้นที่ 2: ยืนยัน OTP ─────────────── */}
               {challengeToken ? (
                 <form className="space-y-5" onSubmit={handleVerifyOtp}>
-                  <div className="flex items-start gap-3 rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 py-3">
-                    <FaMobileAlt className="mt-0.5 shrink-0 text-violet-300" />
-                    <div className="text-xs leading-relaxed text-violet-100/90">
+                  <div className="flex items-start gap-3 rounded-xl border border-accent-line bg-accent-soft px-4 py-3">
+                    <FaMobileAlt className="mt-0.5 shrink-0 text-accent" />
+                    <div className="text-xs leading-relaxed text-ink-2">
                       ส่งรหัสยืนยันไปยัง <span className="font-semibold">Line หมอพร้อม</span> ที่ผูกกับบัญชีของท่านแล้ว
-                      <div className="mt-1 text-violet-200/60">
+                      <div className="mt-1 text-accent/70">
                         หากไม่ได้รับ กรุณาตรวจสอบว่าเพิ่มเพื่อนและผูกบัญชี Line หมอพร้อมไว้แล้ว
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="otp" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <label htmlFor="otp" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-3">
                       รหัสยืนยัน (OTP)
                     </label>
                     <input
@@ -354,17 +371,17 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                       placeholder="000000"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className="block w-full rounded-xl border border-white/10 bg-[#0c0716]/70 py-3 text-center font-mono text-2xl tracking-[0.5em] text-slate-100 placeholder:text-violet-950 outline-none transition-all focus:border-violet-300/60 focus:ring-2 focus:ring-violet-400/25"
+                      className="block w-full rounded-xl border border-line bg-raised py-3 text-center font-mono text-2xl tracking-[0.5em] text-ink placeholder:text-ink-3/40 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25"
                     />
                   </div>
 
                   {otpNotice && !error && (
-                    <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-2.5 text-sm text-violet-200">
+                    <div className="rounded-xl border border-accent-line bg-accent-soft px-4 py-2.5 text-sm text-accent">
                       {otpNotice}
                     </div>
                   )}
                   {error && (
-                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+                    <div className="rounded-xl border border-danger-line bg-danger-bg px-4 py-2.5 text-sm text-danger">
                       {error}
                     </div>
                   )}
@@ -372,7 +389,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                   <button
                     type="submit"
                     disabled={loading || otp.length < 6}
-                    className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-linear-to-r from-violet-600 to-purple-700 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-violet-950/50 transition-all hover:shadow-violet-800/40 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="group flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-linear-to-r from-violet-600 to-purple-700 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-violet-500/25 transition-all hover:shadow-violet-800/40 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loading ? 'กำลังยืนยัน...' : 'ยืนยันรหัส'}
                     {!loading && <FaArrowRight className="text-xs transition-transform group-hover:translate-x-0.5" />}
@@ -382,7 +399,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                     <button
                       type="button"
                       onClick={backToPassword}
-                      className="flex items-center gap-1.5 text-slate-400 transition hover:text-slate-200"
+                      className="flex items-center gap-1.5 text-ink-3 transition hover:text-ink-2"
                     >
                       <FaArrowLeft className="text-[10px]" /> ย้อนกลับ
                     </button>
@@ -390,7 +407,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                       type="button"
                       onClick={handleResendOtp}
                       disabled={cooldown > 0 || loading}
-                      className="font-medium text-violet-300/90 transition hover:text-violet-200 disabled:cursor-not-allowed disabled:text-slate-600"
+                      className="font-medium text-accent transition hover:text-accent disabled:cursor-not-allowed disabled:text-ink-3"
                     >
                       {cooldown > 0 ? `ขอรหัสใหม่ได้ใน ${cooldown} วินาที` : 'ขอรหัสใหม่'}
                     </button>
@@ -400,11 +417,11 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
               <form className="space-y-5" onSubmit={handleLogin}>
                 {/* Username */}
                 <div>
-                  <label htmlFor="username" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <label htmlFor="username" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-3">
                     ชื่อผู้ใช้งาน
                   </label>
                   <div className="group relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-500 transition-colors group-focus-within:text-violet-300">
+                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-ink-3 transition-colors group-focus-within:text-accent">
                       <FaUser className="text-sm" />
                     </span>
                     <input
@@ -415,18 +432,18 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                       placeholder="เช่น somchai.j"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="block w-full rounded-xl border border-white/10 bg-[#0c0716]/70 py-3 pl-10 pr-3 text-sm text-slate-100 placeholder:text-slate-600 outline-none transition-all focus:border-violet-300/60 focus:ring-2 focus:ring-violet-400/25"
+                      className="block w-full rounded-xl border border-line bg-raised py-3 pl-10 pr-3 text-sm text-ink placeholder:text-ink-3 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25"
                     />
                   </div>
                 </div>
 
                 {/* Password */}
                 <div>
-                  <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-3">
                     รหัสผ่าน
                   </label>
                   <div className="group relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-500 transition-colors group-focus-within:text-violet-300">
+                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-ink-3 transition-colors group-focus-within:text-accent">
                       <FaLock className="text-sm" />
                     </span>
                     <input
@@ -437,13 +454,13 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full rounded-xl border border-white/10 bg-[#0c0716]/70 py-3 pl-10 pr-12 text-sm text-slate-100 placeholder:text-slate-600 outline-none transition-all focus:border-violet-300/60 focus:ring-2 focus:ring-violet-400/25"
+                      className="block w-full rounded-xl border border-line bg-raised py-3 pl-10 pr-12 text-sm text-ink placeholder:text-ink-3 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
                       tabIndex={-1}
-                      className="absolute inset-y-0 right-3 flex items-center text-slate-500 transition-colors hover:text-violet-300"
+                      className="absolute inset-y-0 right-3 flex items-center text-ink-3 transition-colors hover:text-accent"
                       aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
                     >
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -453,17 +470,17 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
 
                 {/* Row: remember + forgot */}
                 <div className="flex items-center justify-between text-sm">
-                  <label className="flex cursor-pointer items-center gap-2 text-slate-300">
+                  <label className="flex cursor-pointer items-center gap-2 text-ink-2">
                     <input
                       type="checkbox"
                       name="remember-me"
-                      className="h-4 w-4 cursor-pointer rounded border-violet-900 bg-[#0c0716] accent-violet-500 focus:ring-violet-500/40"
+                      className="h-4 w-4 cursor-pointer rounded border-accent-line bg-raised accent-violet-500 focus:ring-violet-500/40"
                     />
                     <span className="text-xs">จดจำฉันไว้</span>
                   </label>
                   <Link
                     href="#"
-                    className="text-xs font-medium text-violet-300/90 transition hover:text-violet-200"
+                    className="text-xs font-medium text-accent transition hover:text-accent"
                   >
                     ลืมรหัสผ่าน?
                   </Link>
@@ -471,7 +488,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
 
                 {/* Error message */}
                 {error && (
-                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+                  <div className="rounded-xl border border-danger-line bg-danger-bg px-4 py-2.5 text-sm text-danger">
                     {error}
                   </div>
                 )}
@@ -480,7 +497,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                 <button
                   type="submit"
                   disabled={loading}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-linear-to-r from-violet-600 to-purple-700 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-violet-950/50 transition-all hover:shadow-violet-800/40 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-linear-to-r from-violet-600 to-purple-700 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-violet-500/25 transition-all hover:shadow-violet-800/40 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
                   {!loading && <FaArrowRight className="text-xs transition-transform group-hover:translate-x-0.5" />}
@@ -490,18 +507,18 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
 
               {/* Divider */}
               <div className="my-6 flex items-center gap-3">
-                <div className="h-px flex-1 bg-white/10" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <div className="h-px flex-1 bg-line" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
                   หรือ
                 </span>
-                <div className="h-px flex-1 bg-white/10" />
+                <div className="h-px flex-1 bg-line" />
               </div>
 
               {/* Helper card */}
-              <div className="rounded-xl border border-white/5 bg-[#0c0716]/50 p-3 text-center">
-                <p className="text-xs text-slate-400">
+              <div className="rounded-xl border border-line-faint bg-raised p-3 text-center">
+                <p className="text-xs text-ink-3">
                   ยังไม่มีสิทธิ์เข้าถึงข้อมูล?{' '}
-                  <a href="#" className="font-medium text-violet-300 hover:text-violet-200">
+                  <a href="#" className="font-medium text-accent hover:text-accent">
                     ติดต่อผู้ดูแลระบบ
                   </a>
                 </p>
@@ -509,10 +526,10 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
             </div>
 
             {/* Bottom legal */}
-            <div className="mt-6 text-center text-[11px] text-slate-500">
+            <div className="mt-6 text-center text-[11px] text-ink-3">
               © {new Date().getFullYear()} PYHOS Workbench
               <span className="mx-2">·</span>
-              <a href="#" className="hover:text-slate-300">นโยบายความเป็นส่วนตัว</a>
+              <a href="#" className="hover:text-ink-2">นโยบายความเป็นส่วนตัว</a>
             </div>
           </div>
         </div>

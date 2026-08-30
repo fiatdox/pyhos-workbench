@@ -13,6 +13,7 @@ import {
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons'
+import { ThemeSegmented, ThemeToggleButton, useTheme } from '@/app/theme'
 
 const { Header, Content } = Layout
 const { Text, Title } = Typography
@@ -37,6 +38,7 @@ export const MENU_ITEMS = [
 export default function AppShell({ user, children }: { user: ShellUser; children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { mode } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -65,16 +67,17 @@ export default function AppShell({ user, children }: { user: ShellUser; children
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#0c0716] text-slate-200 selection:bg-violet-500/30">
-      {/* พื้นหลังโทนม่วงชุดเดียวกับหน้าเข้าสู่ระบบ */}
+    <div className="relative min-h-screen w-full overflow-hidden bg-background text-foreground selection:bg-accent-soft">
+      {/* พื้นหลังโทนม่วงชุดเดียวกับหน้าเข้าสู่ระบบ — สีมาจาก token ตามธีม */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 h-120 w-120 rounded-full bg-violet-600/20 blur-[150px]" />
-        <div className="absolute top-1/4 -right-40 h-130 w-130 rounded-full bg-purple-500/15 blur-[170px]" />
+        <div className="absolute -top-40 -left-40 h-120 w-120 rounded-full bg-(--glow-1) blur-[150px]" />
+        <div className="absolute top-1/4 -right-40 h-130 w-130 rounded-full bg-(--glow-2) blur-[170px]" />
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0"
           style={{
+            opacity: 'var(--grid-opacity)',
             backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)',
+              'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
             backgroundSize: '56px 56px',
           }}
         />
@@ -82,34 +85,38 @@ export default function AppShell({ user, children }: { user: ShellUser; children
 
       <Layout className="relative z-10 min-h-screen bg-transparent">
         {/* ───────────── Navbar ───────────── */}
-        <Header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-white/10 bg-[#0c0716]/80 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+        <Header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-line bg-bar px-4 backdrop-blur-xl sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Button
               type="text"
               aria-label="เปิดเมนูระบบ"
               icon={<MenuOutlined />}
               onClick={() => setMenuOpen(true)}
-              className="text-slate-300! hover:text-white!"
+              className="text-ink-2! hover:text-ink!"
             />
             <Link href="/home" className="flex items-center gap-2.5">
-              <span className="hidden text-base font-semibold tracking-[0.16em] text-white sm:inline">
+              <span className="hidden text-base font-semibold tracking-[0.16em] text-ink sm:inline">
                 PYHOS WORKBENCH
               </span>
-              <span className="text-base font-semibold tracking-[0.16em] text-white sm:hidden">PYHOS</span>
+              <span className="text-base font-semibold tracking-[0.16em] text-ink sm:hidden">PYHOS</span>
             </Link>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setProfileOpen(true)}
-            aria-label="ข้อมูลผู้ใช้งาน"
-            className="flex items-center gap-2.5 rounded-full border border-white/10 py-1 pl-3 pr-1 transition hover:border-violet-300/40"
-          >
-            <span className="hidden text-xs text-slate-300 sm:inline">{user.fullName}</span>
-            <Avatar style={{ backgroundColor: '#6d28d9' }} size={32}>
-              {user.initials || <UserOutlined />}
-            </Avatar>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {/* สลับธีมได้จากทุกหน้า ไม่ต้องเปิดเมนูก่อน */}
+            <ThemeToggleButton />
+            <button
+              type="button"
+              onClick={() => setProfileOpen(true)}
+              aria-label="ข้อมูลผู้ใช้งาน"
+              className="flex items-center gap-2.5 rounded-full border border-line py-1 pl-3 pr-1 transition hover:border-accent"
+            >
+              <span className="hidden text-xs text-ink-2 sm:inline">{user.fullName}</span>
+              <Avatar style={{ backgroundColor: '#6d28d9' }} size={32}>
+                {user.initials || <UserOutlined />}
+              </Avatar>
+            </button>
+          </div>
         </Header>
 
         {/* ───────────── Drawer ซ้าย: เมนูระบบ ───────────── */}
@@ -123,7 +130,7 @@ export default function AppShell({ user, children }: { user: ShellUser; children
         >
           <Menu
             mode="inline"
-            theme="dark"
+            theme={mode}
             selectedKeys={[pathname]}
             onClick={() => setMenuOpen(false)}
             style={{ background: 'transparent', borderInlineEnd: 'none' }}
@@ -133,6 +140,15 @@ export default function AppShell({ user, children }: { user: ShellUser; children
               label: <Link href={item.key}>{item.label}</Link>,
             }))}
           />
+
+          {/* ตัวเลือกโทนสี — วางท้ายเมนู ไม่ปะปนกับรายการหน้าจอ
+              ไม่ปิดลิ้นชักตอนกด จะได้เห็นผลทันทีแล้วเลือกซ้ำได้ */}
+          <div className="border-t border-line px-4 py-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
+              โทนสี
+            </div>
+            <ThemeSegmented />
+          </div>
         </Drawer>
 
         {/* ───────────── Drawer ขวา: ข้อมูลผู้ใช้งาน ───────────── */}

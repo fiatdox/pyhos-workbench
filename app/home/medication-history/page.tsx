@@ -57,7 +57,7 @@ const ReconcilePdfViewer = dynamic(() => import('./reconcile-pdf-viewer'), {
   loading: () => (
     <div className="flex h-full items-center justify-center gap-3">
       <Spin />
-      <span className="text-xs text-slate-400">กำลังสร้างเอกสาร...</span>
+      <span className="text-xs text-ink-3">กำลังสร้างเอกสาร...</span>
     </div>
   ),
 })
@@ -395,7 +395,7 @@ const NOTE_COLUMNS: ColumnsType<PatientNote> = [
 /** หัวข้อย่อยของแต่ละส่วนใน modal รายละเอียด visit */
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+    <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
       {children}
     </div>
   )
@@ -1089,11 +1089,11 @@ export default function MedicationHistoryPage() {
   return (
     <>
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-violet-500/15 text-lg text-violet-200">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg text-accent">
           <MedicineBoxOutlined />
         </div>
         <div>
-          <Title level={3} style={{ color: '#fff', margin: 0 }}>ประวัติการได้รับยา</Title>
+          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>ประวัติการได้รับยา</Title>
           <Paragraph type="secondary" style={{ margin: 0, fontSize: 12 }}>
             ค้นด้วย HN — เลือกช่วงย้อนหลังได้ ครอบคลุมทั้ง OPD, ยากลับบ้าน (HME) และยาต่อเนื่อง (BCH)
           </Paragraph>
@@ -1152,7 +1152,7 @@ export default function MedicationHistoryPage() {
             ไม่ให้ state ภายในของ antd (tooltip/tag ที่ค้างอยู่) ตกค้างข้ามคนไข้ */}
         <div
           key={data.patient.hn}
-          className="flex min-w-0 gap-4 rounded-2xl border border-white/10 bg-white/3 p-3 backdrop-blur-md lg:w-[60%]"
+          className="flex min-w-0 gap-4 rounded-2xl border border-line bg-panel p-3 backdrop-blur-md lg:w-[60%]"
         >
           {/* รูปผู้ป่วยจากตาราง patient_image — ไม่มีรูปก็ไม่กันพื้นที่ไว้ */}
           {data.hasPhoto && (
@@ -1167,7 +1167,7 @@ export default function MedicationHistoryPage() {
           )}
 
           <div className="min-w-0 flex-1">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
             ข้อมูลผู้ป่วย
           </div>
 
@@ -1255,8 +1255,8 @@ export default function MedicationHistoryPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/3 p-3 backdrop-blur-md lg:w-[40%]">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <div className="rounded-2xl border border-line bg-panel p-3 backdrop-blur-md lg:w-[40%]">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
             ข้อมูลเพิ่มเติม
           </div>
           {/* flex-wrap เพราะคอลัมน์ 30% เรียงปุ่มทั้งหมดในบรรทัดเดียวไม่พอ */}
@@ -1697,7 +1697,7 @@ export default function MedicationHistoryPage() {
               {visit.chiefComplaint && (
                 <section>
                   <SectionTitle>อาการสำคัญ</SectionTitle>
-                  <div className="rounded-lg border border-white/10 bg-white/3 p-3 text-sm whitespace-pre-wrap">
+                  <div className="rounded-lg border border-line bg-panel p-3 text-sm whitespace-pre-wrap">
                     {visit.chiefComplaint}
                   </div>
                 </section>
@@ -1707,7 +1707,7 @@ export default function MedicationHistoryPage() {
                 <section>
                   <SectionTitle>ตรวจร่างกาย / บันทึกแพทย์ (PE)</SectionTitle>
                   {/* ข้อความมีการขึ้นบรรทัดของแพทย์เอง ต้องคงไว้ */}
-                  <div className="rounded-lg border border-white/10 bg-white/3 p-3 text-sm whitespace-pre-wrap">
+                  <div className="rounded-lg border border-line bg-panel p-3 text-sm whitespace-pre-wrap">
                     {visit.physicalExam}
                   </div>
                 </section>
@@ -1720,7 +1720,7 @@ export default function MedicationHistoryPage() {
                     {visit.vitals.map(item => (
                       <span
                         key={item.label}
-                        className="rounded-lg border border-white/10 bg-white/3 px-3 py-1.5 leading-tight"
+                        className="rounded-lg border border-line bg-panel px-3 py-1.5 leading-tight"
                       >
                         <span className="mr-2 text-[11px] opacity-60">{item.label}</span>
                         <span className="qty">{item.value}</span>
@@ -1874,7 +1874,7 @@ export default function MedicationHistoryPage() {
         {data ? (
           data.rows.length > 0 ? (
             <>
-              <div className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-300">
+              <div className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-2">
                 <span>คำอธิบายสี:</span>
                 {[...Object.entries(TYPE_STYLE), ['ER', ER_STYLE] as const].map(([key, style]) => (
                   <span key={key} className="flex items-center gap-1.5">
@@ -1882,7 +1882,7 @@ export default function MedicationHistoryPage() {
                     {style.legend}
                   </span>
                 ))}
-                <span className="ml-auto text-slate-400">
+                <span className="ml-auto text-ink-3">
                   {data.rows.length} รายการยา · {data.columns.length} ครั้งที่รับยา
                 </span>
               </div>
@@ -1900,13 +1900,13 @@ export default function MedicationHistoryPage() {
               </div>
             </>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/3 py-16 backdrop-blur-md">
+            <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
               <Empty description={`ไม่พบประวัติการได้รับยาในช่วง ${data.months} เดือนล่าสุด`} />
             </div>
           )
         ) : (
           !loading && (
-            <div className="rounded-2xl border border-white/10 bg-white/3 py-16 backdrop-blur-md">
+            <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
               <Empty description="กรอก HN แล้วกดค้นหา" />
             </div>
           )
