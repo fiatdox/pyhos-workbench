@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { ThemeToggleButton } from '@/app/theme'
 import {
   FaUser,
@@ -32,7 +31,6 @@ const PREVIEW_STATS = [
 const PREVIEW_BARS = [38, 62, 45, 78, 55, 88, 70, 96, 64, 82, 58, 74]
 
 export default function LoginForm({ initialError = '' }: { initialError?: string }) {
-  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -70,10 +68,18 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
     //
     // นโยบายชื่อผู้ใช้โหมด force: พาไปตั้งชื่อใหม่ทันที (backend ปิดกั้น API อื่นไว้อยู่แล้ว
     // ถ้าพิมพ์ URL ตรงก็จะได้ 423 แล้วถูกพากลับมาที่นี่)
-    router.push(json.username_change_required ? '/account/change-username' : '/home')
-    // ล้าง RSC cache ของ router — กันกรณีออกจากระบบแล้วล็อกอินซ้ำในแท็บเดิม
-    // แล้วได้หน้า /home ชุดเก่าที่เรนเดอร์ไว้ด้วยผู้ใช้คนก่อน
-    router.refresh()
+    const destination = json.username_change_required ? '/account/change-username' : '/home'
+
+    // โหลดหน้าใหม่ทั้งหน้า ไม่ใช้ router.push
+    //
+    // ห้ามใช้ router.push() ตามด้วย router.refresh(): refresh ทำงานกับ URL
+    // ปัจจุบันซึ่งตอนนั้นยังเป็นหน้า login อยู่ (push ยังไม่ commit) มันจึงดึง
+    // หน้า login กลับมาทับการเปลี่ยนหน้า ผู้ใช้ค้างอยู่ที่ /?expired=1 พร้อม
+    // ข้อความ "เซสชันหมดอายุ" ทั้งที่ล็อกอินสำเร็จแล้ว
+    //
+    // การโหลดใหม่ทั้งหน้ายังการันตีว่าเซิร์ฟเวอร์เห็น cookie ที่เพิ่งตั้ง และ
+    // ไม่มี RSC cache ของรอบก่อนค้าง (กรณีออกจากระบบแล้วล็อกอินซ้ำในแท็บเดิม)
+    window.location.assign(destination)
   }
 
   const handleLogin = async (e: { preventDefault: () => void }) => {
