@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Cookies from 'js-cookie'
 import { ThemeToggleButton } from '@/app/theme'
 import {
   FaUser,
@@ -60,19 +59,21 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
     if (challengeToken) otpInputRef.current?.focus()
   }, [challengeToken])
 
-  // เก็บ cookie แล้วเข้าระบบ — ใช้ร่วมกันทั้งเส้นทางปกติและเส้นทาง MFA
-  const completeLogin = (json: { token: string; data: { user_type_id: number }; username_change_required?: boolean }) => {
-    // อายุ cookie = 8 ชม. ให้ตรงกับอายุ JWT ฝั่ง backend (exp: '8h')
-    const COOKIE_HOURS = 8 / 24
-    Cookies.set('auth_token', json.token, { expires: COOKIE_HOURS, sameSite: 'Lax' })
-    Cookies.set('user_data', JSON.stringify(json.data), { expires: COOKIE_HOURS, sameSite: 'Lax' })
-    Cookies.set('user_type_id', String(json.data.user_type_id), { expires: COOKIE_HOURS, sameSite: 'Lax' })
+  // เข้าระบบ — ใช้ร่วมกันทั้งเส้นทางปกติและเส้นทาง MFA
+  //
+  // ไม่มีการเก็บ cookie ตรงนี้แล้ว: เซิร์ฟเวอร์ตั้ง auth_token แบบ httpOnly
+  // มาให้ใน response ของ /api/auth/login และ /api/auth/verify-otp
+  // (ดู buildLoginSuccess) หน้าเว็บจึงอ่าน token ไม่ได้ และไม่จำเป็นต้องอ่าน
+  const completeLogin = (json: { username_change_required?: boolean }) => {
     // นโยบายอายุรหัสผ่าน: ไม่บล็อกที่นี่ — เข้าใช้งานได้ตามปกติ
     // แถบเตือนจะคำนวณจากวันที่เปลี่ยนรหัสล่าสุดผ่าน /users/me/password-status บนทุกหน้า
     //
     // นโยบายชื่อผู้ใช้โหมด force: พาไปตั้งชื่อใหม่ทันที (backend ปิดกั้น API อื่นไว้อยู่แล้ว
     // ถ้าพิมพ์ URL ตรงก็จะได้ 423 แล้วถูกพากลับมาที่นี่)
     router.push(json.username_change_required ? '/account/change-username' : '/home')
+    // ล้าง RSC cache ของ router — กันกรณีออกจากระบบแล้วล็อกอินซ้ำในแท็บเดิม
+    // แล้วได้หน้า /home ชุดเก่าที่เรนเดอร์ไว้ด้วยผู้ใช้คนก่อน
+    router.refresh()
   }
 
   const handleLogin = async (e: { preventDefault: () => void }) => {

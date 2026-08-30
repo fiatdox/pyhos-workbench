@@ -1,5 +1,3 @@
-import Cookies from 'js-cookie'
-
 /**
  * จัดการกรณี token หมดอายุฝั่งหน้าเว็บ
  *
@@ -13,11 +11,24 @@ export const SESSION_EXPIRED_PARAM = 'expired'
 
 export const SESSION_EXPIRED_MESSAGE = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
 
-/** ล้าง cookie ของเซสชันแล้วกลับไปหน้าเข้าสู่ระบบ */
-export function goToLogin() {
-  Cookies.remove('auth_token')
-  Cookies.remove('user_data')
-  Cookies.remove('user_type_id')
+/**
+ * ล้างเซสชันแล้วกลับไปหน้าเข้าสู่ระบบ
+ *
+ * auth_token เป็น httpOnly แล้ว JS จึงลบเองไม่ได้ ต้องให้เซิร์ฟเวอร์ล้างให้
+ * ผ่าน /api/auth/logout — เส้นทางนี้ถูกเรียกเมื่อ token ใช้ไม่ได้แล้วเท่านั้น
+ * ปลายทางจึงตรวจแล้วไม่พบ claims และจะไม่ยิงแจ้งเตือนหมอพร้อม (ซึ่งถูกต้อง
+ * เพราะเป็นเซสชันหมดอายุ ไม่ใช่ผู้ใช้กดออกเอง)
+ */
+export async function goToLogin() {
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+  } catch {
+    // ล้างไม่สำเร็จก็ยังต้องพากลับหน้า login — token ที่ค้างอยู่ใช้ไม่ได้อยู่แล้ว
+  }
   // ใช้ location.replace ไม่ใช่ router.push — ล้าง state ของหน้าที่ค้างอยู่ให้หมด
   // และไม่ให้ปุ่ม back ย้อนกลับมาหน้าที่เข้าไม่ได้แล้ว
   window.location.replace(`/?${SESSION_EXPIRED_PARAM}=1`)
@@ -38,7 +49,9 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
   })
 
   if (res.status === 401) {
-    goToLogin()
+    // ไม่ await — คืน promise ที่ไม่ resolve ให้ผู้เรียกค้างที่สถานะกำลังโหลด
+    // จนกว่าเบราว์เซอร์จะเปลี่ยนหน้าเสร็จ
+    void goToLogin()
     return new Promise<Response>(() => {})
   }
 

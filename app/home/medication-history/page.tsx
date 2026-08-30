@@ -2,7 +2,6 @@
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
 import { useRef, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
-import Cookies from 'js-cookie'
 import {
   Alert,
   Button,
@@ -21,6 +20,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { apiFetch } from '@/lib/client/session'
+import { useSessionUser } from '../app-shell'
 import {
   ExperimentOutlined,
   FileImageOutlined,
@@ -104,24 +104,6 @@ function toThaiDate(value: string | null): string | null {
   if (!match) return value
   const [, year, month, day, time] = match
   return `${day}/${month}/${Number(year) + 543}${time ? ` ${time}` : ''}`
-}
-
-/**
- * ชื่อผู้ที่กำลังใช้งาน — ใช้กำกับท้ายใบพิมพ์ว่าใครเป็นคนพิมพ์ออกมา
- * อ่านจาก cookie user_data ที่ตั้งไว้ตอนเข้าสู่ระบบ ไม่ได้ยิง API เพิ่ม
- */
-function currentUserName(): string {
-  try {
-    const raw = Cookies.get('user_data')
-    if (!raw) return '—'
-    const user = JSON.parse(raw) as { full_name?: unknown; username?: unknown }
-    if (typeof user.full_name === 'string' && user.full_name) return user.full_name
-    if (typeof user.username === 'string' && user.username) return user.username
-    return '—'
-  } catch {
-    // cookie เสียหรือรูปแบบเปลี่ยน ไม่ควรทำให้พิมพ์เอกสารไม่ได้
-    return '—'
-  }
 }
 
 /**
@@ -572,6 +554,9 @@ function UsageSelect({ value, onChange }: { value: string; onChange: (next: stri
 }
 
 export default function MedicationHistoryPage() {
+  // ผู้ที่กำลังใช้งาน — ใช้กำกับท้ายใบพิมพ์ว่าใครเป็นคนพิมพ์ออกมา
+  // มาจาก home/layout.tsx ที่ตรวจ token แล้วดึงจากฐานข้อมูล ไม่ได้อ่านจาก cookie
+  const sessionUser = useSessionUser()
   const [hn, setHn] = useState('')
   /** HN ของผู้ป่วยที่กำลังแสดงอยู่ — ใช้ตอนเปลี่ยนช่วงเดือน (ช่องค้นอาจเป็นชื่อหรือเลขบัตร) */
   const [activeHn, setActiveHn] = useState('')
@@ -920,7 +905,7 @@ export default function MedicationHistoryPage() {
         }
       }),
       printedAt: new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }),
-      printedBy: currentUserName(),
+      printedBy: sessionUser?.fullName || sessionUser?.username || '—',
     }
   }
 

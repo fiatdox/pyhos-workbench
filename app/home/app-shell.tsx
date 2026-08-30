@@ -1,8 +1,7 @@
 'use client'
-import { useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import Cookies from 'js-cookie'
 import { Avatar, Button, Descriptions, Divider, Drawer, Layout, Menu, Tag, Typography } from 'antd'
 import {
   DashboardOutlined,
@@ -28,6 +27,20 @@ export type ShellUser = {
   initials: string
 }
 
+/**
+ * ข้อมูลผู้ใช้ที่กำลังล็อกอิน ส่งต่อให้หน้าลูกที่เป็น client component
+ *
+ * เดิมหน้าลูกอ่านจาก cookie user_data ซึ่งเป็น cookie ธรรมดาที่ JS อ่านได้
+ * และมีข้อมูลระบุตัวตนอยู่ข้างใน ตอนนี้ home/layout.tsx ดึงจากฐานข้อมูล
+ * แล้วส่งลงมาเป็น prop อยู่แล้ว จึงกระจายต่อผ่าน context แทน — ไม่ต้องมี
+ * ข้อมูลผู้ใช้ค้างอยู่ในเบราว์เซอร์
+ */
+const SessionUserContext = createContext<ShellUser | null>(null)
+
+export function useSessionUser(): ShellUser | null {
+  return useContext(SessionUserContext)
+}
+
 /** เมนูของระบบ — key คือ path จริง กดแล้วพาไปหน้านั้นเลย */
 export const MENU_ITEMS = [
   { key: '/home', icon: <DashboardOutlined />, label: 'หน้าแรก' },
@@ -47,7 +60,8 @@ export default function AppShell({ user, children }: { user: ShellUser; children
     if (leaving) return
     setLeaving(true)
     try {
-      // แจ้งฝั่งเซิร์ฟเวอร์ก่อนล้าง cookie — ไม่งั้นเซิร์ฟเวอร์จะไม่รู้ว่าใครออก
+      // เซิร์ฟเวอร์เป็นผู้ล้าง cookie ให้ — auth_token เป็น httpOnly แล้ว
+      // JS ลบเองไม่ได้ ถ้า request นี้ไม่ถึงปลายทาง เซสชันจะยังไม่ถูกล้าง
       // keepalive: ให้ request รอดแม้เบราว์เซอร์เริ่มเปลี่ยนหน้าไปแล้ว
       await fetch('/api/auth/logout', {
         method: 'POST',
@@ -56,12 +70,12 @@ export default function AppShell({ user, children }: { user: ShellUser; children
         keepalive: true,
       })
     } catch (error) {
-      // แจ้งเตือนล้มก็ยังต้องออกจากระบบให้ได้ — แต่ให้เห็นสาเหตุใน console
+      // ถึงตรงนี้แปลว่า cookie อาจยังอยู่ — ใช้ replace ทั้งหน้าแทน router
+      // เพื่อบังคับให้เซิร์ฟเวอร์ตรวจ cookie ใหม่ ไม่ใช่แค่เปลี่ยนหน้าฝั่ง client
       console.error('[logout] แจ้งเซิร์ฟเวอร์ไม่สำเร็จ:', error)
+      window.location.replace('/')
+      return
     }
-    Cookies.remove('auth_token')
-    Cookies.remove('user_data')
-    Cookies.remove('user_type_id')
     router.replace('/')
     router.refresh()
   }
@@ -194,7 +208,9 @@ export default function AppShell({ user, children }: { user: ShellUser; children
         </Drawer>
 
         {/* เต็มความกว้างจอ — ตารางประวัติยามีคอลัมน์เยอะ ยิ่งกว้างยิ่งเห็นหลายครั้งที่รับยาพร้อมกัน */}
-        <Content className="w-full px-4 py-8 sm:px-6 lg:px-8">{children}</Content>
+        <Content className="w-full px-4 py-8 sm:px-6 lg:px-8">
+          <SessionUserContext.Provider value={user}>{children}</SessionUserContext.Provider>
+        </Content>
       </Layout>
     </div>
   )
