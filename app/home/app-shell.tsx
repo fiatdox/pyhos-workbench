@@ -9,6 +9,7 @@ import {
   LogoutOutlined,
   MedicineBoxOutlined,
   MenuOutlined,
+  ProfileOutlined,
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -46,6 +47,7 @@ export const MENU_ITEMS = [
   { key: '/home', icon: <DashboardOutlined />, label: 'หน้าแรก' },
   { key: '/home/medication-history', icon: <MedicineBoxOutlined />, label: 'ประวัติการได้รับยา' },
   { key: '/home/hla-b5801', icon: <ExperimentOutlined />, label: 'ผลตรวจ HLA-B*5801' },
+  { key: '/home/drug-profile', icon: <ProfileOutlined />, label: 'Drug Profile ผู้ป่วยใน' },
 ]
 
 export default function AppShell({ user, children }: { user: ShellUser; children: ReactNode }) {

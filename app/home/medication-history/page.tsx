@@ -1,6 +1,6 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
-import { useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import {
   Alert,
@@ -21,6 +21,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { apiFetch } from '@/lib/client/session'
 import { useSessionUser } from '../app-shell'
+import { UsageSelect } from '../usage-select'
+import LabCultureModal from '../lab-culture-modal'
 import {
   ExperimentOutlined,
   FileImageOutlined,
@@ -38,7 +40,6 @@ import {
 import type { MedicationColumn, MedicationHistory, MedicationRow } from '@/lib/his/medication-history'
 import type { ConditionKey } from '@/lib/his/conditions'
 import type { DentalNote } from '@/lib/his/dental-notes'
-import type { DrugUsageOption } from '@/lib/his/drug-usage'
 import type { PatientMatch } from '@/lib/his/patient-search'
 import type { PatientNote } from '@/lib/his/patient-notes'
 import type { OpdScanItem } from '@/lib/his/opd-scan'
@@ -124,13 +125,6 @@ const NO_POSITION = '__none__'
 
 /** ค่าแทนผู้บันทึกที่หาชื่อไม่เจอ ใช้ในตัวกรองของตาราง PE */
 const NO_DOCTOR = '__none__'
-
-/**
- * ต้องพิมพ์กี่ตัวอักษรถึงจะเริ่มค้นวิธีใช้ยา
- * ซ้ำกับ MIN_USAGE_SEARCH ใน lib/his/drug-usage.ts เพราะโมดูลนั้นเป็น server-only
- * ฝั่งเซิร์ฟเวอร์เป็นตัวบังคับจริง ค่านี้ใช้แค่บอกผู้ใช้ก่อนยิง API
- */
-const MIN_USAGE_SEARCH = 3
 
 /** คอลัมน์ในตารางประวัติผลตรวจร่างกาย (opdscreen.pe) */
 const PE_COLUMNS: ColumnsType<PhysicalExam> = [
@@ -483,76 +477,6 @@ const LAB_COLUMNS: ColumnsType<VisitLab> = [
   },
 ]
 
-/**
- * ช่องเลือกวิธีใช้ยา — ค้นจาก drugusage.code (พิมพ์อย่างน้อย 3 ตัวอักษร)
- * เมื่อเลือกแล้วจะเก็บ shortlist ซึ่งเป็นข้อความที่ใช้พิมพ์ฉลากยาจริง
- */
-function UsageSelect({ value, onChange }: { value: string; onChange: (next: string) => void }) {
-  const [options, setOptions] = useState<DrugUsageOption[]>([])
-  const [searching, setSearching] = useState(false)
-  const [hint, setHint] = useState(`พิมพ์อย่างน้อย ${MIN_USAGE_SEARCH} ตัวอักษรเพื่อค้น`)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const search = (term: string) => {
-    if (timer.current) clearTimeout(timer.current)
-    const keyword = term.trim()
-    if (keyword.length < MIN_USAGE_SEARCH) {
-      setOptions([])
-      setSearching(false)
-      setHint(`พิมพ์อย่างน้อย ${MIN_USAGE_SEARCH} ตัวอักษรเพื่อค้น`)
-      return
-    }
-    setSearching(true)
-    // หน่วงไว้ก่อน ไม่ยิงทุกตัวอักษรที่พิมพ์
-    timer.current = setTimeout(async () => {
-      try {
-        const res = await apiFetch(`/api/his/drug-usage?q=${encodeURIComponent(keyword)}`)
-        const json = await res.json()
-        if (!res.ok || !json.success) {
-          setOptions([])
-          setHint(json.message ?? 'ค้นวิธีใช้ยาไม่สำเร็จ')
-          return
-        }
-        const found = json.options as DrugUsageOption[]
-        setOptions(found)
-        setHint(found.length === 0 ? 'ไม่พบวิธีใช้ที่ตรงกับคำค้น' : '')
-      } catch {
-        setOptions([])
-        setHint('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
-      } finally {
-        setSearching(false)
-      }
-    }, 300)
-  }
-
-  return (
-    <Select
-      size="small"
-      allowClear
-      className="w-full"
-      placeholder="ค้นรหัสวิธีใช้ เช่น 1x3pc"
-      // ค้นที่ฝั่งฐานข้อมูล จึงไม่ให้ antd กรองตัวเลือกซ้ำอีกชั้น
-      showSearch={{ onSearch: search, filterOption: false }}
-      value={value || undefined}
-      loading={searching}
-      onChange={next => onChange(next ?? '')}
-      notFoundContent={
-        searching ? <Spin size="small" /> : <Text type="secondary" className="text-[11px]">{hint}</Text>
-      }
-      // ค่าที่เก็บคือ shortlist — ข้อความที่ใช้พิมพ์ฉลากยา ส่วน code ใช้แค่ตอนค้น
-      options={options.map(option => ({ value: option.shortlist, label: option.shortlist }))}
-      optionRender={option => (
-        <div className="leading-snug">
-          <div className="font-mono text-xs">
-            {options.find(item => item.shortlist === option.value)?.code}
-          </div>
-          <div className="text-[11px] opacity-70">{option.value}</div>
-        </div>
-      )}
-    />
-  )
-}
-
 export default function MedicationHistoryPage() {
   // ผู้ที่กำลังใช้งาน — ใช้กำกับท้ายใบพิมพ์ว่าใครเป็นคนพิมพ์ออกมา
   // มาจาก home/layout.tsx ที่ตรวจ token แล้วดึงจากฐานข้อมูล ไม่ได้อ่านจาก cookie
@@ -587,6 +511,7 @@ export default function MedicationHistoryPage() {
   const [scanLoading, setScanLoading] = useState(false)
   const [scanError, setScanError] = useState('')
   const [scanVn, setScanVn] = useState<string | null>(null)
+  const [labOpen, setLabOpen] = useState(false)
   const [reconcileOpen, setReconcileOpen] = useState(false)
   /** ค่าที่แพทย์แก้ไว้ในหน้า Med Reconcile เก็บตาม icode — ยังไม่ถูกส่งกลับไป HIS */
   const [reconcileEdits, setReconcileEdits] = useState<
@@ -1063,7 +988,9 @@ export default function MedicationHistoryPage() {
           return (
             <div className="leading-snug">
               <div className="qty">{cell.qty}</div>
-              {cell.usage && <div className="mt-0.5 text-[11px] opacity-65">{cell.usage}</div>}
+              {/* วิธีใช้ยาเป็นข้อความที่ต้องอ่านจริง ไม่ใช่ป้ายกำกับ จึงใช้ขนาดเดียวกับตัวเนื้อหา
+                  และไม่หรี่ความทึบลงมากเหมือนข้อความรอง */}
+              {cell.usage && <div className="mt-0.5 text-xs opacity-85">{cell.usage}</div>}
             </div>
           )
         },
@@ -1277,6 +1204,16 @@ export default function MedicationHistoryPage() {
             >
               X-ray Report
             </Button>
+            {/* แสดงเฉพาะผู้ป่วยที่มีผลแล็บแบบเอกสารจริง — นับตอนโหลดหน้ามาแล้ว */}
+            {data.labCultureCount > 0 && (
+              <Button
+                size="small"
+                icon={<ExperimentOutlined />}
+                onClick={() => setLabOpen(true)}
+              >
+                Lab Culture ({data.labCultureCount})
+              </Button>
+            )}
             {/* แสดงเฉพาะผู้ป่วยที่เคยตรวจ HLA-B*5801 — ไม่เคยตรวจก็ไม่มีปุ่มให้กด */}
             {data.hlaResults.length > 0 && (
               <Button size="small" icon={<ExperimentOutlined />} onClick={() => setHlaOpen(true)}>
@@ -1758,6 +1695,13 @@ export default function MedicationHistoryPage() {
           )}
         </Spin>
       </Modal>
+
+      <LabCultureModal
+        open={labOpen}
+        onClose={() => setLabOpen(false)}
+        hn={data?.patient?.hn ?? null}
+        patientName={data?.patient?.name}
+      />
 
       {/* ───────────── Modal: Med Reconcile ───────────── */}
       <Modal

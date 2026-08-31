@@ -4,6 +4,7 @@ import { hisDb } from '@/lib/db/his'
 import { getPatientConditions, type PatientCondition } from './conditions'
 import { listHlaResults, type HlaResult } from './hla-b5801'
 import { hasPatientImage } from './patient-image'
+import { countLabCultures } from './lab-culture'
 
 /**
  * ประวัติการได้รับยา — พอร์ตมาจากสคริปต์ PHP เดิม (hos1/MariaDB)
@@ -106,6 +107,8 @@ export type MedicationHistory = {
   hlaResults: HlaResult[]
   /** มีรูปผู้ป่วยในระบบหรือไม่ (ตัวรูปโหลดแยกผ่าน /api/his/patient-image) */
   hasPhoto: boolean
+  /** จำนวนผลแล็บแบบเอกสารที่มีเนื้อความจริง — 0 คือไม่ต้องขึ้นปุ่มให้กด */
+  labCultureCount: number
   columns: MedicationColumn[]
   rows: MedicationRow[]
 }
@@ -168,7 +171,7 @@ async function loadPatient(hn: string): Promise<PatientInfo | null> {
  * ประวัติแพ้ยาจาก opd_allergy — ดึงทั้งหมดไม่จำกัดช่วงเวลา
  * ตัวยาเดียวกันถูกบันทึกซ้ำได้หลายครั้ง จึงเก็บเฉพาะรายการล่าสุดของแต่ละตัวยา
  */
-async function loadAllergies(hn: string): Promise<DrugAllergy[]> {
+export async function loadAllergies(hn: string): Promise<DrugAllergy[]> {
   const rows = await query(sql`
     SELECT a.agent, a.symptom, s.seiousness_name AS seriousness, a.note, a.reporter,
            DATE_FORMAT(a.report_date, '%Y-%m-%d') AS report_date
@@ -399,11 +402,12 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
   if (!patient) {
     return {
       months, patient: null, allergies: [], conditions: [], hlaResults: [],
-      hasPhoto: false, columns: [], rows: [],
+      hasPhoto: false, labCultureCount: 0, columns: [], rows: [],
     }
   }
 
-  const [columns, drugs, allergies, conditions, hlaResults, hasPhoto] = await Promise.all([
+  const [columns, drugs, allergies, conditions, hlaResults, hasPhoto, labCultureCount] =
+    await Promise.all([
     loadColumns(hn, months),
     loadDrugRows(hn, months),
     loadAllergies(hn),
@@ -411,6 +415,8 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
     // ผลตรวจ HLA-B*5801 ไม่จำกัดช่วงเวลา ตรวจครั้งเดียวใช้ได้ตลอดชีวิต
     listHlaResults({ hn }),
     hasPatientImage(hn),
+    // นับไว้ตั้งแต่ตอนโหลดหน้า เพื่อให้รู้ว่าจะขึ้นปุ่ม Lab Culture หรือไม่
+    countLabCultures(hn),
   ])
   const cells = await loadCells(hn, months, columns)
 
@@ -432,5 +438,8 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
     return { ...drug, cells: own }
   })
 
-  return { months, patient: summary, allergies, conditions, hlaResults, hasPhoto, columns, rows }
+  return {
+    months, patient: summary, allergies, conditions, hlaResults,
+    hasPhoto, labCultureCount, columns, rows,
+  }
 }

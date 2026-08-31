@@ -1,0 +1,41 @@
+import { cookies } from 'next/headers'
+import { verifyAuthToken } from '@/lib/auth/jwt'
+import { listLabCultures } from '@/lib/his/lab-culture'
+import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+const PER_IP = { limit: 60, windowSeconds: 300 }
+const HN_RE = /^\d{9}$/
+
+export async function GET(request: Request) {
+  const token = (await cookies()).get('auth_token')?.value
+  const claims = token ? await verifyAuthToken(token) : null
+  if (!claims?.sub) {
+    return Response.json({ success: false, message: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
+  }
+
+  const ip = clientIp(request)
+  const limited = rateLimit(`his-lab-cul:${claims.sub}:${ip}`, PER_IP.limit, PER_IP.windowSeconds)
+  if (!limited.ok) {
+    return tooManyRequests(limited.retryAfterSeconds, 'เรียกดูบ่อยเกินไป กรุณารอสักครู่')
+  }
+
+  const raw = (new URL(request.url).searchParams.get('hn') ?? '').replace(/\D/g, '')
+  const hn = raw.length > 0 && raw.length <= 9 ? raw.padStart(9, '0') : raw
+  if (!HN_RE.test(hn)) {
+    return Response.json({ success: false, message: 'HN ต้องเป็นตัวเลขไม่เกิน 9 หลัก' }, { status: 400 })
+  }
+
+  try {
+    const items = await listLabCultures(hn)
+    return Response.json({ success: true, hn, items })
+  } catch (error) {
+    console.error('[his/lab-culture] ล้มเหลว:', error)
+    return Response.json(
+      { success: false, message: 'ดึงรายการผลแล็บไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' },
+      { status: 500 },
+    )
+  }
+}

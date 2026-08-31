@@ -70,6 +70,14 @@
   --hero-wash: linear-gradient(to bottom right, rgba(12, 7, 22, 0.95), rgba(22, 12, 43, 0.85), rgba(42, 17, 82, 0.7));
   --hero-fade: linear-gradient(to top, #0c0716, transparent, rgba(12, 7, 22, 0.6));
   --hero-vignette: inset 0 0 220px 80px #0c0716;
+
+  /* ช่องรายวันในตาราง Drug Profile — ม่วง = Continue, ส้ม = STAT
+     ต้องเป็น token ตามธีม ไม่ใช่ dark: ของ Tailwind เพราะ dark: ผูกกับ
+     prefers-color-scheme ของเครื่อง ไม่ได้ผูกกับ data-theme ที่ผู้ใช้เลือกเอง */
+  --plan-cont-bg: rgba(139, 92, 246, 0.28);
+  --plan-cont-ink: #ede9fe;
+  --plan-stat-bg: rgba(245, 158, 11, 0.28);
+  --plan-stat-ink: #fef3c7;
 }
 
 /* พาสเทลม่วง–ขาว: พื้นขาวนวลอมม่วง ตัวอักษรม่วงเข้ม เส้นขอบเป็นม่วงจาง ๆ
@@ -120,6 +128,12 @@
   --hero-wash: linear-gradient(to bottom right, rgba(250, 247, 255, 0.92), rgba(243, 237, 255, 0.85), rgba(237, 233, 254, 0.8));
   --hero-fade: linear-gradient(to top, #faf7ff, transparent, rgba(250, 247, 255, 0.65));
   --hero-vignette: inset 0 0 220px 80px rgba(250, 247, 255, 0.9);
+
+  /* พื้นอ่อนลงและตัวเลขเป็นสีเข้ม — บนพื้นขาวถ้าใช้ชุดของธีมมืดจะจางจนอ่านไม่ออก */
+  --plan-cont-bg: rgba(124, 58, 237, 0.14);
+  --plan-cont-ink: #5b21b6;
+  --plan-stat-bg: rgba(217, 119, 6, 0.18);
+  --plan-stat-ink: #92400e;
 }
 
 @theme inline {

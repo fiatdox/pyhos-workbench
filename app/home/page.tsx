@@ -3,7 +3,12 @@
 // (การตรวจสิทธิ์ยังทำที่ app/home/layout.tsx ซึ่งเป็น Server Component)
 import Link from 'next/link'
 import { Card, Typography } from 'antd'
-import { ExperimentOutlined, MedicineBoxOutlined, RightOutlined } from '@ant-design/icons'
+import {
+  ExperimentOutlined,
+  MedicineBoxOutlined,
+  ProfileOutlined,
+  RightOutlined,
+} from '@ant-design/icons'
 
 const { Paragraph, Title } = Typography
 
@@ -20,6 +25,12 @@ const FEATURES = [
     icon: <ExperimentOutlined />,
     title: 'ผลตรวจ HLA-B*5801',
     desc: 'ผู้ป่วยที่รายงานผล HLA-B*5801 แล้ว ค้นตามช่วงวันที่และเปิดดูรูปใบรายงาน',
+  },
+  {
+    href: '/home/drug-profile',
+    icon: <ProfileOutlined />,
+    title: 'Drug Profile ผู้ป่วยใน',
+    desc: 'ตรวจสอบการให้ยาของผู้ป่วยใน รายบุคคลตลอดการนอนโรงพยาบาล',
   },
 ]
 

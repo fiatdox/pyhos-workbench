@@ -67,7 +67,12 @@ export type ReconcilePrintData = {
   hn: string
   name: string
   age: string
-  months: number
+  /** ย้อนหลังกี่เดือน — ใบของผู้ป่วยนอก ถ้าไม่ส่งต้องส่ง periodLabel มาแทน */
+  months?: number
+  /** ข้อความช่อง "ช่วงข้อมูล" แบบกำหนดเอง เช่น ใบผู้ป่วยในที่นับเป็นวันนอน ไม่ใช่เดือน */
+  periodLabel?: string
+  /** AN ของการนอนครั้งนี้ — มีเฉพาะใบของผู้ป่วยใน */
+  an?: string
   allergies: string[]
   items: ReconcilePrintItem[]
   printedAt: string
@@ -266,9 +271,15 @@ export function ReconcileDocument({ data }: { data: ReconcilePrintData }) {
               <Text style={styles.labelText}>อายุ </Text>
               {data.age}
             </Text>
+            {data.an && (
+              <Text style={styles.patientCell}>
+                <Text style={styles.labelText}>AN </Text>
+                {data.an}
+              </Text>
+            )}
             <Text style={styles.patientCell}>
               <Text style={styles.labelText}>ช่วงข้อมูล </Text>
-              ย้อนหลัง {data.months} เดือน
+              {data.periodLabel ?? `ย้อนหลัง ${data.months} เดือน`}
             </Text>
           </View>
           <Text style={styles.allergy}>
