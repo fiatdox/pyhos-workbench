@@ -78,6 +78,29 @@
   --plan-cont-ink: #ede9fe;
   --plan-stat-bg: rgba(245, 158, 11, 0.28);
   --plan-stat-ink: #fef3c7;
+
+  /* ช่องค่าแล็บในใบคำขอ DUE — ป้ายเป็นชิปเหลืองทึบ ตัวอักษรน้ำตาลเข้ม
+     ใช้ตัวอักษรเข้มบนพื้นเหลืองทั้งสองธีม เพราะเหลืองสว่างเกินกว่าจะรองรับ
+     ตัวอักษรขาวได้ (ขาวบนเหลืองได้อัตราส่วนแค่ ~1.7:1 อ่านไม่ออก)
+     ธีมมืดใช้เหลืองสว่างขึ้นหนึ่งขั้นเพื่อให้ชิปเด่นออกจากพื้นม่วงเข้ม */
+  --lab-chip-bg: #fbbf24;
+  --lab-chip-ink: #3b2500;
+  --lab-line: rgba(251, 191, 36, 0.4);
+  --lab-bg: rgba(245, 158, 11, 0.07);
+
+  /* แท็บข้อมูลประกอบในหน้าประเมิน DUE — คนละสีต่อหนึ่งชุดข้อมูล
+     เภสัชกรสลับไปมาระหว่างสามชุดตลอดการกรอก สีช่วยให้รู้ทันทีว่ากำลังดูชุดไหน
+     โดยไม่ต้องอ่านป้าย เลี่ยงม่วงเพราะชนกับ accent ของทั้งระบบ
+     บนพื้นม่วงเข้มใช้สีสว่างและพื้นโปร่งเข้ม ๆ ให้ตัวอักษรลอยขึ้นมา */
+  --ref-renal-ink: #38bdf8;
+  --ref-renal-bg: rgba(56, 189, 248, 0.18);
+  --ref-renal-line: rgba(56, 189, 248, 0.45);
+  --ref-culture-ink: #fb7185;
+  --ref-culture-bg: rgba(251, 113, 133, 0.18);
+  --ref-culture-line: rgba(251, 113, 133, 0.45);
+  --ref-abx-ink: #34d399;
+  --ref-abx-bg: rgba(52, 211, 153, 0.18);
+  --ref-abx-line: rgba(52, 211, 153, 0.45);
 }
 
 /* พาสเทลม่วง–ขาว: พื้นขาวนวลอมม่วง ตัวอักษรม่วงเข้ม เส้นขอบเป็นม่วงจาง ๆ
@@ -134,6 +157,24 @@
   --plan-cont-ink: #5b21b6;
   --plan-stat-bg: rgba(217, 119, 6, 0.18);
   --plan-stat-ink: #92400e;
+
+  /* บนพื้นขาวใช้เหลืองเข้มลงหนึ่งขั้น ไม่งั้นชิปจะกลืนไปกับพื้น */
+  --lab-chip-bg: #f59e0b;
+  --lab-chip-ink: #3b2500;
+  --lab-line: rgba(217, 119, 6, 0.32);
+  --lab-bg: rgba(245, 158, 11, 0.09);
+
+  /* บนพื้นขาวต้องลดความสว่างลงสองขั้น ไม่งั้นตัวอักษรอ่านไม่ออก
+     และพื้นแท็บต้องจางลงด้วยเพราะพื้นหลังเป็นขาว ไม่ใช่ม่วงเข้ม */
+  --ref-renal-ink: #0369a1;
+  --ref-renal-bg: rgba(2, 132, 199, 0.1);
+  --ref-renal-line: rgba(2, 132, 199, 0.35);
+  --ref-culture-ink: #be123c;
+  --ref-culture-bg: rgba(225, 29, 72, 0.09);
+  --ref-culture-line: rgba(225, 29, 72, 0.32);
+  --ref-abx-ink: #047857;
+  --ref-abx-bg: rgba(5, 150, 105, 0.1);
+  --ref-abx-line: rgba(5, 150, 105, 0.32);
 }
 
 @theme inline {
@@ -168,6 +209,23 @@
   --color-danger: var(--danger-text);
   --color-danger-bg: var(--danger-bg);
   --color-danger-line: var(--danger-line);
+
+  /* ช่องค่าแล็บ (โทนเหลือง) */
+  --color-lab-chip: var(--lab-chip-bg);
+  --color-lab-chip-ink: var(--lab-chip-ink);
+  --color-lab-line: var(--lab-line);
+  --color-lab-bg: var(--lab-bg);
+
+  /* แท็บข้อมูลประกอบ (หน้าประเมิน DUE) */
+  --color-ref-renal: var(--ref-renal-ink);
+  --color-ref-renal-bg: var(--ref-renal-bg);
+  --color-ref-renal-line: var(--ref-renal-line);
+  --color-ref-culture: var(--ref-culture-ink);
+  --color-ref-culture-bg: var(--ref-culture-bg);
+  --color-ref-culture-line: var(--ref-culture-line);
+  --color-ref-abx: var(--ref-abx-ink);
+  --color-ref-abx-bg: var(--ref-abx-bg);
+  --color-ref-abx-line: var(--ref-abx-line);
 }
 
 body {
@@ -264,4 +322,26 @@ body {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 15px;
+}
+
+/* ───────── ช่องค่าแล็บในใบคำขอ DUE ─────────
+   ป้ายชื่อค่าเป็นชิปเหลืองต่อกับช่องกรอกเป็นชิ้นเดียว จึงต้องลบมุมโค้งด้านซ้าย
+   ของตัวควบคุมออก ใช้ค่า logical (start) เพื่อให้ยังถูกด้านเมื่อเป็นภาษาขวาไปซ้าย
+
+   ต้องใช้ !important เพราะ cssinjs ของ antd ฉีดสไตล์เข้า <head> ทีหลังไฟล์นี้
+   — เหตุผลเดียวกับบล็อกลิ้นชักด้านบน */
+.lab-control .ant-input-outlined,
+.lab-control .ant-input-number,
+.lab-control .ant-picker {
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+  border-color: var(--lab-line) !important;
+}
+
+/* ตอนโฟกัสให้กลับไปใช้สีเน้นของธีมตามปกติ ไม่งั้นจะดูเหมือนช่องไม่รับโฟกัส */
+.lab-control .ant-input-outlined:focus,
+.lab-control .ant-input-outlined:focus-within,
+.lab-control .ant-input-number-focused,
+.lab-control .ant-picker-focused {
+  border-color: var(--accent) !important;
 }

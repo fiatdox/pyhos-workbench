@@ -4,6 +4,7 @@
 import Link from 'next/link'
 import { Card, Typography } from 'antd'
 import {
+  AuditOutlined,
   ExperimentOutlined,
   MedicineBoxOutlined,
   ProfileOutlined,
@@ -32,6 +33,12 @@ const FEATURES = [
     title: 'Drug Profile ผู้ป่วยใน',
     desc: 'ตรวจสอบการให้ยาของผู้ป่วยใน รายบุคคลตลอดการนอนโรงพยาบาล',
   },
+  {
+    href: '/home/due',
+    icon: <AuditOutlined />,
+    title: 'DUE ขออนุมัติใช้ยา',
+    desc: 'แพทย์สั่งยากลุ่ม DUE เภสัชกรวิเคราะห์ความสมเหตุสมผล แพทย์กำกับอนุมัติ',
+  },
 ]
 
 export default function HomePage() {
@@ -52,22 +59,23 @@ export default function HomePage() {
         </Paragraph>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {FEATURES.map(feature => (
           <Link key={feature.href} href={feature.href}>
             <Card hoverable variant="borderless" className="h-full border! border-line!">
-              <div className="flex items-start gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg text-accent">
+              {/* ไอคอนกับชื่อเมนูอยู่แถวเดียวกัน ส่วนคำอธิบายลงมาเต็มความกว้างข้างล่าง
+                  ถ้าให้คำอธิบายไปอยู่ข้างไอคอนด้วย พอเหลือความกว้าง 1 ใน 4
+                  จะเบียดจนตกบรรทัดละสองสามคำ */}
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
                   {feature.icon}
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                    {feature.title}
-                    <RightOutlined className="text-[10px] text-accent/60" />
-                  </div>
-                  <p className="mt-1.5 text-xs leading-relaxed text-ink-3">{feature.desc}</p>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  {feature.title}
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
                 </div>
               </div>
+              <p className="mt-2.5 text-xs leading-relaxed text-ink-3">{feature.desc}</p>
             </Card>
           </Link>
         ))}

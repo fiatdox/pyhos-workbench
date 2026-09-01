@@ -20,6 +20,8 @@
     "antd": "^6.6.1",
     "dayjs": "^1.11.23",
     "drizzle-orm": "^0.45.2",
+    "highcharts": "^13.0.2",
+    "highcharts-react-official": "^3.2.3",
     "jose": "^6.2.10",
     "js-cookie": "^3.0.8",
     "mysql2": "^3.24.2",

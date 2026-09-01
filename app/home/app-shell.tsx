@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Avatar, Button, Descriptions, Divider, Drawer, Layout, Menu, Tag, Typography } from 'antd'
 import {
+  AuditOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   LogoutOutlined,
@@ -48,6 +49,7 @@ export const MENU_ITEMS = [
   { key: '/home/medication-history', icon: <MedicineBoxOutlined />, label: 'ประวัติการได้รับยา' },
   { key: '/home/hla-b5801', icon: <ExperimentOutlined />, label: 'ผลตรวจ HLA-B*5801' },
   { key: '/home/drug-profile', icon: <ProfileOutlined />, label: 'Drug Profile ผู้ป่วยใน' },
+  { key: '/home/due', icon: <AuditOutlined />, label: 'DUE ขออนุมัติใช้ยา' },
 ]
 
 export default function AppShell({ user, children }: { user: ShellUser; children: ReactNode }) {
@@ -83,7 +85,11 @@ export default function AppShell({ user, children }: { user: ShellUser; children
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-background text-foreground selection:bg-accent-soft">
+    // ห้ามใส่ overflow-hidden ที่ตัวนี้ — จะทำให้ Header ที่เป็น sticky ไม่ติดขอบบน
+    // (ancestor ที่ overflow ไม่ใช่ visible จะกลายเป็น scroll container ของ sticky
+    //  แต่ตัวมันเองไม่ได้เลื่อน หัวข้อจึงเลื่อนหายไปกับหน้า) การตัดขอบแสงพื้นหลัง
+    // ทำที่ชั้น absolute ข้างล่างซึ่ง overflow-hidden ของมันเองอยู่แล้ว
+    <div className="relative min-h-screen w-full bg-background text-foreground selection:bg-accent-soft">
       {/* พื้นหลังโทนม่วงชุดเดียวกับหน้าเข้าสู่ระบบ — สีมาจาก token ตามธีม */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 h-120 w-120 rounded-full bg-(--glow-1) blur-[150px]" />
