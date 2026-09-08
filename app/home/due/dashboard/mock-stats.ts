@@ -175,12 +175,122 @@ export const DDD: { drug: string; current: number; previous: number }[] = [
   { drug: 'Fosfomycin', current: 3.8, previous: 2.4 },
 ]
 
-/** ความสอดคล้องกับผลเพาะเชื้อ */
+/** ความสอดคล้องกับผลเพาะเชื้อ — มีเป้าหมายกำกับ ตัวเลขเปล่าไม่บอกว่าผ่านเกณฑ์ไหม */
 export const CULTURE_ALIGNMENT = {
   empiric: 61,
   specific: 39,
   /** ส่งสิ่งส่งตรวจก่อนเริ่มยาตัวแรก */
   sentBeforeStart: 82,
+  sentBeforeStartTarget: 90,
   /** ปรับยาลงตามผลเพาะเชื้อ (de-escalation) */
   deEscalated: 34,
+  deEscalatedTarget: 50,
 }
+
+/* ───────────── ชุดข้อมูลของกราฟที่ต้องดูตามเวลา ─────────────
+   ตัวเลขเดือนสุดท้ายของทุกชุดตรงกับตัวเลขรอบปัจจุบันด้านบน
+   ถ้าไม่ตรงกันคนอ่านจะเจอเลขสองค่าในหน้าเดียวแล้วไม่รู้ว่าอันไหนจริง */
+
+export const MONTHS = ['มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.']
+
+/**
+ * DDD รายเดือนของยาแต่ละตัว
+ *
+ * คำถามของตัวเลขนี้คือทิศทาง ไม่ใช่อันดับ — Meropenem ขึ้นต่อเนื่องหกเดือน
+ * ส่วน Colistin ลงต่อเนื่อง ซึ่งเป็นภาพที่กราฟแท่งเรียงอันดับบอกไม่ได้เลย
+ */
+export const DDD_TREND: { drug: string; values: number[] }[] = [
+  { drug: 'Meropenem', values: [26.4, 27.1, 27.8, 29.0, 30.1, 31.2] },
+  { drug: 'Piperacillin + Tazobactam', values: [21.8, 22.6, 23.0, 23.4, 23.8, 24.1] },
+  { drug: 'Vancomycin', values: [17.2, 17.9, 18.1, 17.6, 18.0, 18.4] },
+  { drug: 'Colistin', values: [11.9, 11.4, 10.2, 9.4, 9.0, 8.6] },
+  { drug: 'Ertapenem', values: [7.4, 7.2, 6.9, 6.6, 6.4, 6.3] },
+  { drug: 'Fosfomycin', values: [2.1, 2.4, 2.9, 3.2, 3.5, 3.8] },
+]
+
+/** ความเหมาะสมรายเดือน (จำนวนใบ) — รวมหกเดือนได้ 198 ใบเท่ากับที่ประเมินแล้ว */
+export const APPROPRIATENESS_TREND: {
+  month: string
+  appropriate: number
+  consulted: number
+  cannot: number
+}[] = [
+  { month: 'มี.ค.', appropriate: 24, consulted: 6, cannot: 3 },
+  { month: 'เม.ย.', appropriate: 25, consulted: 6, cannot: 2 },
+  { month: 'พ.ค.', appropriate: 26, consulted: 5, cannot: 2 },
+  { month: 'มิ.ย.', appropriate: 26, consulted: 5, cannot: 2 },
+  { month: 'ก.ค.', appropriate: 27, consulted: 4, cannot: 2 },
+  { month: 'ส.ค.', appropriate: 28, consulted: 4, cannot: 1 },
+]
+
+/**
+ * การกระจายของเวลารอคอย (ชั่วโมง) — [ต่ำสุด, Q1, มัธยฐาน, Q3, สูงสุด]
+ *
+ * มัธยฐานอย่างเดียวซ่อนสิ่งที่ต้องตามหาไว้หมด — ค่ากลาง 2.4 ชม. ดูดี
+ * แต่ใบที่รอ 26 ชม. คือใบที่ผู้ป่วยรอยาจริง กล่องกับจุดหลุดทำให้เห็นทั้งสองอย่าง
+ */
+export type BoxStats = {
+  shift: string
+  /** [low, q1, median, q3, high] */
+  box: [number, number, number, number, number]
+  /** ใบที่หลุดออกนอกช่วง — แสดงเป็นจุดแยก */
+  outliers: number[]
+}
+
+export const TURNAROUND_DIST: { step: string; byShift: BoxStats[] }[] = [
+  {
+    step: 'เภสัชกรรับรายการ',
+    byShift: [
+      { shift: 'ในเวลาราชการ', box: [0.2, 0.8, 1.2, 2.1, 3.6], outliers: [6.2] },
+      { shift: 'นอกเวลา', box: [0.5, 2.2, 3.9, 6.1, 9.8], outliers: [14.5] },
+      { shift: 'วันหยุด', box: [0.8, 3.1, 5.1, 8.4, 13.2], outliers: [21.0] },
+    ],
+  },
+  {
+    step: 'แพทย์ผู้กำกับอนุมัติ',
+    byShift: [
+      { shift: 'ในเวลาราชการ', box: [0.4, 1.4, 2.4, 4.0, 7.2], outliers: [11.5] },
+      { shift: 'นอกเวลา', box: [1.1, 4.6, 8.7, 13.2, 19.0], outliers: [26.4] },
+      { shift: 'วันหยุด', box: [1.9, 7.2, 12.3, 18.6, 27.0], outliers: [34.8, 41.2] },
+    ],
+  },
+]
+
+/**
+ * คิวค้างแบ่งตามอายุ
+ *
+ * รูปร่างของคิวสำคัญกว่าจำนวนรวม — 26 ใบที่กระจุกอยู่ใน 24 ชั่วโมงแรกคือคิวปกติ
+ * แต่ 6 ใบที่ครึ่งหนึ่งค้างเกิน 3 วันคือปัญหา ทั้งที่ตัวเลขรวมน้อยกว่า
+ */
+export const AGING_BUCKETS = ['ไม่เกิน 24 ชม.', '1-3 วัน', 'เกิน 3 วัน']
+
+export const QUEUE_AGING: { stage: string; counts: number[] }[] = [
+  { stage: 'รอเภสัชกรรับรายการ', counts: [5, 1, 0] },
+  { stage: 'รอแพทย์ผู้กำกับอนุมัติ', counts: [3, 0, 0] },
+  { stage: 'รับรายการแล้ว รอประเมิน', counts: [11, 9, 6] },
+]
+
+/**
+ * ปริมาณการใช้ยารายหอผู้ป่วย (DDD ต่อ 1000 วันนอน)
+ *
+ * ตัวเลขรวมทั้งโรงพยาบาลชี้เป้าไม่ได้ว่าต้องไปคุยกับใคร ตารางสีบอกได้ทันที
+ * ว่าการใช้ยากระจุกอยู่ที่หอไหน
+ */
+export const WARDS = [
+  'ICU อายุรกรรม',
+  'ICU ศัลยกรรม',
+  'อายุรกรรมชาย',
+  'อายุรกรรมหญิง',
+  'ศัลยกรรมชาย',
+]
+
+export const HEATMAP_DRUGS = ['Meropenem', 'Pip/Tazo', 'Vancomycin', 'Colistin']
+
+/** ค่าเรียงตาม [ดัชนีหอผู้ป่วย][ดัชนีตัวยา] */
+export const WARD_DRUG_DDD: number[][] = [
+  [64.2, 38.1, 31.4, 22.8],
+  [58.7, 41.3, 26.9, 18.4],
+  [22.4, 19.8, 12.1, 3.2],
+  [19.6, 17.2, 10.8, 2.6],
+  [16.3, 24.7, 14.2, 5.1],
+]

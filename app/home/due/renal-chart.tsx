@@ -1,11 +1,11 @@
 'use client'
 import { useMemo } from 'react'
-import Highcharts from 'highcharts'
+import Highcharts from 'highcharts/esm/highcharts'
 // เปิดโมดูล accessibility — เลื่อนดูจุดข้อมูลด้วยคีย์บอร์ดและอ่านด้วย screen reader ได้
 // (ตั้งแต่ v12 โมดูลลงทะเบียนตัวเองตอน import ต้องอยู่หลัง 'highcharts')
 // ปิดทิ้งด้วย accessibility.enabled: false ก็ได้ แต่กราฟค่าไตเป็นข้อมูลทางคลินิก
 // ที่ต้องอ่านค่าให้ได้จริง ไม่ใช่ภาพประกอบ จึงเลือกใส่โมดูลแทนการปิดคำเตือน
-import 'highcharts/modules/accessibility'
+import 'highcharts/esm/modules/accessibility'
 import HighchartsReact from 'highcharts-react-official'
 import { useTheme } from '@/app/theme'
 import type { RenalPoint } from './mock-data'

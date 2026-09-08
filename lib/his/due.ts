@@ -1,6 +1,7 @@
 import 'server-only'
 import { sql } from 'drizzle-orm'
 import { hisDb } from '@/lib/db/his'
+import { labCodes } from '@/lib/his/lab-codes'
 import { countLabCultures } from '@/lib/his/lab-culture'
 import { loadAllergies, type DrugAllergy } from '@/lib/his/medication-history'
 import { getPatientConditions, type PatientCondition } from '@/lib/his/conditions'
@@ -25,18 +26,18 @@ export type { DrugAllergy, PatientCondition }
  */
 
 /**
- * รหัสรายการแล็บของ Creatinine — lab_items_code = 90 ชื่อ 'Creatinine/eGFR'
- * ในฐานมีรายการที่ชื่อคล้ายกันอีกหลายตัว (Urine Creatinine, Creatinine(fluid),
- * Creatinine(DM)/eGFR ฯลฯ) ซึ่งคนละอย่างกัน จึงยึดรหัสตัวนี้ตัวเดียวตามที่ตกลงไว้
+ * รหัสรายการแล็บของ Creatinine กับ eGFR อ่านจาก .env (ดู lib/his/lab-codes.ts)
+ *
+ * ในฐานมีรายการที่ชื่อคล้าย Creatinine อีกหลายตัว (Urine Creatinine,
+ * Creatinine(fluid), Creatinine(DM)/eGFR ฯลฯ) ซึ่งคนละอย่างกัน จึงยึดรหัสเดียว
+ * ตามที่ตกลงไว้ ไม่ได้ค้นจากชื่อรายการ
+ *
+ * eGFR เป็นคนละรายการแต่ห้องแล็บออกผลมาในใบเดียวกันเสมอ — ตรวจย้อนหลัง 30 วัน
+ * ใบที่มี Creatinine จำนวน 6,563 ใบ มี eGFR อยู่ด้วยครบทุกใบ จึงดึงพร้อมกัน
+ * จาก lab_order_number เดียวกันได้ ไม่ต้องคิวรีแยก
  */
-const LAB_ITEM_CREATININE = 90
-
-/**
- * eGFR เป็นคนละรายการ (รหัส 1571) แต่ห้องแล็บออกผลมาในใบเดียวกันเสมอ
- * — ตรวจย้อนหลัง 30 วัน ใบที่มีรหัส 90 จำนวน 6,563 ใบ มีรหัส 1571 อยู่ด้วยครบทุกใบ
- * จึงดึงพร้อมกันจาก lab_order_number เดียวกันได้ ไม่ต้องคิวรีแยก
- */
-const LAB_ITEM_EGFR = 1571
+const LAB_ITEM_CREATININE = labCodes.creatinine
+const LAB_ITEM_EGFR = labCodes.egfr
 
 /**
  * ยาที่ต้องขออนุมัติ DUE — ดูจากป้าย [DUE] ในชื่อยา

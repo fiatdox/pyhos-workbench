@@ -11,16 +11,22 @@ import {
 } from '@ant-design/icons'
 import FlowSankey from './flow-sankey'
 import {
+  AppropriatenessTrendChart,
+  CultureBulletChart,
+  DddTrendChart,
+  DrpParetoChart,
+  QueueAgingChart,
+  TurnaroundBoxPlot,
+  WardDrugTreemap,
+} from './charts'
+import {
   APPROPRIATENESS,
   CULTURE_ALIGNMENT,
-  DDD,
-  DRPS,
   EVALUATED,
   KPIS,
   PERIOD_LABEL,
   PERIOD_PREV_LABEL,
   QUEUE,
-  TURNAROUND,
   type Kpi,
 } from './mock-stats'
 
@@ -32,6 +38,10 @@ const { Text, Title } = Typography
  * หน้านี้ตอบคำถามระดับหน่วยงาน ไม่ใช่ระดับผู้ป่วย จึงไม่มี HN ไม่มีชื่อผู้ป่วย
  * ทั้งหน้า — อยากเจาะดูรายเคสต้องกลับไปหน้างานที่มีสิทธิ์อยู่แล้ว
  * ตัวเลขทุกตัวยังเป็นข้อมูลสมมติจาก mock-stats.ts
+ *
+ * ชนิดกราฟเลือกตามคำถามของข้อมูลแต่ละชุด ไม่ได้ใช้แบบเดียวทั้งหน้า —
+ * ค่าที่ต้องดูการกระจายใช้ box plot ค่าที่ต้องดูทิศทางใช้เส้น/คอลัมน์ตามเวลา
+ * ค่าที่ต้องเรียงลำดับความสำคัญใช้ Pareto และค่าที่ต้องหาจุดกระจุกใช้ heatmap
  */
 
 /** กล่องหนึ่งส่วนของหน้า — หัวข้อ คำอธิบายสั้น และเนื้อหา */
@@ -53,15 +63,13 @@ function Panel({
       className={`rounded-2xl border border-line bg-panel p-4 backdrop-blur ${className ?? ''}`}
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-            {title}
-            {hint && (
-              <Tooltip title={hint}>
-                <InfoCircleOutlined className="cursor-help text-xs text-ink-3" />
-              </Tooltip>
-            )}
-          </div>
+        <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+          {title}
+          {hint && (
+            <Tooltip title={hint}>
+              <InfoCircleOutlined className="cursor-help text-xs text-ink-3" />
+            </Tooltip>
+          )}
         </div>
         {extra}
       </div>
@@ -105,21 +113,7 @@ function StatCard({ kpi }: { kpi: Kpi }) {
   )
 }
 
-/** แถบสัดส่วนแบบ CSS — ข้อมูลชุดนี้ไม่ต้องใช้ไลบรารีกราฟ แค่เทียบความยาวกัน */
-function Bar({ ratio, className }: { ratio: number; className: string }) {
-  return (
-    <div className="h-2 overflow-hidden rounded-full bg-line-faint">
-      <div className={`h-full rounded-full ${className}`} style={{ width: `${ratio * 100}%` }} />
-    </div>
-  )
-}
-
 export default function DueDashboardPage() {
-  const maxDrp = Math.max(...DRPS.map(item => item.count))
-  // เทียบความยาวแท่งจากค่ารอบนี้อย่างเดียว ค่ารอบก่อนแสดงเป็นตัวเลขส่วนต่างข้างท้าย
-  const maxDdd = Math.max(...DDD.map(item => item.current))
-  const maxHours = Math.max(...TURNAROUND.map(row => row.holiday))
-
   return (
     <>
       <section className="mb-6">
@@ -165,186 +159,87 @@ export default function DueDashboardPage() {
       </Panel>
 
       <div className="mb-4 grid gap-4 xl:grid-cols-3">
-        {/* ───── คิวค้าง ───── */}
+        {/* ───── คิวค้าง ─────
+            แบ่งตามอายุ ไม่ใช่บอกแค่จำนวนรวม — คิว 26 ใบที่กระจุกใน 24 ชั่วโมงแรก
+            สุขภาพดีกว่าคิว 6 ใบที่ครึ่งหนึ่งค้างเกิน 3 วัน */}
         <Panel
           title="งานค้างขณะนี้"
-          hint="จำนวนอย่างเดียวชี้เป้าไม่ได้ ต้องดูอายุของใบที่ค้างนานสุดคู่กันเสมอ"
+          hint="สีของแท่งบอกความรุนแรง ยิ่งค้างนานยิ่งแดง ไม่ต้องอ่านป้ายก็เห็น"
         >
-          <div className="space-y-3">
+          <QueueAgingChart />
+          <div className="mt-2 space-y-1 border-t border-line pt-2">
             {QUEUE.map(row => (
-              <div key={row.stage}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs text-ink">{row.stage}</span>
-                  <span className="text-sm font-semibold text-ink">{row.count}</span>
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <Text type="secondary" className="text-[11px]">
-                    ค้างนานสุด {row.oldest}
-                  </Text>
-                  {row.overdue && (
-                    <Tag color="red" className="mr-0!">
-                      เกินเกณฑ์
-                    </Tag>
-                  )}
-                </div>
+              <div key={row.stage} className="flex items-center justify-between gap-2">
+                <Text type="secondary" className="text-[11px]">
+                  {row.stage} · ค้างนานสุด {row.oldest}
+                </Text>
+                {row.overdue && (
+                  <Tag color="red" className="mr-0!">
+                    เกินเกณฑ์
+                  </Tag>
+                )}
               </div>
             ))}
           </div>
         </Panel>
 
         {/* ───── เวลารอคอย ─────
-            แยกตามเวรเพราะนี่คือข้อค้นพบที่เอาไปทำอะไรต่อได้จริง — ถ้านอกเวลา
-            ช้ากว่าในเวลาสามเท่า ปัญหาคือเรื่องเวรไม่ใช่เรื่องคนทำงานช้า */}
+            box plot แทนแท่งค่ากลาง เพราะค่ากลางซ่อนใบที่รอนานผิดปกติไว้หมด
+            ซึ่งเป็นใบที่ต้องตามหาจริง ๆ */}
         <Panel
           className="xl:col-span-2"
-          title="เวลารอคอยแยกตามเวร (มัธยฐาน)"
-          hint="ใช้มัธยฐานไม่ใช่ค่าเฉลี่ย เพราะใบที่ค้างข้ามวันหยุดยาวไม่กี่ใบดึงค่าเฉลี่ยจนอ่านผิด"
+          title="การกระจายของเวลารอคอย แยกตามเวร"
+          hint="กล่อง = ช่วงกลาง 50% ของใบทั้งหมด เส้นในกล่อง = มัธยฐาน จุดที่หลุดออกไป = ใบที่รอนานผิดปกติ"
         >
-          <div className="space-y-4">
-            {TURNAROUND.map(row => (
-              <div key={row.step}>
-                <div className="mb-1.5 text-xs font-medium text-ink">{row.step}</div>
-                <div className="space-y-1.5">
-                  {(
-                    [
-                      { label: 'ในเวลาราชการ', value: row.inHours, tone: 'bg-ref-abx' },
-                      { label: 'นอกเวลา', value: row.offHours, tone: 'bg-lab-chip' },
-                      { label: 'วันหยุด', value: row.holiday, tone: 'bg-ref-culture' },
-                    ] as const
-                  ).map(item => (
-                    <div key={item.label} className="flex items-center gap-3">
-                      <span className="w-24 shrink-0 text-[11px] text-ink-3">{item.label}</span>
-                      <div className="min-w-0 flex-1">
-                        <Bar ratio={item.value / maxHours} className={item.tone} />
-                      </div>
-                      <span className="w-14 shrink-0 text-right text-[11px] font-semibold text-ink">
-                        {item.value} ชม.
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <TurnaroundBoxPlot />
         </Panel>
       </div>
 
       <div className="mb-4 grid gap-4 xl:grid-cols-2">
-        {/* ───── ความเหมาะสม ─────
-            แยกสามด้านไม่รวมเป็นตัวเลขเดียว เพราะมาตรการแก้คนละเรื่องกัน
-            ข้อบ่งใช้ไม่เหมาะสมแก้ด้วยแนวทางการรักษา ขนาดยาแก้ด้วยตารางปรับตาม CrCl */}
+        {/* ───── ความเหมาะสม ───── */}
         <Panel
-          title="ความเหมาะสมของการใช้ยา"
-          hint={`ฐาน ${EVALUATED} ใบที่ประเมินแล้ว`}
-          extra={
-            <div className="flex flex-wrap gap-3 text-[11px] text-ink-3">
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-2 w-2 rounded-full bg-ref-abx" /> เหมาะสม
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-2 w-2 rounded-full bg-lab-chip" /> Consult แล้ว
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="inline-block h-2 w-2 rounded-full bg-ink-3/40" /> ประเมินไม่ได้
-              </span>
-            </div>
-          }
+          title="ความเหมาะสมของการใช้ยารายเดือน"
+          hint={`ฐาน ${EVALUATED} ใบที่ประเมินแล้วตลอดช่วง`}
         >
-          <div className="space-y-4">
+          <AppropriatenessTrendChart />
+          {/* แยกสามด้านไม่รวมเป็นตัวเลขเดียว เพราะมาตรการแก้คนละเรื่องกัน
+              ข้อบ่งใช้แก้ด้วยแนวทางการรักษา ขนาดยาแก้ด้วยตารางปรับตาม CrCl */}
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-2">
             {APPROPRIATENESS.map(row => {
               const total = row.appropriate + row.consulted + row.cannot
-              const percent = Math.round((row.appropriate / total) * 100)
               return (
-                <div key={row.dimension}>
-                  <div className="mb-1 flex items-baseline justify-between gap-2">
-                    <span className="text-xs text-ink">{row.dimension}</span>
-                    <span className="text-sm font-semibold text-ink">{percent}%</span>
-                  </div>
-                  {/* แถบเดียวสามสี เห็นสัดส่วนที่ไม่เหมาะสมพร้อมกับที่ประเมินไม่ได้
-                      ซึ่งเป็นคนละปัญหากันแต่ต้องเห็นคู่กัน */}
-                  <div className="flex h-2.5 overflow-hidden rounded-full bg-line-faint">
-                    <div
-                      className="bg-ref-abx"
-                      style={{ width: `${(row.appropriate / total) * 100}%` }}
-                    />
-                    <div
-                      className="bg-lab-chip"
-                      style={{ width: `${(row.consulted / total) * 100}%` }}
-                    />
-                    <div
-                      className="bg-ink-3/40"
-                      style={{ width: `${(row.cannot / total) * 100}%` }}
-                    />
-                  </div>
-                  <Text type="secondary" className="mt-1 block text-[11px]">
-                    เหมาะสม {row.appropriate} · Consult แล้ว {row.consulted} · ประเมินไม่ได้{' '}
-                    {row.cannot}
-                  </Text>
-                </div>
+                <Text key={row.dimension} type="secondary" className="text-[11px]">
+                  {row.dimension}{' '}
+                  <span className="font-semibold text-ink">
+                    {Math.round((row.appropriate / total) * 100)}%
+                  </span>
+                </Text>
               )
             })}
           </div>
         </Panel>
 
-        {/* ───── DRPs ───── */}
+        {/* ───── DRPs ─────
+            Pareto: แท่งคือจำนวน เส้นคือ % สะสม ใช้เลือกว่าจะทำแนวทางเรื่องไหนก่อน
+            ให้คุ้มแรงที่สุด เป็นรูปแบบมาตรฐานของงานพัฒนาคุณภาพ */}
         <Panel
           title="ปัญหาจากการใช้ยาที่พบบ่อย (DRPs)"
-          hint="เรียงจากมากไปน้อย ใช้เลือกหัวข้อที่จะทำแนวทางหรืออบรมรอบถัดไป"
+          hint="เส้น % สะสมบอกว่ากี่หมวดแรกรวมกันเป็นกี่เปอร์เซ็นต์ของปัญหาทั้งหมด"
         >
-          <div className="space-y-2.5">
-            {DRPS.map(item => (
-              <div key={item.label} className="flex items-center gap-3">
-                <span className="min-w-0 flex-1 truncate text-[11px] text-ink" title={item.label}>
-                  {item.label}
-                </span>
-                <div className="w-28 shrink-0 sm:w-40">
-                  <Bar ratio={item.count / maxDrp} className="bg-ref-culture" />
-                </div>
-                <span className="w-8 shrink-0 text-right text-[11px] font-semibold text-ink">
-                  {item.count}
-                </span>
-              </div>
-            ))}
-          </div>
+          <DrpParetoChart />
         </Panel>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="mb-4 grid gap-4 xl:grid-cols-3">
         {/* ───── ปริมาณการใช้ยา ─────
             หัวข้อเดียวในหน้านี้ที่ดึงจาก HIS ได้เลยโดยไม่ต้องรอที่เก็บข้อมูลของ DUE
-            (opitemrece + วันนอนจาก ipt) แต่ยังต้องมีตารางค่า DDD มาตรฐานต่อรายการยาก่อน */}
+            (opitemrece + วันนอนจาก ipt) แต่ยังต้องมีตารางค่า DDD มาตรฐานก่อน */}
         <Panel
           className="xl:col-span-2"
           title="ปริมาณการใช้ยาต้านจุลชีพ (DDD / 1000 วันนอน)"
-          hint="ตัวเลขมาตรฐานที่คณะกรรมการควบคุมการใช้ยาต้านจุลชีพต้องรายงาน"
+          hint="คำถามของตัวเลขนี้คือทิศทางตามเวลา ไม่ใช่อันดับของเดือนนี้"
         >
-          <div className="space-y-2.5">
-            {DDD.map(item => {
-              const diff = item.current - item.previous
-              return (
-                <div key={item.drug} className="flex items-center gap-3">
-                  <span className="w-40 shrink-0 truncate text-[11px] text-ink" title={item.drug}>
-                    {item.drug}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <Bar ratio={item.current / maxDdd} className="bg-accent" />
-                  </div>
-                  <span className="w-12 shrink-0 text-right text-[11px] font-semibold text-ink">
-                    {item.current}
-                  </span>
-                  {/* ยาต้านจุลชีพใช้มากขึ้นไม่ใช่เรื่องดี สีจึงกลับด้านกับ KPI ทั่วไป */}
-                  <span
-                    className={`w-14 shrink-0 text-right text-[11px] ${
-                      diff > 0 ? 'text-ref-culture' : 'text-ref-abx'
-                    }`}
-                  >
-                    {diff > 0 ? '+' : ''}
-                    {diff.toFixed(1)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          <DddTrendChart />
         </Panel>
 
         {/* ───── ความสอดคล้องกับผลเพาะเชื้อ ───── */}
@@ -352,53 +247,52 @@ export default function DueDashboardPage() {
           title="ความสอดคล้องกับผลเพาะเชื้อ"
           hint="พฤติกรรมที่แก้ได้ด้วยการสื่อสาร ต่างจากตัวเลขภาพรวมที่บอกแค่ว่าแย่"
         >
-          <div className="space-y-4">
-            <div>
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <span className="text-xs text-ink">Empiric / Specific</span>
-                <span className="text-[11px] text-ink-3">
-                  {CULTURE_ALIGNMENT.empiric}% / {CULTURE_ALIGNMENT.specific}%
-                </span>
-              </div>
-              <div className="flex h-2.5 overflow-hidden rounded-full bg-line-faint">
-                <div className="bg-lab-chip" style={{ width: `${CULTURE_ALIGNMENT.empiric}%` }} />
-                <div className="bg-ref-abx" style={{ width: `${CULTURE_ALIGNMENT.specific}%` }} />
-              </div>
+          <div className="mb-3">
+            <div className="mb-1 flex items-baseline justify-between gap-2">
+              <span className="text-xs text-ink">Empiric / Specific</span>
+              <span className="text-[11px] text-ink-3">
+                {CULTURE_ALIGNMENT.empiric}% / {CULTURE_ALIGNMENT.specific}%
+              </span>
             </div>
-
-            <div>
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <span className="text-xs text-ink">ส่งเพาะเชื้อก่อนเริ่มยา</span>
-                <span className="text-sm font-semibold text-ink">
-                  {CULTURE_ALIGNMENT.sentBeforeStart}%
-                </span>
-              </div>
-              <Bar ratio={CULTURE_ALIGNMENT.sentBeforeStart / 100} className="bg-ref-abx" />
+            {/* อันนี้เป็นสัดส่วนของก้อนเดียว แท่งเดียวสองสีตรงกับคำถามที่สุด
+                ไม่ต้องเปลี่ยนเป็นกราฟอย่างอื่นให้ซับซ้อนเกินจำเป็น */}
+            <div className="flex h-2.5 overflow-hidden rounded-full bg-line-faint">
+              <div className="bg-lab-chip" style={{ width: `${CULTURE_ALIGNMENT.empiric}%` }} />
+              <div className="bg-ref-abx" style={{ width: `${CULTURE_ALIGNMENT.specific}%` }} />
             </div>
+          </div>
 
-            <div>
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <span className="text-xs text-ink">ปรับยาลงตามผล (de-escalation)</span>
-                <span className="text-sm font-semibold text-ink">
-                  {CULTURE_ALIGNMENT.deEscalated}%
-                </span>
-              </div>
-              <Bar ratio={CULTURE_ALIGNMENT.deEscalated / 100} className="bg-ref-renal" />
+          {/* ตัวชี้วัดสองตัวนี้มีเกณฑ์กำกับ bullet จึงตรงกว่าแท่ง % เปล่า ๆ
+              เส้นทึบคือเป้าหมาย แถบพื้นหลังคือช่วงคุณภาพ */}
+          <CultureBulletChart />
+
+          {/* ไม่แต่งตัวเลขให้ช่องที่ระบบยังไม่ได้เก็บ — เขียนไว้ตรง ๆ ว่าขาดอะไร
+              ถ้าใส่ตัวเลขปลอมไว้ก่อน พอถึงเวลาต่อจริงจะไม่มีใครจำได้ว่าอันไหนของจริง */}
+          <div className="mt-3 rounded-lg border border-dashed border-line px-3 py-2.5">
+            <div className="text-[11px] font-medium text-ink-3">
+              อัตราที่แพทย์ยอมรับการแทรกแซงของเภสัชกร
             </div>
-
-            {/* ไม่แต่งตัวเลขให้ช่องที่ระบบยังไม่ได้เก็บ — เขียนไว้ตรง ๆ ว่าขาดอะไร
-                ถ้าใส่ตัวเลขปลอมไว้ก่อน พอถึงเวลาต่อจริงจะไม่มีใครจำได้ว่าอันไหนของจริง */}
-            <div className="rounded-lg border border-dashed border-line px-3 py-2.5">
-              <div className="text-[11px] font-medium text-ink-3">
-                อัตราที่แพทย์ยอมรับการแทรกแซงของเภสัชกร
-              </div>
-              <div className="mt-0.5 text-xs text-ink">
-                ยังรายงานไม่ได้ — แบบประเมินยังไม่มีช่องบันทึกว่าแพทย์ยอมรับหรือไม่
-              </div>
+            <div className="mt-0.5 text-xs text-ink">
+              ยังรายงานไม่ได้ — แบบประเมินยังไม่มีช่องบันทึกว่าแพทย์ยอมรับหรือไม่
             </div>
           </div>
         </Panel>
       </div>
+
+      {/* ───── หอผู้ป่วย × ตัวยา ─────
+          ตัวเลขรวมทั้งโรงพยาบาลชี้เป้าไม่ได้ว่าต้องไปคุยกับใคร ภาพนี้บอกได้ทันที
+          ว่าการใช้ยากระจุกอยู่ที่หอไหน และในหอนั้นเป็นยาตัวไหน */}
+      <Panel
+        title="ปริมาณการใช้ยารายหอผู้ป่วย"
+        hint="ขนาดของช่อง = ปริมาณการใช้ กล่องใหญ่คือหอที่ควรไปทบทวนการใช้ยาก่อน"
+        extra={
+          <Text type="secondary" className="text-[11px]">
+            หน่วย: DDD / 1000 วันนอน
+          </Text>
+        }
+      >
+        <WardDrugTreemap />
+      </Panel>
     </>
   )
 }

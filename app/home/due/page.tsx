@@ -8,6 +8,7 @@ import {
   CheckCircleOutlined,
   DashboardOutlined,
   ExperimentOutlined,
+  FileTextOutlined,
   FileAddOutlined,
   RightOutlined,
 } from '@ant-design/icons'
@@ -93,25 +94,45 @@ export default function DuePage() {
 
       {/* แยกออกจากการ์ดขั้นตอน เพราะไม่ใช่ขั้นหนึ่งของการทำงานกับคำขอรายใบ
           แต่เป็นการสรุปผลของทั้งสามขั้นรวมกัน คนละกลุ่มผู้ใช้ คนละความถี่ */}
-      <Link href="/home/due/dashboard">
-        <Card hoverable variant="borderless" className="mb-6 border! border-line!">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
-              <DashboardOutlined />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+      {/* ใช้กริดชุดเดียวกับการ์ดขั้นตอน การ์ดจึงกว้างเท่ากันพอดี
+          ถ้าปล่อยเต็มความกว้างจะดูเหมือนเป็นแบนเนอร์คนละระดับกับที่เหลือ */}
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Link href="/home/due/dashboard">
+          <Card hoverable variant="borderless" className="h-full border! border-line!">
+            <div className="mb-2 flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                <DashboardOutlined />
+              </div>
+              <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
                 ภาพรวมและตัวชี้วัด
                 <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
               </div>
-              <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
-                เส้นทางของคำขอ งานค้าง เวลารอคอย ความเหมาะสมของการใช้ยา DRPs
-                และปริมาณการใช้ยาต้านจุลชีพ
-              </p>
+            </div>
+            <p className="text-xs leading-relaxed text-ink-3">
+              เส้นทางของคำขอ งานค้าง เวลารอคอย ความเหมาะสมของการใช้ยา DRPs
+              และปริมาณการใช้ยาต้านจุลชีพ
+            </p>
+          </Card>
+        </Link>
+
+        {/* แดชบอร์ดไว้ดูบนจอ ส่วนรายงานคือเอกสารที่ต้องส่งออกไปนอกระบบ
+            (เข้าที่ประชุม ส่ง สปสช. เก็บเข้าแฟ้ม) จึงเป็นคนละหน้ากัน */}
+        <Card variant="borderless" className="h-full border! border-line!">
+          <div className="mb-2 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+              <FileTextOutlined />
+            </div>
+            <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+              รายงาน
+              <Tag className="mr-0!">ยังไม่เปิด</Tag>
             </div>
           </div>
+          <p className="text-xs leading-relaxed text-ink-3">
+            ออกรายงานสรุปตามรอบเพื่อส่งคณะกรรมการควบคุมการใช้ยาต้านจุลชีพ — เลือกช่วงเวลา
+            แล้วสั่งพิมพ์หรือบันทึกเป็นไฟล์
+          </p>
         </Card>
-      </Link>
+      </section>
 
       {/* เมนูอื่นในระบบอ่านจาก HIS อย่างเดียว เมนูนี้เป็นเมนูแรกที่ต้องเก็บข้อมูลของตัวเอง
           จึงต้องตกลงเรื่องที่เก็บและสิทธิ์ผู้ใช้ก่อน ยังไม่เขียนโค้ดส่วนบันทึกคำขอ */}

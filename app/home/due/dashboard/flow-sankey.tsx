@@ -1,10 +1,10 @@
 'use client'
 import { useMemo } from 'react'
-import Highcharts from 'highcharts'
+import Highcharts from 'highcharts/esm/highcharts'
 // ตั้งแต่ Highcharts v12 โมดูลลงทะเบียนตัวเองตอน import — ไม่ต้องเรียกเป็นฟังก์ชัน
 // แต่ต้อง import หลัง 'highcharts' เพราะโมดูลอ่าน instance จากตัวหลัก
-import 'highcharts/modules/sankey'
-import 'highcharts/modules/accessibility'
+import 'highcharts/esm/modules/sankey'
+import 'highcharts/esm/modules/accessibility'
 import HighchartsReact from 'highcharts-react-official'
 import { useTheme } from '@/app/theme'
 import { FLOW, FLOW_NODES, type FlowNodeTone } from './mock-stats'

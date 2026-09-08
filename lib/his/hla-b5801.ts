@@ -2,17 +2,18 @@ import 'server-only'
 import { sql } from 'drizzle-orm'
 import { hisDb } from '@/lib/db/his'
 import { hisScanPool } from '@/lib/db/his-scan'
+import { labCodes } from '@/lib/his/lab-codes'
 
 /**
- * ผลตรวจ HLA-B*5801 (lab_items_code = 1397 ชื่อในระบบคือ "HLA B 5801")
+ * ผลตรวจ HLA-B*5801 (ชื่อรายการในระบบคือ "HLA B 5801")
  *
  * ผลของรายการนี้ไม่ได้เก็บเป็นตัวเลข — ช่อง lab_order_result เขียนว่า "ดูผลที่ image"
  * ตัวผลจริงเป็นรูปที่สแกนไว้ในตาราง lab_order_image ของฐานภาพ (คนละเครื่องกับ HIS)
  * หน้าจอจึงต้องเปิดรูปให้ดูได้ ไม่ใช่แค่แสดงข้อความ
  */
 
-/** รหัสรายการตรวจใน lab_items */
-const LAB_ITEMS_CODE = '1397'
+/** รหัสรายการตรวจใน lab_items — อ่านจาก .env (ดู lib/his/lab-codes.ts) */
+const LAB_ITEMS_CODE = labCodes.hlaB5801
 
 /** ช่องเก็บรูปในหนึ่งใบรายงาน */
 export const IMAGE_SLOTS = [1, 2, 3, 4, 5] as const
