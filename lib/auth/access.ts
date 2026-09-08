@@ -1,0 +1,72 @@
+import 'server-only'
+
+/**
+ * จำกัดสิทธิ์เข้าใช้ระบบตามตำแหน่ง/วิชาชีพ (users.user_position_id)
+ *
+ * ตั้งค่าที่ .env — ALLOWED_USER_POSITION_IDS=3,7,12
+ *
+ * ไม่ได้เก็บไว้ในฐานข้อมูลเพราะเป็นการตัดสินใจระดับ "ใครเข้าระบบนี้ได้บ้าง"
+ * ซึ่งควรอยู่กับการติดตั้งของแต่ละที่ และคนที่แก้ควรเป็นคนที่เข้าถึงเซิร์ฟเวอร์ได้
+ * ไม่ใช่ผู้ใช้ในระบบ (ถ้าอยู่ในตาราง ใครที่แก้ตารางได้ก็เปิดสิทธิ์ให้ตัวเองได้)
+ *
+ * ดูรหัสตำแหน่งทั้งหมดได้จาก core_kon:
+ *   SELECT user_position_id, position_name FROM user_positions ORDER BY user_position_id
+ */
+
+/**
+ * รายการตำแหน่งที่อนุญาต — อ่านครั้งเดียวตอนโหลดโมดูล
+ * (ค่าใน .env ไม่เปลี่ยนระหว่างที่เซิร์ฟเวอร์รันอยู่ ต้องรีสตาร์ทถึงมีผล)
+ *
+ * ไม่ได้ตั้ง = null = ไม่จำกัด ใครก็เข้าได้เหมือนเดิม
+ * ตั้งเป็นค่าว่างก็ถือว่าไม่จำกัดเช่นกัน ไม่ใช่ "ห้ามทุกคน" — ตั้งค่าพลาดแล้ว
+ * ล็อกทุกคนออกจากระบบรวมถึงผู้ดูแลเอง เป็นผลที่รุนแรงเกินกว่าจะให้เกิดจากช่องว่าง
+ */
+const ALLOWED_POSITION_IDS: Set<number> | null = parseAllowList()
+
+function parseAllowList(): Set<number> | null {
+  const raw = process.env.ALLOWED_USER_POSITION_IDS?.trim()
+  if (!raw) return null
+
+  const parts = raw
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+
+  const ids = new Set<number>()
+  const bad: string[] = []
+  for (const part of parts) {
+    const id = Number(part)
+    // พิมพ์ผิดแล้วเงียบ = เปิดสิทธิ์ให้คนที่ไม่ควรได้ หรือปิดสิทธิ์คนที่ควรได้
+    // โดยไม่มีใครรู้ จึงเลือกให้พังตั้งแต่ตอนเปิดระบบดีกว่า
+    if (!Number.isInteger(id)) bad.push(part)
+    else ids.add(id)
+  }
+
+  if (bad.length > 0) {
+    throw new Error(
+      `ค่า ALLOWED_USER_POSITION_IDS ต้องเป็นรหัสตำแหน่งตัวเลขคั่นด้วยจุลภาค — ค่าที่ผิด: ${bad.join(', ')}`,
+    )
+  }
+  return ids.size > 0 ? ids : null
+}
+
+/** เปิดจำกัดสิทธิ์ตามตำแหน่งอยู่หรือไม่ */
+export function positionRestrictionEnabled(): boolean {
+  return ALLOWED_POSITION_IDS !== null
+}
+
+/**
+ * ตำแหน่งนี้เข้าใช้ระบบได้หรือไม่
+ *
+ * บัญชีที่ไม่ได้ระบุตำแหน่ง (null) ถือว่าไม่ผ่านเมื่อเปิดการจำกัดไว้ —
+ * ตรวจสอบวิชาชีพไม่ได้ก็ไม่ควรให้ผ่าน ไม่ใช่ปล่อยผ่านเพราะข้อมูลไม่ครบ
+ */
+export function isPositionAllowed(userPositionId: number | null | undefined): boolean {
+  if (ALLOWED_POSITION_IDS === null) return true
+  if (userPositionId == null) return false
+  return ALLOWED_POSITION_IDS.has(userPositionId)
+}
+
+/** ข้อความแจ้งผู้ใช้ — ไม่บอกว่ารายการที่อนุญาตมีอะไรบ้าง */
+export const POSITION_DENIED_MESSAGE =
+  'บัญชีนี้ยังไม่ได้รับสิทธิ์ใช้งานระบบ (ตำแหน่งไม่อยู่ในกลุ่มที่กำหนด) กรุณาติดต่อผู้ดูแลระบบ'

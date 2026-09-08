@@ -2,9 +2,18 @@
 // Next.js โหลด .env ให้เองอยู่แล้ว ส่วน drizzle-kit โหลดผ่าน `bun --env-file` / defineConfig
 // ที่ import ไฟล์นี้ (bun อ่าน .env ให้อัตโนมัติ)
 
-function required(name: string): string {
+export function required(name: string): string {
   const value = process.env[name]
   if (!value) throw new Error(`ไม่พบค่า environment variable: ${name} (ตรวจสอบไฟล์ .env)`)
+  return value
+}
+
+/** ค่าที่ต้องเป็นตัวเลข — กันพิมพ์ผิดแล้วไปกลายเป็น NaN ในคิวรีโดยไม่มีใครรู้ */
+export function requiredNumber(name: string): number {
+  const value = Number(required(name))
+  if (!Number.isFinite(value)) {
+    throw new Error(`ค่า environment variable: ${name} ต้องเป็นตัวเลข (ตรวจสอบไฟล์ .env)`)
+  }
   return value
 }
 

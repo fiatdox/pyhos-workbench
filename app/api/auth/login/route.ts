@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm'
 import { coreKonDb } from '@/lib/db/core-kon'
 import { users } from '@/lib/db/schema/core-kon'
+import { isPositionAllowed, POSITION_DENIED_MESSAGE } from '@/lib/auth/access'
 import { fakeVerify, verifyPassword } from '@/lib/auth/password'
 import { getAuthSettings } from '@/lib/auth/settings'
 import { isMfaRequired, startOtpChallenge } from '@/lib/auth/mfa'
@@ -93,6 +94,12 @@ export async function POST(request: Request) {
 
     // รหัสผ่านถูกต้องแล้ว — ปลดตัวนับรายบัญชี ไม่ให้การล็อกอินสำเร็จไปกินโควตา
     resetRateLimit(accountKey)
+
+    // ตรวจสิทธิ์ตามตำแหน่งก่อนเริ่มขั้น OTP — ไม่งั้นจะส่งรหัสไปหาคนที่ยังไง
+    // ก็เข้าไม่ได้ เปลืองโควตาหมอพร้อมและทำให้ผู้ใช้เข้าใจผิดว่ากำลังจะเข้าได้
+    if (!isPositionAllowed(user.userPositionId)) {
+      return Response.json({ success: false, message: POSITION_DENIED_MESSAGE }, { status: 403 })
+    }
 
     const settings = await getAuthSettings()
     if (await isMfaRequired(user.id, settings)) {

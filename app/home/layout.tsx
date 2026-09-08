@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { coreKonDb } from '@/lib/db/core-kon'
 import { authMfaUsers, majors, userPositions, userTypes, users } from '@/lib/db/schema/core-kon'
+import { isPositionAllowed } from '@/lib/auth/access'
 import { verifyAuthToken } from '@/lib/auth/jwt'
 import AppShell from './app-shell'
 
@@ -22,6 +23,7 @@ export default async function HomeLayout({ children }: LayoutProps<'/home'>) {
       lname: users.lname,
       username: users.username,
       isActive: users.isActive,
+      userPositionId: users.userPositionId,
       typeName: userTypes.typeName,
       positionName: userPositions.positionName,
       majorName: majors.name,
@@ -38,6 +40,12 @@ export default async function HomeLayout({ children }: LayoutProps<'/home'>) {
   // บัญชีถูกลบหรือถูกระงับหลังออก token → ตัดออกจากระบบทันที
   // ไม่ใช้ expired=1 เพราะไม่ใช่เรื่องเซสชันหมดอายุ ข้อความจะทำให้เข้าใจผิด
   if (!user || user.isActive !== 'Y') redirect('/')
+
+  // ตรวจตำแหน่งทุกครั้งที่เปิดหน้า ไม่ใช่ตอนล็อกอินอย่างเดียว — token มีอายุหลายชั่วโมง
+  // ถ้าตรวจแค่ตอนเข้าระบบ คนที่ถูกถอดสิทธิ์ (หรือถูกตัดออกจากรายการใน .env)
+  // จะใช้งานต่อได้จนกว่า token จะหมดอายุ เหตุผลที่เด้งกลับหน้าเข้าสู่ระบบเฉย ๆ
+  // คือถ้าล็อกอินใหม่ /api/auth/login จะอธิบายให้เองว่าติดเรื่องสิทธิ์
+  if (!isPositionAllowed(user.userPositionId)) redirect('/')
 
   return (
     <AppShell

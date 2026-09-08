@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { verify } from '@node-rs/argon2'
 import { coreKonDb } from '@/lib/db/core-kon'
 import { authOtpChallenges, users } from '@/lib/db/schema/core-kon'
+import { isPositionAllowed, POSITION_DENIED_MESSAGE } from '@/lib/auth/access'
 import { auditMfa } from '@/lib/auth/mfa'
 import { buildLoginSuccess } from '@/lib/auth/session'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
@@ -156,6 +157,15 @@ export async function POST(request: Request) {
     if (!user || user.isActive !== 'Y') {
       return Response.json(
         { success: false, message: 'บัญชีนี้ถูกระงับการใช้งาน', can_resend: false },
+        { status: 403 },
+      )
+    }
+
+    // ตรวจซ้ำอีกครั้งตรงนี้ ไม่ได้เชื่อผลจากตอนกรอกรหัสผ่าน — ตำแหน่งอาจถูกแก้
+    // ระหว่างรอกรอก OTP และขั้นนี้เป็นด่านสุดท้ายก่อนออก token
+    if (!isPositionAllowed(user.userPositionId)) {
+      return Response.json(
+        { success: false, message: POSITION_DENIED_MESSAGE, can_resend: false },
         { status: 403 },
       )
     }
