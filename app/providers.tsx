@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { ConfigProvider, theme, type ThemeConfig } from 'antd'
 import thTH from 'antd/locale/th_TH'
-import { ThemeProvider, useTheme } from './theme'
+import { ThemeProvider, useTheme, type ThemeMode } from './theme'
 
 /** ค่าที่เหมือนกันทั้งสองธีม — รูปทรงและตัวอักษรไม่ควรเปลี่ยนตามโหมดสี */
 const shared = {
@@ -67,11 +67,19 @@ function AntdTheme({ children }: { children: ReactNode }) {
   )
 }
 
-export default function Providers({ children }: { children: ReactNode }) {
+export default function Providers({
+  initialMode,
+  children,
+}: {
+  /** ธีมที่เซิร์ฟเวอร์อ่านได้จากคุกกี้ — ต้องส่งต่อลงไปให้ ConfigProvider เลือก
+   *  algorithm ชุดเดียวกับที่เบราว์เซอร์จะใช้ ไม่งั้น hydrate ไม่ตรง */
+  initialMode: ThemeMode
+  children: ReactNode
+}) {
   // AntdRegistry ดึง style ของ cssinjs มา inline ตอน SSR — กันหน้าจอกระพริบไร้สไตล์
   return (
     <AntdRegistry>
-      <ThemeProvider>
+      <ThemeProvider initialMode={initialMode}>
         <AntdTheme>{children}</AntdTheme>
       </ThemeProvider>
     </AntdRegistry>

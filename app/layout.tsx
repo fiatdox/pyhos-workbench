@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono, IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
-import { THEME_INIT_SCRIPT } from "./theme";
+import { normalizeMode, THEME_KEY } from "./theme-config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,20 +28,24 @@ export const metadata: Metadata = {
   description: "พื้นที่ทำงานสำหรับสืบค้นและสรุปข้อมูลโรงพยาบาล",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// อ่านคุกกี้ธีมทำให้ทั้งแอปเป็น dynamic — ยอมรับได้เพราะทุกหน้าอ่านฐาน HIS
+// ตามผู้ใช้ที่ล็อกอินอยู่แล้ว ไม่มีหน้าไหนที่ prerender เป็นไฟล์นิ่งได้จริง
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // ธีมของผู้ใช้ต้องรู้ตั้งแต่ฝั่งเซิร์ฟเวอร์ ไม่งั้น antd จะเรนเดอร์คลาสและสไตล์
+  // จาก algorithm คนละชุดกับที่เบราว์เซอร์ใช้ แล้ว hydrate ไม่ตรงทั้งหน้า
+  const mode = normalizeMode((await cookies()).get(THEME_KEY)?.value);
+
   return (
     <html
       lang="th"
       className={`${geistSans.variable} ${geistMono.variable} ${thaiSans.variable} h-full antialiased`}
-      // สคริปต์ธีมแก้ data-theme ก่อน hydrate — markup ฝั่งเซิร์ฟเวอร์จึงไม่ตรงโดยตั้งใจ
-      suppressHydrationWarning
+      // ธีมมาจากคุกกี้ตั้งแต่ฝั่งเซิร์ฟเวอร์แล้ว ไม่มีสคริปต์ inline มาแก้ก่อน hydrate
+      // อีก markup สองฝั่งจึงตรงกันเสมอ (เดิมมีสคริปต์ตั้ง data-theme ก่อน React
+      // ทำงาน ซึ่งทำให้ React เตือนเรื่อง script tag ทุกครั้งในโหมด development)
+      data-theme={mode}
     >
-      <head>
-        {/* ต้องรันก่อน paint แรก ไม่งั้นผู้ใช้ธีมสว่างจะเห็นหน้าจอมืดกระพริบก่อน */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        <Providers initialMode={mode}>{children}</Providers>
       </body>
     </html>
   );
