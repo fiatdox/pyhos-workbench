@@ -9,6 +9,7 @@ import {
   ProfileOutlined,
   RightOutlined,
 } from '@ant-design/icons'
+import { usePermissions } from './app-shell'
 import { MotorcycleOutlined } from './icons'
 
 const { Paragraph, Title } = Typography
@@ -48,6 +49,10 @@ const FEATURES = [
 ]
 
 export default function HomePage() {
+  // การ์ดต้องหายไปพร้อมเมนูของงานที่ผู้ใช้ไม่มีสิทธิ์ ไม่งั้นหน้าแรกจะยังชวนให้กด
+  const permissions = usePermissions()
+  const features = FEATURES.filter(item => permissions.due || item.href !== '/home/due')
+
   return (
     <>
       <section className="mb-8">
@@ -66,7 +71,7 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {FEATURES.map(feature => (
+        {features.map(feature => (
           <Link key={feature.href} href={feature.href}>
             <Card hoverable variant="borderless" className="h-full border! border-line!">
               {/* ไอคอนกับชื่อเมนูอยู่แถวเดียวกัน ส่วนคำอธิบายลงมาเต็มความกว้างข้างล่าง

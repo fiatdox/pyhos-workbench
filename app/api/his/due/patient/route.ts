@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { verifyAuthToken } from '@/lib/auth/jwt'
+import { FEATURE_DENIED_MESSAGE, userCanUseDue } from '@/lib/auth/permissions'
 import { getDuePatient } from '@/lib/his/due'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
 
@@ -14,6 +15,11 @@ export async function GET(request: Request) {
   const claims = token ? await verifyAuthToken(token) : null
   if (!claims?.sub) {
     return Response.json({ success: false, message: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
+  }
+
+  // งาน DUE จำกัดตามตำแหน่ง ซ่อนเมนูอย่างเดียวไม่พอ ต้องกันที่ API ด้วย
+  if (!(await userCanUseDue(claims.sub))) {
+    return Response.json({ success: false, message: FEATURE_DENIED_MESSAGE }, { status: 403 })
   }
 
   const ip = clientIp(request)

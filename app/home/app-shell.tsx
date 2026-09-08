@@ -19,6 +19,10 @@ import { ThemeSegmented, ThemeToggleButton, useTheme } from '@/app/theme'
 const { Header, Content } = Layout
 const { Text, Title } = Typography
 
+/** สิทธิ์รายงานที่เซิร์ฟเวอร์คำนวณให้ ใช้ซ่อนเมนูของงานที่ผู้ใช้ไม่มีสิทธิ์
+ *  การกันจริงอยู่ที่ layout และ API ฝั่งเซิร์ฟเวอร์ ตรงนี้แค่ไม่โชว์ทางเข้า */
+export type ShellPermissions = { due: boolean }
+
 export type ShellUser = {
   fullName: string
   username: string
@@ -38,9 +42,15 @@ export type ShellUser = {
  * ข้อมูลผู้ใช้ค้างอยู่ในเบราว์เซอร์
  */
 const SessionUserContext = createContext<ShellUser | null>(null)
+const PermissionsContext = createContext<ShellPermissions>({ due: true })
 
 export function useSessionUser(): ShellUser | null {
   return useContext(SessionUserContext)
+}
+
+/** สิทธิ์ของผู้ใช้ที่ล็อกอินอยู่ — หน้าลูกใช้ซ่อนการ์ดของงานที่เข้าไม่ได้ */
+export function usePermissions(): ShellPermissions {
+  return useContext(PermissionsContext)
 }
 
 /** เมนูของระบบ — key คือ path จริง กดแล้วพาไปหน้านั้นเลย */
@@ -53,7 +63,15 @@ export const MENU_ITEMS = [
   { key: '/home/health-rider', icon: <MotorcycleOutlined />, label: 'Health Rider' },
 ]
 
-export default function AppShell({ user, children }: { user: ShellUser; children: ReactNode }) {
+export default function AppShell({
+  user,
+  permissions,
+  children,
+}: {
+  user: ShellUser
+  permissions: ShellPermissions
+  children: ReactNode
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const { mode } = useTheme()
@@ -157,7 +175,9 @@ export default function AppShell({ user, children }: { user: ShellUser; children
             selectedKeys={[pathname]}
             onClick={() => setMenuOpen(false)}
             style={{ background: 'transparent', borderInlineEnd: 'none' }}
-            items={MENU_ITEMS.map(item => ({
+            // งาน DUE เห็นเฉพาะตำแหน่งที่กำหนดไว้ใน .env — เอาออกจากเมนูไปเลย
+            // ดีกว่าโชว์แล้วกดไปเจอเด้งกลับ
+            items={MENU_ITEMS.filter(item => permissions.due || item.key !== '/home/due').map(item => ({
               key: item.key,
               icon: item.icon,
               label: <Link href={item.key}>{item.label}</Link>,
@@ -218,7 +238,9 @@ export default function AppShell({ user, children }: { user: ShellUser; children
 
         {/* เต็มความกว้างจอ — ตารางประวัติยามีคอลัมน์เยอะ ยิ่งกว้างยิ่งเห็นหลายครั้งที่รับยาพร้อมกัน */}
         <Content className="w-full px-4 py-8 sm:px-6 lg:px-8">
-          <SessionUserContext.Provider value={user}>{children}</SessionUserContext.Provider>
+          <SessionUserContext.Provider value={user}>
+            <PermissionsContext.Provider value={permissions}>{children}</PermissionsContext.Provider>
+          </SessionUserContext.Provider>
         </Content>
       </Layout>
     </div>

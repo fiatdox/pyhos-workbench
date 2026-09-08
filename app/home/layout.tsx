@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { coreKonDb } from '@/lib/db/core-kon'
 import { authMfaUsers, majors, userPositions, userTypes, users } from '@/lib/db/schema/core-kon'
-import { isPositionAllowed } from '@/lib/auth/access'
+import { canUseDue, isPositionAllowed } from '@/lib/auth/access'
 import { verifyAuthToken } from '@/lib/auth/jwt'
 import AppShell from './app-shell'
 
@@ -49,6 +49,8 @@ export default async function HomeLayout({ children }: LayoutProps<'/home'>) {
 
   return (
     <AppShell
+      // สิทธิ์คำนวณที่นี่ที่เดียวแล้วส่งลงไป หน้าลูกจึงไม่ต้องรู้กติกาเอง
+      permissions={{ due: canUseDue(user.userPositionId) }}
       user={{
         fullName: [user.pname, user.fname, user.lname].filter(Boolean).join(' '),
         username: user.username,

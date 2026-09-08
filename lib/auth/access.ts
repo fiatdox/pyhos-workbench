@@ -21,10 +21,18 @@ import 'server-only'
  * ตั้งเป็นค่าว่างก็ถือว่าไม่จำกัดเช่นกัน ไม่ใช่ "ห้ามทุกคน" — ตั้งค่าพลาดแล้ว
  * ล็อกทุกคนออกจากระบบรวมถึงผู้ดูแลเอง เป็นผลที่รุนแรงเกินกว่าจะให้เกิดจากช่องว่าง
  */
-const ALLOWED_POSITION_IDS: Set<number> | null = parseAllowList()
+const ALLOWED_POSITION_IDS: Set<number> | null = parseAllowList('ALLOWED_USER_POSITION_IDS')
 
-function parseAllowList(): Set<number> | null {
-  const raw = process.env.ALLOWED_USER_POSITION_IDS?.trim()
+/**
+ * ตำแหน่งที่เห็นเมนู DUE — DUE_USER_POSITION_IDS
+ *
+ * แยกจากรายการเข้าระบบเพราะเป็นคนละคำถาม: เข้าระบบได้ ไม่ได้แปลว่าต้องเห็นทุกงาน
+ * ไม่ได้ตั้ง = ทุกคนที่เข้าระบบได้เห็นเมนูนี้ (พฤติกรรมเดิมก่อนมีการจำกัด)
+ */
+const DUE_POSITION_IDS: Set<number> | null = parseAllowList('DUE_USER_POSITION_IDS')
+
+function parseAllowList(name: string): Set<number> | null {
+  const raw = process.env[name]?.trim()
   if (!raw) return null
 
   const parts = raw
@@ -44,7 +52,7 @@ function parseAllowList(): Set<number> | null {
 
   if (bad.length > 0) {
     throw new Error(
-      `ค่า ALLOWED_USER_POSITION_IDS ต้องเป็นรหัสตำแหน่งตัวเลขคั่นด้วยจุลภาค — ค่าที่ผิด: ${bad.join(', ')}`,
+      `ค่า ${name} ต้องเป็นรหัสตำแหน่งตัวเลขคั่นด้วยจุลภาค — ค่าที่ผิด: ${bad.join(', ')}`,
     )
   }
   return ids.size > 0 ? ids : null
@@ -65,6 +73,18 @@ export function isPositionAllowed(userPositionId: number | null | undefined): bo
   if (ALLOWED_POSITION_IDS === null) return true
   if (userPositionId == null) return false
   return ALLOWED_POSITION_IDS.has(userPositionId)
+}
+
+/**
+ * ตำแหน่งนี้ใช้งานเมนู DUE ได้หรือไม่
+ *
+ * บัญชีที่ไม่ได้ระบุตำแหน่งถือว่าไม่ผ่านเมื่อเปิดการจำกัดไว้ ด้วยเหตุผลเดียวกับ
+ * การเข้าระบบ — ตรวจไม่ได้ก็ไม่ควรให้ผ่าน
+ */
+export function canUseDue(userPositionId: number | null | undefined): boolean {
+  if (DUE_POSITION_IDS === null) return true
+  if (userPositionId == null) return false
+  return DUE_POSITION_IDS.has(userPositionId)
 }
 
 /** ข้อความแจ้งผู้ใช้ — ไม่บอกว่ารายการที่อนุญาตมีอะไรบ้าง */
