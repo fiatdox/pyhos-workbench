@@ -4,8 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Avatar, Button, Descriptions, Divider, Drawer, Layout, Menu, Tag, Typography } from 'antd'
 import {
-  AuditOutlined,
-  DashboardOutlined,
+  AuditOutlined,  DashboardOutlined,
   ExperimentOutlined,
   LogoutOutlined,
   MedicineBoxOutlined,
@@ -14,6 +13,7 @@ import {
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons'
+import { MotorcycleOutlined } from './icons'
 import { ThemeSegmented, ThemeToggleButton, useTheme } from '@/app/theme'
 
 const { Header, Content } = Layout
@@ -50,6 +50,7 @@ export const MENU_ITEMS = [
   { key: '/home/hla-b5801', icon: <ExperimentOutlined />, label: 'ผลตรวจ HLA-B*5801' },
   { key: '/home/drug-profile', icon: <ProfileOutlined />, label: 'Drug Profile ผู้ป่วยใน' },
   { key: '/home/due', icon: <AuditOutlined />, label: 'DUE ขออนุมัติใช้ยา' },
+  { key: '/home/health-rider', icon: <MotorcycleOutlined />, label: 'Health Rider' },
 ]
 
 export default function AppShell({ user, children }: { user: ShellUser; children: ReactNode }) {

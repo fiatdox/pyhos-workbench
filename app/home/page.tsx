@@ -4,12 +4,12 @@
 import Link from 'next/link'
 import { Card, Typography } from 'antd'
 import {
-  AuditOutlined,
-  ExperimentOutlined,
+  AuditOutlined,  ExperimentOutlined,
   MedicineBoxOutlined,
   ProfileOutlined,
   RightOutlined,
 } from '@ant-design/icons'
+import { MotorcycleOutlined } from './icons'
 
 const { Paragraph, Title } = Typography
 
@@ -38,6 +38,12 @@ const FEATURES = [
     icon: <AuditOutlined />,
     title: 'DUE ขออนุมัติใช้ยา',
     desc: 'แพทย์สั่งยากลุ่ม DUE เภสัชกรวิเคราะห์ความสมเหตุสมผล แพทย์กำกับอนุมัติ',
+  },
+  {
+    href: '/home/health-rider',
+    icon: <MotorcycleOutlined />,
+    title: 'Health Rider',
+    desc: 'ยังไม่ระบุขอบเขตงาน — เปิดหน้าไว้รอออกแบบ',
   },
 ]
 
