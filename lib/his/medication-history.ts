@@ -5,6 +5,11 @@ import { getPatientConditions, type PatientCondition } from './conditions'
 import { listHlaResults, type HlaResult } from './hla-b5801'
 import { hasPatientImage } from './patient-image'
 import { countLabCultures } from './lab-culture'
+import { countPatientNotes } from './patient-notes'
+import { countPhysicalExams } from './physical-exams'
+import { countDentalNotes } from './dental-notes'
+import { countOpdScans } from './opd-scan'
+import { countXrayReports } from './xray-reports'
 
 /**
  * ประวัติการได้รับยา — พอร์ตมาจากสคริปต์ PHP เดิม (hos1/MariaDB)
@@ -109,6 +114,20 @@ export type MedicationHistory = {
   hasPhoto: boolean
   /** จำนวนผลแล็บแบบเอกสารที่มีเนื้อความจริง — 0 คือไม่ต้องขึ้นปุ่มให้กด */
   labCultureCount: number
+  /**
+   * จำนวนข้อมูลของปุ่มในกล่อง "ข้อมูลเพิ่มเติม"
+   *
+   * นับตั้งแต่ตอนโหลดหน้า เพื่อให้ปุ่มบอกจำนวนได้ตั้งแต่ยังไม่กด และซ่อนปุ่มที่ไม่มี
+   * ข้อมูลทิ้งไปเลย — ของเดิมต้องกดเข้าไปถึงจะรู้ว่าว่าง เสียเวลาทีละครั้ง
+   * ทุกตัวใช้เงื่อนไขเดียวกับคิวรีที่ดึงรายการจริง ไม่งั้นเลขกับของที่เห็นจะไม่ตรงกัน
+   */
+  extraCounts: {
+    notes: number
+    physicalExams: number
+    dentalNotes: number
+    opdScans: number
+    xrayReports: number
+  }
   columns: MedicationColumn[]
   rows: MedicationRow[]
 }
@@ -402,12 +421,26 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
   if (!patient) {
     return {
       months, patient: null, allergies: [], conditions: [], hlaResults: [],
-      hasPhoto: false, labCultureCount: 0, columns: [], rows: [],
+      hasPhoto: false, labCultureCount: 0,
+      extraCounts: { notes: 0, physicalExams: 0, dentalNotes: 0, opdScans: 0, xrayReports: 0 },
+      columns: [], rows: [],
     }
   }
 
-  const [columns, drugs, allergies, conditions, hlaResults, hasPhoto, labCultureCount] =
-    await Promise.all([
+  const [
+    columns,
+    drugs,
+    allergies,
+    conditions,
+    hlaResults,
+    hasPhoto,
+    labCultureCount,
+    notes,
+    physicalExams,
+    dentalNotes,
+    opdScans,
+    xrayReports,
+  ] = await Promise.all([
     loadColumns(hn, months),
     loadDrugRows(hn, months),
     loadAllergies(hn),
@@ -415,8 +448,14 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
     // ผลตรวจ HLA-B*5801 ไม่จำกัดช่วงเวลา ตรวจครั้งเดียวใช้ได้ตลอดชีวิต
     listHlaResults({ hn }),
     hasPatientImage(hn),
-    // นับไว้ตั้งแต่ตอนโหลดหน้า เพื่อให้รู้ว่าจะขึ้นปุ่ม Lab Culture หรือไม่
+    // นับไว้ตั้งแต่ตอนโหลดหน้า เพื่อให้รู้ว่าจะขึ้นปุ่มไหนบ้างและแต่ละปุ่มมีกี่รายการ
+    // ทั้งหมดยิงขนานกัน จึงเสียเวลาเท่าคิวรีที่ช้าที่สุดตัวเดียว ไม่ใช่บวกกัน
     countLabCultures(hn),
+    countPatientNotes(hn),
+    countPhysicalExams(hn),
+    countDentalNotes(hn),
+    countOpdScans(hn),
+    countXrayReports(hn),
   ])
   const cells = await loadCells(hn, months, columns)
 
@@ -440,6 +479,8 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
 
   return {
     months, patient: summary, allergies, conditions, hlaResults,
-    hasPhoto, labCultureCount, columns, rows,
+    hasPhoto, labCultureCount,
+    extraCounts: { notes, physicalExams, dentalNotes, opdScans, xrayReports },
+    columns, rows,
   }
 }

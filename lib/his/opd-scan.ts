@@ -79,6 +79,17 @@ export async function listOpdScans(
   }))
 }
 
+/**
+ * จำนวนภาพสแกนของผู้ป่วย ใช้ตัดสินว่าจะขึ้นปุ่มหรือไม่
+ *
+ * นับจาก metadata อย่างเดียว ไม่แตะคอลัมน์ scan_image ซึ่งเป็น longblob
+ * (COUNT(*) บน ix_hn ไม่ต้องอ่านตัวภาพ)
+ */
+export async function countOpdScans(hn: string): Promise<number> {
+  const rows = await query(`SELECT COUNT(*) AS n FROM opdscan WHERE hn = ?`, [hn])
+  return Number(rows[0]?.n ?? 0)
+}
+
 /** ภาพหนึ่งใบ — ต้องระบุ hn คู่กับ scan_id เสมอ ให้ภาพผูกกับผู้ป่วยที่ผู้ใช้กำลังดูอยู่ */
 export async function getOpdScanImage(
   scanId: number,

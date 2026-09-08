@@ -46,6 +46,17 @@ function toChristianYear(date: string | null): string | null {
   return year >= 2400 ? `${year - 543}${date.slice(4)}` : date
 }
 
+/**
+ * จำนวนรายงานที่มีเนื้อความจริง ใช้ตัดสินว่าจะขึ้นปุ่มหรือไม่
+ *
+ * ไม่ได้ใช้ COUNT(*) ใน SQL เพราะการคัดรายงานเปล่าออกต้องแปลง RTF เป็นข้อความก่อน
+ * จะรู้ว่ามีเนื้อความไหม (ราว 6% ของแถวเป็น RTF ที่เหลือเป็นข้อความล้วน) การนับ
+ * ด้วยความยาวสตริงดิบจึงคลาดเคลื่อน แล้วปุ่มจะขึ้นเลขทั้งที่กดเข้าไปแล้วว่าง
+ */
+export async function countXrayReports(hn: string): Promise<number> {
+  return (await getXrayReports(hn)).length
+}
+
 export async function getXrayReports(hn: string): Promise<XrayReport[]> {
   const [result] = await hisDb.execute(sql`
     SELECT xr.xn, xr.vn, xr.confirm,

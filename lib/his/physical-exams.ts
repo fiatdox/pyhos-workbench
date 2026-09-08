@@ -21,6 +21,15 @@ const MAX_RECORDS = 200
 
 const str = (v: unknown): string | null => (v == null || v === '' ? null : String(v).trim() || null)
 
+/** จำนวนครั้งที่มีบันทึกตรวจร่างกาย — เงื่อนไขเดียวกับ getPatientPhysicalExams */
+export async function countPhysicalExams(hn: string): Promise<number> {
+  const [result] = await hisDb.execute(sql`
+    SELECT COUNT(*) AS n FROM opdscreen
+    WHERE hn = ${hn} AND pe IS NOT NULL AND pe <> ''`)
+  const row = (result as unknown as Record<string, unknown>[])[0]
+  return Number(row?.n ?? 0)
+}
+
 export async function getPatientPhysicalExams(hn: string): Promise<PhysicalExam[]> {
   const [result] = await hisDb.execute(sql`
     SELECT a.vn, DATE_FORMAT(a.vstdate, '%Y-%m-%d') AS vstdate, a.vsttime, a.pe,

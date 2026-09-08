@@ -29,6 +29,16 @@ const MAX_NOTES = 200
 
 const str = (v: unknown): string | null => (v == null || v === '' ? null : String(v))
 
+/**
+ * จำนวนโน้ตของผู้ป่วย ใช้ตัดสินว่าจะขึ้นปุ่มให้กดหรือไม่
+ * เงื่อนไขต้องตรงกับ getPatientNotes เป๊ะ ไม่งั้นปุ่มขึ้นเลขหนึ่ง แต่กดเข้าไปว่าง
+ */
+export async function countPatientNotes(hn: string): Promise<number> {
+  const [result] = await hisDb.execute(sql`SELECT COUNT(*) AS n FROM ptnote WHERE hn = ${hn}`)
+  const row = (result as unknown as Record<string, unknown>[])[0]
+  return Number(row?.n ?? 0)
+}
+
 export async function getPatientNotes(hn: string): Promise<PatientNote[]> {
   const [result] = await hisDb.execute(sql`
     SELECT a.ptnote_id, a.noteflag, a.groupname, a.plain_text, a.prsc_note_text,

@@ -31,6 +31,17 @@ const MAX_NOTES = 200
 
 const str = (v: unknown): string | null => (v == null || v === '' ? null : String(v).trim() || null)
 
+/** จำนวนครั้งที่มีบันทึกทันตกรรม — ต้อง join ovst เหมือนกัน เพราะ hn อยู่ที่ ovst */
+export async function countDentalNotes(hn: string): Promise<number> {
+  const [result] = await hisDb.execute(sql`
+    SELECT COUNT(*) AS n
+    FROM dt_list l
+    INNER JOIN ovst o ON o.vn = l.vn
+    WHERE o.hn = ${hn}`)
+  const row = (result as unknown as Record<string, unknown>[])[0]
+  return Number(row?.n ?? 0)
+}
+
 export async function getDentalNotes(hn: string): Promise<DentalNote[]> {
   const [result] = await hisDb.execute(sql`
     SELECT l.vn, l.dt_list, l.dental_note,

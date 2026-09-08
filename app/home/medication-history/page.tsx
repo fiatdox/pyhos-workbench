@@ -1172,39 +1172,62 @@ export default function MedicationHistoryPage() {
             ข้อมูลเพิ่มเติม
           </div>
           {/* flex-wrap เพราะคอลัมน์ 30% เรียงปุ่มทั้งหมดในบรรทัดเดียวไม่พอ */}
+          {/* ทุกปุ่มบอกจำนวนรายการในวงเล็บ และปุ่มที่ไม่มีข้อมูลไม่ต้องขึ้นมาเลย
+              — ของเดิมต้องกดเข้าไปถึงจะรู้ว่าว่าง เสียเวลาทีละครั้ง
+              จำนวนทั้งหมดนับมาพร้อมข้อมูลผู้ป่วยตั้งแต่ตอนโหลดหน้า */}
           <div className="flex flex-wrap gap-2">
-            <Button size="small" icon={<FileTextOutlined />} onClick={() => void openNotes(data.patient!.hn)}>
-              Note
-            </Button>
-            <Button
-              size="small"
-              icon={<SolutionOutlined />}
-              onClick={() => void openExams(data.patient!.hn)}
-            >
-              PE
-            </Button>
-            <Button
-              size="small"
-              icon={<SmileOutlined />}
-              onClick={() => void openDental(data.patient!.hn)}
-            >
-              Dent Note
-            </Button>
-            <Button
-              size="small"
-              icon={<FileImageOutlined />}
-              onClick={() => void openScans(data.patient!.hn)}
-            >
-              OPD Scan
-            </Button>
-            <Button
-              size="small"
-              icon={<RadarChartOutlined />}
-              onClick={() => void openXray(data.patient!.hn)}
-            >
-              X-ray Report
-            </Button>
-            {/* แสดงเฉพาะผู้ป่วยที่มีผลแล็บแบบเอกสารจริง — นับตอนโหลดหน้ามาแล้ว */}
+            {data.extraCounts.notes > 0 && (
+              <Button
+                size="small"
+                icon={<FileTextOutlined />}
+                onClick={() => void openNotes(data.patient!.hn)}
+              >
+                Note ({data.extraCounts.notes})
+              </Button>
+            )}
+            {data.extraCounts.physicalExams > 0 && (
+              <Button
+                size="small"
+                icon={<SolutionOutlined />}
+                onClick={() => void openExams(data.patient!.hn)}
+              >
+                PE ({data.extraCounts.physicalExams})
+              </Button>
+            )}
+            {data.extraCounts.dentalNotes > 0 && (
+              <Button
+                size="small"
+                icon={<SmileOutlined />}
+                onClick={() => void openDental(data.patient!.hn)}
+              >
+                Dent Note ({data.extraCounts.dentalNotes})
+              </Button>
+            )}
+            {data.extraCounts.opdScans > 0 && (
+              <Button
+                size="small"
+                icon={<FileImageOutlined />}
+                onClick={() => void openScans(data.patient!.hn)}
+              >
+                OPD Scan ({data.extraCounts.opdScans})
+              </Button>
+            )}
+            {/* ยังต่อข้อมูลไม่ได้ — ภาพสแกนผู้ป่วยในอยู่คนละตารางกับ opdscan
+                ยังไม่มีจำนวนให้แสดง จึงคงเป็นปุ่มปิดไว้ก่อนตามที่ตกลงกันไว้ */}
+            <Tooltip title="ยังไม่เปิดใช้งาน">
+              <Button size="small" icon={<FileImageOutlined />} disabled>
+                IPD Scan
+              </Button>
+            </Tooltip>
+            {data.extraCounts.xrayReports > 0 && (
+              <Button
+                size="small"
+                icon={<RadarChartOutlined />}
+                onClick={() => void openXray(data.patient!.hn)}
+              >
+                X-ray Report ({data.extraCounts.xrayReports})
+              </Button>
+            )}
             {data.labCultureCount > 0 && (
               <Button
                 size="small"
