@@ -1,10 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Checkbox, DatePicker, Input, InputNumber, Modal, Radio, Select, Typography } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
-import ReferenceTabs from '../reference-tabs'
+import { apiFetch } from '@/lib/client/session'
+import ReferenceTabs, { type RationalUse } from '../reference-tabs'
 import {
   APPROPRIATE_OPTIONS,
   DRP_OPTIONS,
@@ -116,6 +117,183 @@ function StackedCheckbox({
   )
 }
 
+/** ผลวิเคราะห์ของยาหนึ่งตัวในใบคำขอหนึ่งใบ */
+type Analysis = {
+  /** ยาที่ผลนี้เป็นของมัน — กันเอาผลของยาตัวก่อนหน้ามาแสดงทับ */
+  key: string
+  status: 'done' | 'error'
+  text: string
+  message: string
+  model: string | null
+  elapsedMs: number | null
+}
+
+/**
+ * วิเคราะห์ความสมเหตุผลของการใช้ยาให้อัตโนมัติตลอดเวลาที่แบบประเมินเปิดอยู่
+ *
+ * เริ่มทันทีที่เปิด ไม่รอให้กดแท็บ เพราะโมเดลใช้เวลาเป็นสิบวินาที ถ้าเริ่มตอนกด
+ * เภสัชกรจะต้องนั่งรอ แต่ถ้าเริ่มตั้งแต่เปิด กว่าจะกรอกถึงหัวข้อที่ต้องใช้ก็เสร็จพอดี
+ *
+ * ปิดแบบประเมิน (หรือสลับไปยาตัวอื่น) = ยกเลิกคำขอที่ค้างอยู่ทันที ทั้งฝั่งเบราว์เซอร์
+ * และฝั่งเซิร์ฟเวอร์ที่ส่งสัญญาณต่อไปให้ตัวรันโมเดล — ตัวรันโมเดลทำงานทีละคำขอ
+ * ถ้าไม่ยกเลิก คำขอที่ไม่มีใครรอแล้วจะหน่วงคำขอถัดไปที่มีคนรออยู่จริง
+ */
+function useRationalUse(
+  open: boolean,
+  request: MockRequest | null,
+  drug: MockDrug | null,
+): RationalUse | undefined {
+  const [available, setAvailable] = useState<boolean | null>(null)
+  const [result, setResult] = useState<Analysis | null>(null)
+  /** เพิ่มค่าเพื่อสั่งวิเคราะห์ใหม่ทั้งที่ยาตัวเดิม */
+  const [round, setRound] = useState(0)
+
+  /** ข้อมูลเคสล่าสุด — อ่านผ่าน ref เพื่อไม่ให้การบันทึกผลประเมิน (ซึ่งสร้าง
+      object ใหม่) ไปสั่งให้วิเคราะห์ใหม่ทั้งที่ข้อมูลที่ใช้วิเคราะห์ไม่ได้เปลี่ยน */
+  const caseRef = useRef<{ request: MockRequest | null; drug: MockDrug | null }>({
+    request: null,
+    drug: null,
+  })
+  useEffect(() => {
+    caseRef.current = { request, drug }
+  })
+
+  useEffect(() => {
+    let alive = true
+    const run = async () => {
+      try {
+        const res = await apiFetch('/api/his/due/assist')
+        const json = await res.json()
+        if (alive) setAvailable(Boolean(json.available))
+      } catch {
+        // ถามไม่ได้ก็ถือว่าปิด ดีกว่าขึ้นแท็บที่เปิดเข้าไปแล้วไม่มีอะไร
+        if (alive) setAvailable(false)
+      }
+    }
+    void run()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const key = open && request && drug ? `${request.id}#${drug.id}` : null
+
+  useEffect(() => {
+    if (key == null || available !== true) return
+    const controller = new AbortController()
+
+    const run = async () => {
+      const { request: req, drug: item } = caseRef.current
+      if (!req || !item) return
+      try {
+        const res = await apiFetch('/api/his/due/rational-use', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          // ส่งเฉพาะที่ใช้วิเคราะห์ ไม่มีชื่อและ HN — ฝั่งเซิร์ฟเวอร์คัดฟิลด์ซ้ำอีกชั้น
+          body: JSON.stringify({
+            drug: {
+              name: item.name,
+              dose: item.dose,
+              startedAt: item.startedAt,
+              indication: item.indicationOther
+                ? `${item.indication} : ${item.indicationOther}`
+                : item.indication,
+            },
+            age: req.age,
+            sex: req.sex,
+            visitType: req.visitType,
+            wardName: req.wardName,
+            renal: {
+              cr: req.cr,
+              weight: req.weight,
+              crcl: req.crcl,
+              egfr: req.egfr,
+              measuredAt: req.creatinineAt,
+              awaiting: req.awaitingCreatinine,
+            },
+            sepsis: req.sepsis === 'yes',
+            infectionSource:
+              req.infectionSource === 'hospital' ? 'ติดเชื้อในโรงพยาบาล' : 'ติดเชื้อจากชุมชน',
+            diagnosis: req.diagnosisOther
+              ? `${req.diagnosis} : ${req.diagnosisOther}`
+              : req.diagnosis,
+            infectionSite: req.infectionSite,
+            allergies: req.allergies,
+            conditions: req.conditions,
+            prior: {
+              none: req.noPriorAntibiotic,
+              name: req.priorAntibiotic,
+              startedAt: req.priorStartedAt,
+              days: req.priorDays,
+            },
+            specimens: req.specimens,
+            antibiotics: req.antibioticHistory.map(row => ({
+              rxAt: row.rxAt,
+              drugName: row.drugName,
+              usage: row.usage,
+              qty: row.qty,
+            })),
+          }),
+        })
+        const json = await res.json()
+        if (controller.signal.aborted) return
+        if (!res.ok || !json.success) {
+          setResult({
+            key,
+            status: 'error',
+            text: '',
+            message: json.message ?? 'วิเคราะห์ไม่สำเร็จ',
+            model: null,
+            elapsedMs: null,
+          })
+          return
+        }
+        setResult({
+          key,
+          status: 'done',
+          text: String(json.analysis ?? ''),
+          message: '',
+          model: typeof json.model === 'string' ? json.model : null,
+          elapsedMs: typeof json.elapsedMs === 'number' ? json.elapsedMs : null,
+        })
+      } catch {
+        // ยกเลิกเองไม่ใช่ข้อผิดพลาด อย่าไปเขียนทับหน้าจอที่กำลังปิด
+        if (controller.signal.aborted) return
+        setResult({
+          key,
+          status: 'error',
+          text: '',
+          message: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้',
+          model: null,
+          elapsedMs: null,
+        })
+      }
+    }
+
+    void run()
+    return () => controller.abort()
+  }, [key, available, round])
+
+  if (key == null || available !== true) return undefined
+
+  // ผลของยาตัวอื่นถือว่ายังไม่มีผล — สถานะจึงกลับไปเป็นกำลังวิเคราะห์เอง
+  // โดยไม่ต้องสั่ง setState ตอนสลับยา
+  const current = result?.key === key ? result : null
+
+  return {
+    status: current?.status ?? 'loading',
+    text: current?.text ?? '',
+    message: current?.message ?? '',
+    model: current?.model ?? null,
+    elapsedMs: current?.elapsedMs ?? null,
+    onRetry: () => {
+      setResult(null)
+      setRound(value => value + 1)
+    },
+  }
+}
+
 /**
  * แบบประเมินการใช้ยาหนึ่งตัว
  *
@@ -139,6 +317,7 @@ export default function EvaluationModal({
   /** เปิดใบรายงานผลเพาะเชื้อฉบับเต็ม — ใช้ modal ตัวเดียวกับหน้าอื่น */
   onOpenCulture: () => void
 }) {
+  const rationalUse = useRationalUse(open, request, drug)
   const [form, setForm] = useState<DrugEvaluation>(emptyEvaluation())
   /** ยาตัวที่โหลดค่าเข้าฟอร์มไปแล้ว — กันโหลดทับค่าที่กำลังกรอกอยู่ทุกครั้งที่ re-render */
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
@@ -192,7 +371,11 @@ export default function EvaluationModal({
     >
       {request && drug && (
         <div className="space-y-4 pb-2">
-          <ReferenceTabs request={request} onOpenCulture={onOpenCulture} />
+          <ReferenceTabs
+            request={request}
+            onOpenCulture={onOpenCulture}
+            rationalUse={rationalUse}
+          />
 
           {/* ───── แถวบน: ความเหมาะสมของการสั่งใช้ ───── */}
           <div className="overflow-hidden rounded-lg border border-line">

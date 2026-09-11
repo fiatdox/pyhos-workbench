@@ -1,7 +1,13 @@
 'use client'
 import { useState } from 'react'
 import { Button } from 'antd'
-import { DownOutlined, SearchOutlined, UpOutlined } from '@ant-design/icons'
+import {
+  DownOutlined,
+  LoadingOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  UpOutlined,
+} from '@ant-design/icons'
 import RenalChart from './renal-chart'
 import { toThaiDateTime } from './display'
 import type { MockRequest } from './mock-data'
@@ -18,7 +24,27 @@ import type { MockRequest } from './mock-data'
  * — คำถามที่สองฝ่ายต้องตอบต่างกัน แต่ข้อมูลที่ต้องดูประกอบเป็นชุดเดียวกัน
  */
 
-type RefTab = 'renal' | 'culture' | 'antibiotic'
+type RefTab = 'renal' | 'culture' | 'antibiotic' | 'rdu'
+
+/**
+ * ผลวิเคราะห์ความสมเหตุผลของการใช้ยาจากโมเดลภาษา
+ *
+ * ผู้เรียกเป็นเจ้าของสถานะเอง เพราะการวิเคราะห์เริ่มตอน "เปิดแบบประเมิน"
+ * ไม่ใช่ตอนกดแท็บ — แท็บนี้เป็นแค่ที่แสดงผล ถ้าย้ายการยิงคำขอมาไว้ในนี้
+ * แท็บที่ยังไม่ได้กดดูจะไม่มีอะไรเริ่มทำงานเลย
+ *
+ * ไม่ส่ง prop นี้มา = ไม่มีแท็บนี้ (เครื่องที่ไม่ได้ตั้งค่าโมเดล และลิ้นชักของ
+ * แพทย์ผู้กำกับที่ไม่ได้ใช้ตัวช่วยนี้)
+ */
+export type RationalUse = {
+  status: 'loading' | 'done' | 'error'
+  text: string
+  message: string
+  /** ชื่อโมเดลที่ตอบ — บอกที่มาให้ชัด ไม่ใช่กล่องดำ */
+  model: string | null
+  elapsedMs: number | null
+  onRetry: () => void
+}
 
 /**
  * ให้สีประจำชุดข้อมูลไปเลย ไม่ใช้ Segmented ของ antd เพราะ Segmented ทาสีปุ่ม
@@ -64,6 +90,14 @@ const REF_TABS: {
     panel: 'border-ref-abx-line',
     head: 'bg-ref-abx-bg',
   },
+  {
+    value: 'rdu',
+    label: 'วิเคราะห์การใช้ยาสมเหตุผล',
+    active: 'border-ref-rdu-line bg-ref-rdu-bg text-ref-rdu',
+    idle: 'border-line text-ink-3 hover:border-ref-rdu-line hover:text-ref-rdu',
+    panel: 'border-ref-rdu-line',
+    head: 'bg-ref-rdu-bg',
+  },
 ]
 
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
@@ -108,17 +142,21 @@ export default function ReferenceTabs({
   request,
   onOpenCulture,
   chartHeight = 280,
+  rationalUse,
 }: {
   request: MockRequest
   /** เปิดใบรายงานผลเพาะเชื้อฉบับเต็ม — ใช้ modal ตัวเดียวกับหน้าอื่น */
   onOpenCulture: () => void
   chartHeight?: number
+  rationalUse?: RationalUse
 }) {
   const [tab, setTab] = useState<RefTab>('renal')
   const [open, setOpen] = useState(true)
 
+  const tabs = rationalUse ? REF_TABS : REF_TABS.filter(item => item.value !== 'rdu')
+
   /** สีประจำแท็บที่กำลังดู — ใช้กับกรอบเนื้อหาและหัวตารางให้เป็นชุดเดียวกัน */
-  const tone = REF_TABS.find(item => item.value === tab) ?? REF_TABS[0]
+  const tone = tabs.find(item => item.value === tab) ?? tabs[0]
 
   return (
     // -mx-6 px-6 ให้แถบกินเต็มความกว้างของกล่องที่มี padding 24px (Modal / Drawer)
@@ -126,7 +164,7 @@ export default function ReferenceTabs({
     <div className="sticky top-0 z-10 -mx-6 border-b border-line bg-elevated px-6 pb-3 pt-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
-          {REF_TABS.map(item => {
+          {tabs.map(item => {
             const count =
               item.value === 'culture'
                 ? request.cultureHistory.length
@@ -146,6 +184,11 @@ export default function ReferenceTabs({
               >
                 {item.label}
                 {count != null && ` (${count})`}
+                {/* แท็บวิเคราะห์เริ่มทำงานตั้งแต่เปิดแบบประเมิน ต้องเห็นจากปุ่มว่ากำลังทำอยู่
+                    ไม่ใช่ต้องกดเข้าไปดูถึงจะรู้ */}
+                {item.value === 'rdu' && rationalUse?.status === 'loading' && (
+                  <LoadingOutlined className="ml-1.5" />
+                )}
               </button>
             )
           })}
@@ -230,6 +273,60 @@ export default function ReferenceTabs({
                 </tr>
               ))}
             </RefTable>
+          )}
+
+          {tab === 'rdu' && rationalUse && (
+            <div className="max-h-72 overflow-auto p-3">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="rounded bg-ref-rdu-bg px-2 py-0.5 text-[11px] font-semibold text-ref-rdu">
+                  ข้อความจากโมเดล ไม่ใช่ผลตรวจ
+                </span>
+                <span className="text-[11px] leading-snug text-ink-3">
+                  เป็นประเด็นตั้งต้นให้ตรวจสอบ ต้องยืนยันกับข้อมูลจริงก่อนใช้กรอกแบบประเมิน
+                </span>
+                {rationalUse.status !== 'loading' && (
+                  <Button
+                    type="link"
+                    size="small"
+                    className="ml-auto h-auto px-0! text-[11px]!"
+                    icon={<ReloadOutlined />}
+                    onClick={rationalUse.onRetry}
+                  >
+                    วิเคราะห์ใหม่
+                  </Button>
+                )}
+              </div>
+
+              {rationalUse.status === 'loading' && (
+                <div className="px-3 py-8 text-center text-xs text-ink-3">
+                  <LoadingOutlined className="mr-2" />
+                  กำลังวิเคราะห์ อาจใช้เวลาสักครู่ — ระหว่างนี้กรอกแบบประเมินต่อได้
+                </div>
+              )}
+
+              {rationalUse.status === 'error' && (
+                <div className="px-3 py-8 text-center text-xs text-ink-3">
+                  {rationalUse.message}
+                </div>
+              )}
+
+              {rationalUse.status === 'done' && (
+                <>
+                  {/* ข้อความล้วนจากโมเดล แสดงตามบรรทัดที่มันขึ้นมา ไม่แปลง markdown
+                      เพื่อไม่ให้เนื้อหาถูกตีความเป็น HTML */}
+                  <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-ink">
+                    {rationalUse.text}
+                  </pre>
+                  {rationalUse.model && (
+                    <div className="mt-2 text-[11px] text-ink-3">
+                      {rationalUse.model}
+                      {rationalUse.elapsedMs != null &&
+                        ` · ${(rationalUse.elapsedMs / 1000).toFixed(1)} วินาที`}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
       )}

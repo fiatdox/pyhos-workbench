@@ -1,6 +1,7 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
 // (การตรวจสิทธิ์ยังทำที่ app/home/layout.tsx ซึ่งเป็น Server Component)
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { Card, Typography } from 'antd'
 import {
@@ -8,14 +9,22 @@ import {
   MedicineBoxOutlined,
   ProfileOutlined,
   RightOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
-import { usePermissions } from './app-shell'
+import { usePermissions, type RestrictedFeature } from './app-shell'
 import { MotorcycleOutlined } from './icons'
 
 const { Paragraph, Title } = Typography
 
 // การ์ดต้องตรงกับเมนูใน drawer ซ้าย (MENU_ITEMS) — เพิ่มเมนูใหม่ที่ไหน เพิ่มที่นี่ด้วย
-const FEATURES = [
+const FEATURES: {
+  href: string
+  icon: ReactNode
+  title: string
+  desc: string
+  /** งานที่จำกัดตามตำแหน่ง ไม่ใส่ = ทุกคนที่เข้าระบบได้เห็น */
+  feature?: RestrictedFeature
+}[] = [
   {
     href: '/home/medication-history',
     icon: <MedicineBoxOutlined />,
@@ -39,6 +48,14 @@ const FEATURES = [
     icon: <AuditOutlined />,
     title: 'DUE ขออนุมัติใช้ยา',
     desc: 'แพทย์สั่งยากลุ่ม DUE เภสัชกรวิเคราะห์ความสมเหตุสมผล แพทย์กำกับอนุมัติ',
+    feature: 'due',
+  },
+  {
+    href: '/home/rdu',
+    icon: <SafetyCertificateOutlined />,
+    title: 'RDU ตัวชี้วัดการใช้ยา',
+    desc: 'ติดตามตัวชี้วัดการใช้ยาอย่างสมเหตุผล และตั้งค่าทะเบียนรายการยาของแต่ละตัวชี้วัด',
+    feature: 'rdu',
   },
   {
     href: '/home/health-rider',
@@ -51,7 +68,7 @@ const FEATURES = [
 export default function HomePage() {
   // การ์ดต้องหายไปพร้อมเมนูของงานที่ผู้ใช้ไม่มีสิทธิ์ ไม่งั้นหน้าแรกจะยังชวนให้กด
   const permissions = usePermissions()
-  const features = FEATURES.filter(item => permissions.due || item.href !== '/home/due')
+  const features = FEATURES.filter(item => !item.feature || permissions[item.feature])
 
   return (
     <>

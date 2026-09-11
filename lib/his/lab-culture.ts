@@ -102,6 +102,62 @@ export async function getLabCultureReport(
   return rtfToText(row.result_rtf as string | null)
 }
 
+/** ใบรายงานพร้อมเนื้อความที่แปลงเป็นข้อความแล้ว */
+export type LabCultureReport = {
+  labNo: number
+  /** 'YYYY-MM-DD' */
+  orderDate: string | null
+  text: string
+}
+
+/**
+ * ใบรายงานงานจุลชีววิทยาล่าสุดพร้อมเนื้อความ สำหรับงานที่ต้องอ่านผลจริง
+ *
+ * ต่างจาก listLabCultures ตรงที่ลาก result_rtf ขึ้นมาด้วย จึงจำกัดทั้งช่วงเวลาและ
+ * จำนวนใบไว้เสมอ — ใบเดียวยาวได้ถึง 3,000 ตัวอักษร ผู้ป่วยที่นอนนาน ๆ มีเป็นสิบใบ
+ *
+ * เอาเฉพาะฟอร์มจุลชีววิทยา เพราะฟอร์มอื่นที่ยาวพอ ๆ กันเป็นผลตรวจคนละเรื่อง
+ * (เช่นพยาธิวิทยา) ซึ่งไม่ได้ตอบคำถามเรื่องเชื้อและความไวต่อยา
+ */
+export async function listRecentCultureReports(
+  hn: string,
+  { days, max }: { days: number; max: number },
+): Promise<LabCultureReport[]> {
+  const [result] = await hisDb.execute(sql`
+    SELECT a.lab_order_number AS lab_no,
+           DATE_FORMAT(a.order_date, '%Y-%m-%d') AS order_date,
+           a.result_rtf
+    FROM lab_head a
+    WHERE a.hn = ${hn}
+      AND a.form_name = ${MICROBIOLOGY_FORM}
+      AND a.result_rtf IS NOT NULL
+      AND CHAR_LENGTH(a.result_rtf) > ${EMPTY_RTF_LENGTH}
+      AND a.order_date >= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)
+    ORDER BY a.order_date DESC, a.lab_order_number DESC
+    LIMIT ${max}`)
+
+  return (result as unknown as Record<string, unknown>[]).map(row => ({
+    labNo: Number(row.lab_no),
+    orderDate: str(row.order_date),
+    text: rtfToText(row.result_rtf as string | null),
+  }))
+}
+
+/** จำนวนใบรายงานงานจุลชีววิทยาที่มีเนื้อความในช่วงเวลาที่กำหนด */
+export async function countRecentCultureReports(hn: string, days: number): Promise<number> {
+  const [result] = await hisDb.execute(sql`
+    SELECT COUNT(*) AS n
+    FROM lab_head a
+    WHERE a.hn = ${hn}
+      AND a.form_name = ${MICROBIOLOGY_FORM}
+      AND a.result_rtf IS NOT NULL
+      AND CHAR_LENGTH(a.result_rtf) > ${EMPTY_RTF_LENGTH}
+      AND a.order_date >= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)`)
+
+  const row = (result as unknown as Record<string, unknown>[])[0]
+  return Number(row?.n ?? 0)
+}
+
 /**
  * จำนวนใบรายงานที่มีเนื้อความจริง ใช้ตัดสินว่าจะขึ้นปุ่มให้กดหรือไม่
  *

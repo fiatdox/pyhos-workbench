@@ -32,6 +32,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
+import AssistPanel from './assist-panel'
 import LabCultureModal from '@/app/home/lab-culture-modal'
 import type { DueDrug as DueDrugItem, DuePatient, PriorAntimicrobial } from '@/lib/his/due'
 
@@ -873,8 +874,10 @@ export default function DueRequestPage() {
               เติมจาก lab_head/lab_order รายการ Creatinine ให้อัตโนมัติ แล้วยังแก้เองได้
               — ผลที่ห้องแล็บออกมาอาจไม่ใช่ค่าที่ใช้ตัดสินใจ เช่นเพิ่งเจาะซ้ำนอกระบบ */}
           <div className="mb-5 rounded-xl border border-lab-line bg-lab-bg p-3">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
-              <LabField label="เจาะ Creatinine ล่าสุด" className="xl:col-span-5">
+            {/* 24 ช่องเพราะห้าช่องกรอกต้องอยู่บรรทัดเดียวกันในจอกว้าง — 12 ช่องหารห้าไม่ลงตัว
+                จอแคบกว่า xl ตกลงมาเรียงสองคอลัมน์ตามเดิม */}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-24">
+              <LabField label="เจาะ Creatinine ล่าสุด" className="xl:col-span-6">
                 <DatePicker
                   className="w-full"
                   format="DD/MM/BBBB"
@@ -885,7 +888,7 @@ export default function DueRequestPage() {
                 />
               </LabField>
 
-              <LabField label="Cr" className="xl:col-span-3">
+              <LabField label="Cr" className="xl:col-span-4">
                 <Input
                   value={history.cr}
                   onChange={event => patchRenal({ cr: event.target.value })}
@@ -899,7 +902,7 @@ export default function DueRequestPage() {
               </LabField>
 
               {/* น้ำหนักเป็นตัวตั้งของ CrCl จึงต้องเห็นและแก้ได้ ไม่ใช่ซ่อนไว้เบื้องหลัง */}
-              <LabField label="น้ำหนัก" className="xl:col-span-4">
+              <LabField label="น้ำหนัก" className="xl:col-span-6">
                 <Input
                   value={history.weight}
                   onChange={event => patchRenal({ weight: event.target.value })}
@@ -930,7 +933,7 @@ export default function DueRequestPage() {
                 />
               </LabField>
 
-              <LabField label="CrCl." className="xl:col-span-5">
+              <LabField label="CrCl." className="xl:col-span-4">
                 <Input
                   value={history.crcl}
                   onChange={event => patch({ crcl: event.target.value, crclEdited: true })}
@@ -956,7 +959,7 @@ export default function DueRequestPage() {
                 />
               </LabField>
 
-              <LabField label="eGFR." className="xl:col-span-7">
+              <LabField label="eGFR." className="xl:col-span-4">
                 <Input
                   value={history.egfr}
                   onChange={event => patch({ egfr: event.target.value, egfrEdited: true })}
@@ -981,7 +984,7 @@ export default function DueRequestPage() {
                 />
               </LabField>
 
-              <label className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:col-span-2 xl:col-span-5">
+              <label className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:col-span-2 xl:col-span-24">
                 <span className="flex items-center gap-2">
                   <Switch
                     checked={history.awaitingCreatinine}
@@ -1438,6 +1441,20 @@ export default function DueRequestPage() {
             )}
           </div>
         </section>
+      )}
+
+      {/* ผู้ช่วยสรุปข้อมูล — ขึ้นหลังได้ผู้ป่วยแล้ว และหายไปทั้งก้อนถ้าเครื่องนี้
+          ไม่ได้ตั้งค่าโมเดลไว้ใน .env */}
+      {patient && (
+        <AssistPanel
+          hn={patient.hn}
+          drugName={
+            history.drugs
+              .map(row => dueDrugs.find(drug => drug.icode === row.icode)?.name)
+              .filter(Boolean)
+              .join(', ') || null
+          }
+        />
       )}
 
       {/* ส่วนส่งคำขอยังไม่ได้ทำ — รอตกลงเรื่องที่เก็บข้อมูลและสิทธิ์ผู้ใช้ก่อน */}

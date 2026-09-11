@@ -31,6 +31,18 @@ const ALLOWED_POSITION_IDS: Set<number> | null = parseAllowList('ALLOWED_USER_PO
  */
 const DUE_POSITION_IDS: Set<number> | null = parseAllowList('DUE_USER_POSITION_IDS')
 
+/**
+ * ตำแหน่งที่เห็นเมนู RDU — RDU_USER_POSITION_IDS
+ *
+ * แยกจากรายการของ DUE ทั้งที่เป็นงานของกลุ่มงานเภสัชกรรมเหมือนกัน เพราะคนดู
+ * คนละกลุ่ม: DUE เป็นงานประจำวันของคนอนุมัติคำขอ ส่วน RDU เป็นตัวชี้วัดที่
+ * แพทย์และคณะกรรมการต้องเห็นด้วย การผูกไว้ด้วยกันแปลว่าเปิด RDU ให้ใคร
+ * ก็ต้องเปิดให้เขาอนุมัติคำขอ DUE ไปด้วย ซึ่งไม่ใช่สิ่งที่ต้องการ
+ *
+ * ไม่ได้ตั้ง = ทุกคนที่เข้าระบบได้เห็นเมนูนี้ (เหมือนกติกาของ DUE)
+ */
+const RDU_POSITION_IDS: Set<number> | null = parseAllowList('RDU_USER_POSITION_IDS')
+
 function parseAllowList(name: string): Set<number> | null {
   const raw = process.env[name]?.trim()
   if (!raw) return null
@@ -85,6 +97,15 @@ export function canUseDue(userPositionId: number | null | undefined): boolean {
   if (DUE_POSITION_IDS === null) return true
   if (userPositionId == null) return false
   return DUE_POSITION_IDS.has(userPositionId)
+}
+
+/**
+ * ตำแหน่งนี้ใช้งานเมนู RDU ได้หรือไม่ — กติกาเดียวกับ canUseDue คนละรายการ
+ */
+export function canUseRdu(userPositionId: number | null | undefined): boolean {
+  if (RDU_POSITION_IDS === null) return true
+  if (userPositionId == null) return false
+  return RDU_POSITION_IDS.has(userPositionId)
 }
 
 /** ข้อความแจ้งผู้ใช้ — ไม่บอกว่ารายการที่อนุญาตมีอะไรบ้าง */

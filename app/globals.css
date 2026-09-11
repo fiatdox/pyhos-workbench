@@ -101,6 +101,11 @@
   --ref-abx-ink: #34d399;
   --ref-abx-bg: rgba(52, 211, 153, 0.18);
   --ref-abx-line: rgba(52, 211, 153, 0.45);
+  /* ส้มอำพัน — แท็บวิเคราะห์ที่ข้อความมาจากโมเดล ไม่ใช่ข้อมูลตรงจากฐาน
+     ตั้งใจให้ต่างจากสามชุดบนชัด ๆ จะได้ไม่อ่านปนกับผลจริง */
+  --ref-rdu-ink: #fbbf24;
+  --ref-rdu-bg: rgba(251, 191, 36, 0.18);
+  --ref-rdu-line: rgba(251, 191, 36, 0.45);
 
   /* เขียวอ่อน — ใช้กับปุ่มของงานที่ทำไปแล้วและกดซ้ำเพื่อแก้ได้ ไม่ใช่ปุ่มหลัก
      แยกจาก --ref-abx-* ที่ผูกกับแท็บข้อมูลยาต้าน ถึงจะเป็นโทนเดียวกันก็ตาม */
@@ -181,6 +186,9 @@
   --ref-abx-ink: #047857;
   --ref-abx-bg: rgba(5, 150, 105, 0.1);
   --ref-abx-line: rgba(5, 150, 105, 0.32);
+  --ref-rdu-ink: #b45309;
+  --ref-rdu-bg: rgba(217, 119, 6, 0.1);
+  --ref-rdu-line: rgba(217, 119, 6, 0.32);
 
   --ok-ink: #047857;
   --ok-bg: rgba(5, 150, 105, 0.12);
@@ -236,6 +244,9 @@
   --color-ref-abx: var(--ref-abx-ink);
   --color-ref-abx-bg: var(--ref-abx-bg);
   --color-ref-abx-line: var(--ref-abx-line);
+  --color-ref-rdu: var(--ref-rdu-ink);
+  --color-ref-rdu-bg: var(--ref-rdu-bg);
+  --color-ref-rdu-line: var(--ref-rdu-line);
 
   --color-ok: var(--ok-ink);
   --color-ok-bg: var(--ok-bg);

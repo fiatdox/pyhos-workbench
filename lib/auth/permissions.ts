@@ -2,7 +2,7 @@ import 'server-only'
 import { eq } from 'drizzle-orm'
 import { coreKonDb } from '@/lib/db/core-kon'
 import { users } from '@/lib/db/schema/core-kon'
-import { canUseDue } from '@/lib/auth/access'
+import { canUseDue, canUseRdu } from '@/lib/auth/access'
 
 /**
  * ถามสิทธิ์รายงานจากรหัสผู้ใช้ใน token
@@ -31,6 +31,11 @@ export async function userPositionOf(userId: string | number): Promise<number | 
 /** ผู้ใช้คนนี้ใช้งานงาน DUE ได้หรือไม่ */
 export async function userCanUseDue(userId: string | number): Promise<boolean> {
   return canUseDue(await userPositionOf(userId))
+}
+
+/** ผู้ใช้คนนี้ใช้งานงาน RDU ได้หรือไม่ — คนละรายการตำแหน่งกับ DUE */
+export async function userCanUseRdu(userId: string | number): Promise<boolean> {
+  return canUseRdu(await userPositionOf(userId))
 }
 
 /** ข้อความตอบกลับเมื่อเรียกข้อมูลของงานที่ไม่มีสิทธิ์ */

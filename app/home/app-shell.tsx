@@ -21,7 +21,10 @@ const { Text, Title } = Typography
 
 /** สิทธิ์รายงานที่เซิร์ฟเวอร์คำนวณให้ ใช้ซ่อนเมนูของงานที่ผู้ใช้ไม่มีสิทธิ์
  *  การกันจริงอยู่ที่ layout และ API ฝั่งเซิร์ฟเวอร์ ตรงนี้แค่ไม่โชว์ทางเข้า */
-export type ShellPermissions = { due: boolean }
+export type ShellPermissions = { due: boolean; rdu: boolean }
+
+/** งานที่จำกัดสิทธิ์ตามตำแหน่ง — ชื่อตรงกับคีย์ใน ShellPermissions */
+export type RestrictedFeature = keyof ShellPermissions
 
 export type ShellUser = {
   fullName: string
@@ -42,7 +45,7 @@ export type ShellUser = {
  * ข้อมูลผู้ใช้ค้างอยู่ในเบราว์เซอร์
  */
 const SessionUserContext = createContext<ShellUser | null>(null)
-const PermissionsContext = createContext<ShellPermissions>({ due: true })
+const PermissionsContext = createContext<ShellPermissions>({ due: true, rdu: true })
 
 export function useSessionUser(): ShellUser | null {
   return useContext(SessionUserContext)
@@ -53,13 +56,25 @@ export function usePermissions(): ShellPermissions {
   return useContext(PermissionsContext)
 }
 
-/** เมนูของระบบ — key คือ path จริง กดแล้วพาไปหน้านั้นเลย */
-export const MENU_ITEMS = [
+/** เมนูของระบบ — key คือ path จริง กดแล้วพาไปหน้านั้นเลย
+ *  feature = งานที่จำกัดตามตำแหน่ง ไม่ใส่ = ทุกคนที่เข้าระบบได้เห็น */
+export const MENU_ITEMS: {
+  key: string
+  icon: ReactNode
+  label: string
+  feature?: RestrictedFeature
+}[] = [
   { key: '/home', icon: <DashboardOutlined />, label: 'หน้าแรก' },
   { key: '/home/medication-history', icon: <MedicineBoxOutlined />, label: 'ประวัติการได้รับยา' },
   { key: '/home/hla-b5801', icon: <ExperimentOutlined />, label: 'ผลตรวจ HLA-B*5801' },
   { key: '/home/drug-profile', icon: <ProfileOutlined />, label: 'Drug Profile ผู้ป่วยใน' },
-  { key: '/home/due', icon: <AuditOutlined />, label: 'DUE ขออนุมัติใช้ยา' },
+  { key: '/home/due', icon: <AuditOutlined />, label: 'DUE ขออนุมัติใช้ยา', feature: 'due' },
+  {
+    key: '/home/rdu',
+    icon: <SafetyCertificateOutlined />,
+    label: 'RDU ตัวชี้วัดการใช้ยา',
+    feature: 'rdu',
+  },
   { key: '/home/health-rider', icon: <MotorcycleOutlined />, label: 'Health Rider' },
 ]
 
@@ -175,9 +190,9 @@ export default function AppShell({
             selectedKeys={[pathname]}
             onClick={() => setMenuOpen(false)}
             style={{ background: 'transparent', borderInlineEnd: 'none' }}
-            // งาน DUE เห็นเฉพาะตำแหน่งที่กำหนดไว้ใน .env — เอาออกจากเมนูไปเลย
-            // ดีกว่าโชว์แล้วกดไปเจอเด้งกลับ
-            items={MENU_ITEMS.filter(item => permissions.due || item.key !== '/home/due').map(item => ({
+            // DUE กับ RDU เห็นเฉพาะตำแหน่งที่กำหนดไว้ใน .env และเป็นคนละรายการกัน
+            // — เอาออกจากเมนูไปเลย ดีกว่าโชว์แล้วกดไปเจอเด้งกลับ
+            items={MENU_ITEMS.filter(item => !item.feature || permissions[item.feature]).map(item => ({
               key: item.key,
               icon: item.icon,
               label: <Link href={item.key}>{item.label}</Link>,
