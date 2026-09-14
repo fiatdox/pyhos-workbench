@@ -4,7 +4,6 @@
 import Link from 'next/link'
 import { Alert, Card, Tag, Typography } from 'antd'
 import {
-  AlertOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   FileSearchOutlined,
@@ -27,9 +26,9 @@ const { Paragraph, Text, Title } = Typography
  * และรายการยาที่ได้รับ) และกลุ่มผู้ป่วยพิเศษ (จำกัดตามช่วงอายุ) — คนละฐานของ
  * การนับ จึงแยกส่วนกันบนหน้าจอด้วย
  *
- * ทำแล้วแปดข้อ เหลือข้อเดียวคือสตรีคลอดปกติครบกำหนดทางช่องคลอด ซึ่งนับจากการคลอด
- * อันเป็นเหตุการณ์ของผู้ป่วยใน คนละฐานกับอีกแปดข้อที่นับจากครั้งที่มารับบริการแบบ
- * ผู้ป่วยนอก — การ์ดของข้อนั้นติดป้ายไว้ ไม่ได้ทำเป็นลิงก์ที่กดแล้วไป 404
+ * ทำครบทุกข้อที่อยู่ในขอบเขตของหน้านี้แล้ว — ตัวชี้วัดสตรีคลอดปกติครบกำหนด
+ * ทางช่องคลอดไม่ได้อยู่ในนี้ เพราะนับจากการคลอดซึ่งเป็นเหตุการณ์ของผู้ป่วยใน
+ * คนละฐานกับทุกข้อที่นับจากครั้งที่มารับบริการแบบผู้ป่วยนอก
  */
 
 const ANTIBIOTIC_KPIS = [
@@ -53,10 +52,6 @@ const ANTIBIOTIC_KPIS = [
     reportHref: '/home/rdu/reports/apl',
     /* ข้อนี้มีลิงก์ตั้งค่าอันเดียวเหมือน AD — ยาปฏิชีวนะดูจากธง drugitems.antibiotic */
     settings: [{ href: '/home/rdu/settings/apl-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' }],
-  },
-  {
-    title: 'สตรีคลอดปกติครบกำหนดทางช่องคลอด',
-    desc: 'สัดส่วนที่ได้รับยาปฏิชีวนะ ในสตรีที่คลอดปกติครบกำหนดทางช่องคลอด',
   },
 ]
 
@@ -175,17 +170,18 @@ export default function RduPage() {
         </Paragraph>
       </section>
 
-      {/* บอกไว้ตั้งแต่ต้นว่าตัวเลขยังไม่มี ไม่ใช่ปล่อยให้ไล่กดการ์ดทีละใบเองจนครบ */}
+      {/* ตัวชี้วัดเปิดครบแล้ว สิ่งที่ยังกั้นอยู่คือทะเบียน จึงเตือนเรื่องนั้นแทน —
+          ทะเบียนว่างทำให้รายงานว่างตามโดยที่หน้าจอไม่ได้ผิดอะไร ซึ่งอ่านผิดได้ง่าย */}
       <Alert
         type="info"
         showIcon
         className="mb-6"
-        title="เปิดแล้วแปดข้อ — เหลือข้อสตรีคลอดปกติครบกำหนดทางช่องคลอดเพียงข้อเดียว"
+        title="เปิดครบทุกข้อแล้ว — เหลือแต่การตกลงทะเบียนของแต่ละข้อ"
         description={
           <div className="text-xs leading-relaxed">
             แต่ละตัวชี้วัดต้องตกลงก่อนว่านับจากรหัสวินิจฉัยและรหัสยาชุดไหนของโรงพยาบาล
             ซึ่งไม่มีคอลัมน์ไหนในฐาน HIS บอกไว้ตรง ๆ — ทะเบียนในส่วนตั้งค่าจึงเป็นของที่ต้องมี
-            ก่อนจะคำนวณตัวชี้วัดข้อใดข้อหนึ่งได้ ข้อที่เหลือรอตกลงเกณฑ์
+            ก่อนจะคำนวณตัวชี้วัดข้อใดข้อหนึ่งได้ ข้อที่ทะเบียนยังว่างจะขึ้นรายงานเปล่า
           </div>
         }
       />
@@ -511,22 +507,6 @@ export default function RduPage() {
               </p>
             </Card>
           </Link>
-
-          <Card variant="borderless" className="h-full border! border-line!">
-            <div className="mb-2 flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
-                <AlertOutlined />
-              </div>
-              <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
-                ทะเบียนของตัวชี้วัดข้ออื่น
-                <Tag className="mr-0!">ยังไม่เปิด</Tag>
-              </div>
-            </div>
-            <p className="text-xs leading-relaxed text-ink-3">
-              ตัวชี้วัดสตรีคลอดปกติครบกำหนดทางช่องคลอดยังไม่มีทะเบียน — ข้อนั้นนับจากการคลอด
-              ซึ่งเป็นเหตุการณ์ของผู้ป่วยใน คนละฐานกับตัวชี้วัดผู้ป่วยนอกทุกข้อในหน้านี้
-            </p>
-          </Card>
         </div>
       </section>
     </>
