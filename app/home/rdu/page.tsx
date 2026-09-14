@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Alert, Card, Tag, Typography } from 'antd'
 import {
   AlertOutlined,
+  DashboardOutlined,
   ExperimentOutlined,
   FileSearchOutlined,
   HeartOutlined,
@@ -26,9 +27,9 @@ const { Paragraph, Text, Title } = Typography
  * และรายการยาที่ได้รับ) และกลุ่มผู้ป่วยพิเศษ (จำกัดตามช่วงอายุ) — คนละฐานของ
  * การนับ จึงแยกส่วนกันบนหน้าจอด้วย
  *
- * ทำแล้วสามข้อ (RI, โรคหืด, ผู้ป่วยเด็ก RUA-URI) ที่เหลือเขียนรายการไว้ให้เห็นตรงกัน
- * ก่อนว่าปลายทางคืออะไร — การ์ดที่ยังไม่มีหน้าจอติดป้ายไว้ ไม่ได้ทำเป็นลิงก์ที่กด
- * แล้วไป 404
+ * ทำแล้วแปดข้อ เหลือข้อเดียวคือสตรีคลอดปกติครบกำหนดทางช่องคลอด ซึ่งนับจากการคลอด
+ * อันเป็นเหตุการณ์ของผู้ป่วยใน คนละฐานกับอีกแปดข้อที่นับจากครั้งที่มารับบริการแบบ
+ * ผู้ป่วยนอก — การ์ดของข้อนั้นติดป้ายไว้ ไม่ได้ทำเป็นลิงก์ที่กดแล้วไป 404
  */
 
 const ANTIBIOTIC_KPIS = [
@@ -42,11 +43,16 @@ const ANTIBIOTIC_KPIS = [
   },
   {
     title: 'โรคอุจจาระร่วงเฉียบพลัน (AD)',
-    desc: 'สัดส่วนครั้งที่ได้รับยาปฏิชีวนะ ในผู้ป่วยที่วินิจฉัยเป็นโรคอุจจาระร่วงเฉียบพลัน',
+    reportHref: '/home/rdu/reports/ad',
+    /* ข้อนี้มีลิงก์ตั้งค่าอันเดียว — ยาปฏิชีวนะดูจากธง drugitems.antibiotic
+       ที่ติดไว้ในโปรแกรม HIS แล้ว ไม่มีทะเบียนของตัวเองให้ตั้ง */
+    settings: [{ href: '/home/rdu/settings/ad-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' }],
   },
   {
     title: 'บาดแผลสดจากอุบัติเหตุ (APL)',
-    desc: 'สัดส่วนครั้งที่ได้รับยาปฏิชีวนะ ในผู้ป่วยที่มารับบริการด้วยบาดแผลสดจากอุบัติเหตุ',
+    reportHref: '/home/rdu/reports/apl',
+    /* ข้อนี้มีลิงก์ตั้งค่าอันเดียวเหมือน AD — ยาปฏิชีวนะดูจากธง drugitems.antibiotic */
+    settings: [{ href: '/home/rdu/settings/apl-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' }],
   },
   {
     title: 'สตรีคลอดปกติครบกำหนดทางช่องคลอด',
@@ -69,15 +75,27 @@ const CHRONIC_KPIS = [
   },
   {
     title: 'การใช้ยา NSAIDs ในผู้ป่วยโรคไตเรื้อรัง',
-    desc: 'สัดส่วนผู้ป่วยโรคไตเรื้อรังระดับ 3 ขึ้นไปที่ได้รับยากลุ่ม NSAIDs',
+    reportHref: '/home/rdu/reports/ckd-nsaid',
+    settings: [
+      { href: '/home/rdu/settings/ckd-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' },
+      { href: '/home/rdu/settings/nsaid', label: 'ตั้งค่ายา NSAIDs' },
+    ],
   },
   {
     title: 'การใช้ยา glibenclamide ในผู้สูงอายุ',
-    desc: 'สัดส่วนผู้ป่วยเบาหวานสูงอายุ หรือผู้ป่วยที่มีการทำงานของไตบกพร่อง ที่ได้รับยา glibenclamide',
+    reportHref: '/home/rdu/reports/glibenclamide-elderly',
+    settings: [
+      { href: '/home/rdu/settings/dm-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' },
+      { href: '/home/rdu/settings/glibenclamide', label: 'ตั้งค่ายา glibenclamide' },
+    ],
   },
   {
     title: 'การได้รับยากลุ่ม RAS blockade ซ้ำซ้อน',
-    desc: 'สัดส่วนผู้ป่วยที่ได้รับยาที่ออกฤทธิ์ยับยั้งระบบ renin-angiotensin มากกว่าหนึ่งชนิดพร้อมกัน',
+    reportHref: '/home/rdu/reports/ras-duplicate',
+    settings: [
+      { href: '/home/rdu/settings/ras-acei', label: 'ตั้งค่ายา ACEI' },
+      { href: '/home/rdu/settings/ras-arb', label: 'ตั้งค่ายา ARB' },
+    ],
   },
 ]
 
@@ -162,7 +180,7 @@ export default function RduPage() {
         type="info"
         showIcon
         className="mb-6"
-        title="เปิดแล้วสามข้อ — โรค RI, ผู้ป่วยโรคหืดที่ได้รับยา ICS และผู้ป่วยเด็ก RUA-URI"
+        title="เปิดแล้วแปดข้อ — เหลือข้อสตรีคลอดปกติครบกำหนดทางช่องคลอดเพียงข้อเดียว"
         description={
           <div className="text-xs leading-relaxed">
             แต่ละตัวชี้วัดต้องตกลงก่อนว่านับจากรหัสวินิจฉัยและรหัสยาชุดไหนของโรงพยาบาล
@@ -171,6 +189,30 @@ export default function RduPage() {
           </div>
         }
       />
+
+      {/* วางไว้เหนือการ์ดตัวชี้วัด เพราะเป็นที่ที่คนเปิดหน้านี้มาดูบ่อยที่สุด —
+          การ์ดรายข้อไว้เข้าหน้ารายเคส ส่วนหน้านี้ไว้ดูภาพรวมทุกมุมในที่เดียว */}
+      <section className="mb-6">
+        <Link href="/home/rdu/dashboard">
+          <Card hoverable variant="borderless" className="border! border-line!">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                <DashboardOutlined />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  วิเคราะห์ข้อมูล
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
+                  ดูตัวชี้วัดที่เปิดแล้วทุกข้อ แยกตามเดือน ห้องตรวจ แพทย์ รหัสวินิจฉัย และตัวยา
+                  เลือกช่วงวันที่เองหรือทั้งปีงบประมาณ
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+      </section>
 
       <section className="mb-6">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
@@ -292,6 +334,42 @@ export default function RduPage() {
             </Card>
           </Link>
 
+          <Link href="/home/rdu/settings/ad-icd10">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <FileSearchOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  รหัสวินิจฉัยโรค AD
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรหัส ICD-10 ที่นับเป็นโรคอุจจาระร่วงเฉียบพลัน — ข้อนี้ไม่มีทะเบียนยา
+                เพราะดูยาปฏิชีวนะจากธงที่ติดไว้ใน HIS
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/apl-icd10">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <FileSearchOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  รหัสวินิจฉัยแผลสด APL
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรหัส ICD-10 ที่นับเป็นบาดแผลสดจากอุบัติเหตุ — ข้อนี้ไม่มีทะเบียนยา
+                เพราะดูยาปฏิชีวนะจากธงที่ติดไว้ใน HIS
+              </p>
+            </Card>
+          </Link>
+
           <Link href="/home/rdu/settings/ruauri-icd10">
             <Card hoverable variant="borderless" className="h-full border! border-line!">
               <div className="mb-2 flex items-center gap-3">
@@ -327,6 +405,113 @@ export default function RduPage() {
             </Card>
           </Link>
 
+          <Link href="/home/rdu/settings/ckd-icd10">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <FileSearchOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  รหัสวินิจฉัยโรคไตเรื้อรัง
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรหัส ICD-10 ที่นับเป็นโรคไตเรื้อรังระดับ 3 ขึ้นไป — ใช้ร่วมกับผลค่าไต eGFR
+                ในการหาตัวหารของตัวชี้วัด NSAIDs
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/nsaid">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยากลุ่ม NSAIDs
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยาต้านการอักเสบที่ไม่ใช่สเตียรอยด์
+                ใช้เป็นตัวตั้งของตัวชี้วัดผู้ป่วยโรคไตเรื้อรัง
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/dm-icd10">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <FileSearchOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  รหัสวินิจฉัยโรคเบาหวาน
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรหัส ICD-10 ที่นับเป็นโรคเบาหวาน ใช้เป็นตัวหารของตัวชี้วัด glibenclamide
+                ในผู้สูงอายุ
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/glibenclamide">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยา glibenclamide
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยา glibenclamide — โรงพยาบาลตัดออกจากบัญชียาไปแล้ว
+                จึงใส่รหัสไว้ให้ตั้งแต่ต้น
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/ras-acei">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยากลุ่ม ACE inhibitor
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยายับยั้งเอนไซม์แปลงแองจิโอเทนซิน ใช้คู่กับทะเบียน ARB
+                ในตัวชี้วัด RAS blockade ซ้ำซ้อน
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/ras-arb">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยากลุ่ม ARB / ARNI
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยาต้านตัวรับแองจิโอเทนซิน II รวม ARNI และยายับยั้งเรนินโดยตรง
+              </p>
+            </Card>
+          </Link>
+
           <Card variant="borderless" className="h-full border! border-line!">
             <div className="mb-2 flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
@@ -338,8 +523,8 @@ export default function RduPage() {
               </div>
             </div>
             <p className="text-xs leading-relaxed text-ink-3">
-              ทะเบียนยา NSAIDs, RAS blockade, glibenclamide และรหัสวินิจฉัยของตัวชี้วัดที่เหลือ —
-              ทำแบบเดียวกับหน้าที่เปิดแล้วเมื่อตกลงเกณฑ์ของแต่ละข้อ
+              ตัวชี้วัดสตรีคลอดปกติครบกำหนดทางช่องคลอดยังไม่มีทะเบียน — ข้อนั้นนับจากการคลอด
+              ซึ่งเป็นเหตุการณ์ของผู้ป่วยใน คนละฐานกับตัวชี้วัดผู้ป่วยนอกทุกข้อในหน้านี้
             </p>
           </Card>
         </div>

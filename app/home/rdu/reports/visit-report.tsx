@@ -61,7 +61,14 @@ function toCsv(rows: string[][]): string {
 
 const sexLabel = (sex: string | null) => (sex === '1' ? 'ชาย' : sex === '2' ? 'หญิง' : '—')
 
-type Filter = 'all' | 'with' | 'without'
+/**
+ * ตัวกรองของตาราง — สามกลุ่มล่างแบ่งกันหมดพอดี รวมกันได้เท่า 'all'
+ *
+ * 'with' จึงหมายถึงครั้งที่จ่ายยาจริงเท่านั้น ไม่ได้รวมครั้งที่ใช้ยาเดิมต่อ
+ * ทั้งที่ตัวชี้วัดนับสองกลุ่มนี้รวมกัน — ถ้าให้ปุ่มซ้อนกัน จำนวนในวงเล็บจะบวกแล้ว
+ * เกินยอดรวม ซึ่งอ่านผิดได้ทันที ส่วนตัวตั้งของตัวชี้วัดไปอ่านที่การ์ดด้านบนแทน
+ */
+type Filter = 'all' | 'with' | 'continued' | 'without'
 
 type Report = {
   visits: ReportVisit[]
@@ -69,7 +76,35 @@ type Report = {
   drugItems: number
   drugIcodes: string[]
   maxAgeYears: number | null
+  minAgeYears: number | null
+  countsContinued: boolean
   truncated: boolean
+}
+
+/**
+ * สถานะการได้รับยาของครั้งหนึ่ง
+ *
+ * 'continued' คือแถวที่มีรายการยาในทะเบียนแต่จำนวนเป็นศูนย์ = ผู้ป่วยใช้ยาเดิม
+ * ที่มีอยู่ต่อ ตัวชี้วัดนับรวมกับ 'dispensed' แต่แยกป้ายกำกับไว้ เพราะเภสัชกร
+ * ต้องแยกออกว่าเคสไหนได้ยาใหม่ เคสไหนแค่ยืนยันว่ายังใช้ยาเดิมอยู่
+ * (สถานะนี้เกิดได้เฉพาะข้อที่เปิด countContinued ไว้ใน rdu-visit-report.ts)
+ */
+type DrugStatus = 'dispensed' | 'continued' | 'none'
+
+const statusOf = (visit: ReportVisit): DrugStatus =>
+  visit.drugs.length > 0 ? 'dispensed' : visit.continuedDrugs.length > 0 ? 'continued' : 'none'
+
+const STATUS_LABEL: Record<DrugStatus, string> = {
+  dispensed: 'ได้รับ',
+  continued: 'ใช้ยาต่อเนื่อง',
+  none: 'ไม่ได้รับ',
+}
+
+/** ปุ่มกรองแต่ละอันตรงกับสถานะอันเดียว ยกเว้น 'all' ที่ไม่กรอง */
+const FILTER_STATUS: Record<Exclude<Filter, 'all'>, DrugStatus> = {
+  with: 'dispensed',
+  continued: 'continued',
+  without: 'none',
 }
 
 /**
@@ -94,8 +129,9 @@ export type ReportLabels = {
    * ไม่ได้รับยา (เช่น โรคหืด) ใช้เน้นสีปุ่มตัวกรองและเลือกว่าร้อยละไหนขึ้นการ์ด
    */
   followUp: 'with' | 'without'
-  /** ลิงก์หน้าตั้งค่าทะเบียนของตัวชี้วัดข้อนี้ */
-  settings: { diagnosis: string; drug: string }
+  /** ลิงก์หน้าตั้งค่าทะเบียนของตัวชี้วัดข้อนี้
+   *  drug ไม่มีได้ — บางข้อดูยาจากธงใน drugitems ไม่มีทะเบียนให้ตั้ง */
+  settings: { diagnosis: string; drug?: string }
   /** ชื่อไฟล์ที่ส่งออก (ยังไม่รวมช่วงวันที่และนามสกุล) */
   fileName: string
 }
@@ -148,9 +184,15 @@ export default function VisitReportPage({
 
   const stats = useMemo(() => {
     const visits = report?.visits ?? []
-    const withDrug = visits.filter(visit => visit.drugs.length > 0).length
+    // ตัวตั้งนับทั้งที่จ่ายยาใหม่และที่ใช้ยาเดิมต่อ — การ์ด "ได้รับยา" จึงเป็น
+    // ผลรวมของสองกลุ่ม แล้วแยกจำนวนที่ใช้ยาต่อเนื่องไว้เป็นบรรทัดรองอีกที
+    const dispensed = visits.filter(visit => statusOf(visit) === 'dispensed').length
+    const continued = visits.filter(visit => statusOf(visit) === 'continued').length
+    const withDrug = dispensed + continued
     return {
       total: visits.length,
+      dispensed,
+      continued,
       withDrug,
       without: visits.length - withDrug,
       // ตัวชี้วัดคิดเป็นร้อยละของครั้งที่มารับบริการ ไม่ใช่ของรายผู้ป่วย
@@ -161,9 +203,8 @@ export default function VisitReportPage({
 
   const visible = useMemo(() => {
     const visits = report?.visits ?? []
-    if (filter === 'with') return visits.filter(visit => visit.drugs.length > 0)
-    if (filter === 'without') return visits.filter(visit => visit.drugs.length === 0)
-    return visits
+    if (filter === 'all') return visits
+    return visits.filter(visit => statusOf(visit) === FILTER_STATUS[filter])
   }, [report, filter])
 
   /**
@@ -205,8 +246,10 @@ export default function VisitReportPage({
       row.department ?? '',
       row.doctor ?? '',
       row.icd10.join(' '),
-      row.drugs.length > 0 ? 'ได้รับ' : 'ไม่ได้รับ',
-      row.drugs.join(' / '),
+      STATUS_LABEL[statusOf(row)],
+      // รวมสองกลุ่มไว้ในช่องเดียว แต่วงเล็บกำกับตัวที่เป็นยาเดิม เพื่อให้ไฟล์ที่
+      // เปิดใน Excel อ่านได้ความหมายเดียวกับที่เห็นบนหน้าจอ
+      [...row.drugs, ...row.continuedDrugs.map(name => `${name} (ยาเดิม)`)].join(' / '),
     ])
 
     const blob = new Blob([toCsv([header, ...body])], { type: 'text/csv;charset=utf-8' })
@@ -281,32 +324,57 @@ export default function VisitReportPage({
     },
     {
       title: `ได้รับ${labels.drugLabel}`,
-      dataIndex: 'drugs',
-      width: 120,
+      key: 'status',
+      width: 130,
       align: 'center',
       /* สีของแท็กตามทิศทางของตัวชี้วัด ไม่ใช่ตาม "ได้รับ/ไม่ได้รับ" เสมอไป —
          โรคหืดที่ได้รับยา ICS คือผลที่ต้องการ ส่วน RI ที่ได้รับยาปฏิชีวนะคือ
-         กลุ่มที่ต้องทบทวน ถ้าใช้สีเขียวกับ "ได้รับ" ทุกข้อจะอ่านผิดทันที */
-      render: (drugs: string[]) => {
-        const received = drugs.length > 0
-        const isFollowUp = received === (labels.followUp === 'with')
-        return (
-          <Tag color={isFollowUp ? 'orange' : 'green'} className="mr-0!">
-            {received ? 'ได้รับ' : 'ไม่ได้รับ'}
+         กลุ่มที่ต้องทบทวน ถ้าใช้สีเขียวกับ "ได้รับ" ทุกข้อจะอ่านผิดทันที
+
+         "ใช้ยาต่อเนื่อง" ใช้สีฟ้าเป็นกลุ่มของตัวเอง ไม่ตามทิศทางของตัวชี้วัด —
+         เป็นกลุ่มที่เภสัชกรต้องแยกออกมาดูต่างหาก (ได้ยาอยู่แต่ไม่ได้จ่ายรอบนี้)
+         จึงมีปุ่มกรองของตัวเองคู่กับสีนี้ ส่วนตัวเลขยังนับรวมเป็นการใช้ยาเหมือนเดิม */
+      render: (_, row) => {
+        const status = statusOf(row)
+        const isFollowUp = (status !== 'none') === (labels.followUp === 'with')
+        const tag = (
+          <Tag
+            color={status === 'continued' ? 'blue' : isFollowUp ? 'orange' : 'green'}
+            className="mr-0!"
+          >
+            {STATUS_LABEL[status]}
           </Tag>
+        )
+        return status === 'continued' ? (
+          <Tooltip title="มีรายการยาในใบสั่งแต่ไม่ได้จ่าย = ผู้ป่วยใช้ยาเดิมที่มีอยู่ต่อ นับเป็นการใช้ยา">
+            {tag}
+          </Tooltip>
+        ) : (
+          tag
         )
       },
     },
     {
       title: `รายการ${labels.drugLabel}ที่ได้รับ`,
-      dataIndex: 'drugs',
-      render: (drugs: string[]) =>
-        drugs.length === 0 ? (
+      key: 'drugs',
+      render: (_, row) =>
+        row.drugs.length === 0 && row.continuedDrugs.length === 0 ? (
           <Text type="secondary" className="text-xs">
             —
           </Text>
         ) : (
-          <span className="text-xs">{drugs.join(' / ')}</span>
+          <span className="text-xs">
+            {row.drugs.join(' / ')}
+            {row.continuedDrugs.length > 0 && (
+              <>
+                {row.drugs.length > 0 && ' / '}
+                <span className="text-ink-3">
+                  {row.continuedDrugs.join(' / ')}{' '}
+                  <Tag className="mr-0! text-[10px]">ยาเดิม</Tag>
+                </span>
+              </>
+            )}
+          </span>
         ),
     },
     {
@@ -364,11 +432,18 @@ export default function VisitReportPage({
           </Button>
         </Space.Compact>
         <Text type="secondary" className="mt-1.5 block text-[11px]">
-          ช่วงวันที่ = วันที่มารับบริการ เลือกได้ไม่เกิน 366 วัน · แสดงสูงสุด 2,000 ครั้ง
+          ช่วงวันที่ = วันที่มารับบริการ เลือกได้ไม่เกิน 366 วัน · แสดงสูงสุด 2,000 ครั้ง ·
+          ไม่นับครั้งที่รับไว้เป็นผู้ป่วยใน
           {/* เงื่อนไขอายุมาจากนิยามของตัวชี้วัด ไม่ใช่ตัวกรองที่ผู้ใช้ตั้งเอง
               ต้องเขียนไว้ให้เห็น ไม่งั้นจะสงสัยว่าทำไมตัวเลขน้อยกว่าที่นับเองจาก HIS */}
           {report?.maxAgeYears != null &&
             ` · นับเฉพาะผู้ป่วยอายุไม่เกิน ${report.maxAgeYears} ปี ตามนิยามของตัวชี้วัด`}
+          {report?.minAgeYears != null &&
+            ` · นับเฉพาะผู้ป่วยอายุตั้งแต่ ${report.minAgeYears} ปีขึ้นไป ตามนิยามของตัวชี้วัด`}
+          {/* กฎการนับข้อนี้ต่างจากข้ออื่น ต้องเขียนไว้ให้เห็นคู่กับตัวเลขเสมอ
+              ไม่งั้นคนที่เทียบกับรายงานข้ออื่นจะคิดว่านับไม่เหมือนกันโดยผิดพลาด */}
+          {report?.countsContinued &&
+            ' · ครั้งที่มีรายการยาในใบสั่งแต่ไม่ได้จ่าย นับเป็นการใช้ยาต่อเนื่อง (ผู้ป่วยใช้ยาเดิมที่มีอยู่)'}
         </Text>
       </div>
 
@@ -393,7 +468,9 @@ export default function VisitReportPage({
         />
       )}
 
-      {report && report.diagnosisCodes > 0 && report.drugItems === 0 && (
+      {/* ข้อที่ดูยาจากธงใน drugitems ไม่มีทะเบียนให้ตั้ง จึงไม่ต้องเตือนเรื่องนี้
+          (labels.settings.drug ว่าง = ไม่มีหน้าตั้งค่ายา) */}
+      {report && report.diagnosisCodes > 0 && report.drugItems === 0 && labels.settings.drug && (
         <Alert
           type="warning"
           showIcon
@@ -429,7 +506,18 @@ export default function VisitReportPage({
           <>
             <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard label="ครั้งที่มารับบริการ" value={`${stats.total}`} unit="ครั้ง" />
-              <StatCard label={`ได้รับ${labels.drugLabel}`} value={`${stats.withDrug}`} unit="ครั้ง" />
+              <StatCard
+                label={`ได้รับ${labels.drugLabel}`}
+                value={`${stats.withDrug}`}
+                unit="ครั้ง"
+                /* แยกให้เห็นว่าในตัวตั้งมีกี่ครั้งที่เป็นยาเดิม — ถ้าไม่บอก คนอ่าน
+                   ที่เคยเห็นตัวเลขชุดก่อนจะสงสัยว่าทำไมตัวชี้วัดขยับขึ้นเฉย ๆ */
+                hint={
+                  report.countsContinued && stats.continued > 0
+                    ? `จ่ายยา ${stats.dispensed} · ใช้ยาเดิมต่อ ${stats.continued}`
+                    : undefined
+                }
+              />
               <StatCard
                 label={`ไม่ได้รับ${labels.drugLabel}`}
                 value={`${stats.without}`}
@@ -448,8 +536,23 @@ export default function VisitReportPage({
                 onChange={setFilter}
                 options={[
                   { label: `ทั้งหมด (${stats.total})`, value: 'all' },
-                  { label: `ได้รับยา (${stats.withDrug})`, value: 'with' },
-                  { label: `ไม่ได้รับยา (${stats.without})`, value: 'without' },
+                  {
+                    label: report.countsContinued
+                      ? `จ่ายยา (${stats.dispensed})`
+                      : `ได้รับยา (${stats.dispensed})`,
+                    value: 'with',
+                  },
+                  /* ปุ่มนี้มีเฉพาะข้อที่นับการใช้ยาต่อเนื่อง — ข้ออื่นกลุ่มนี้ว่าง
+                     เสมอ ปุ่มที่กดแล้วไม่มีอะไรเลยทุกครั้งมีแต่ทำให้สับสน */
+                  ...(report.countsContinued
+                    ? [{ label: `ใช้ยาต่อเนื่อง (${stats.continued})`, value: 'continued' as const }]
+                    : []),
+                  {
+                    label: report.countsContinued
+                      ? `ไม่ได้ใช้ยา (${stats.without})`
+                      : `ไม่ได้รับยา (${stats.without})`,
+                    value: 'without',
+                  },
                 ]}
               />
               <div className="flex items-center gap-3">
@@ -514,7 +617,18 @@ export default function VisitReportPage({
   )
 }
 
-function StatCard({ label, value, unit }: { label: string; value: string; unit: string }) {
+function StatCard({
+  label,
+  value,
+  unit,
+  hint,
+}: {
+  label: string
+  value: string
+  unit: string
+  /** บรรทัดเล็กใต้ตัวเลข — ใช้แยกองค์ประกอบของตัวเลขที่รวมกันมาหลายอย่าง */
+  hint?: string
+}) {
   return (
     <div className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur">
       <div className="text-[11px] text-ink-3">{label}</div>
@@ -522,6 +636,7 @@ function StatCard({ label, value, unit }: { label: string; value: string; unit: 
         <span className="qty">{value}</span>
         {unit && <span className="ml-1 text-xs font-normal text-ink-3">{unit}</span>}
       </div>
+      {hint && <div className="mt-0.5 text-[11px] text-ink-3">{hint}</div>}
     </div>
   )
 }
