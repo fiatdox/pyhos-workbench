@@ -149,9 +149,16 @@ export function YearlyChart({
   /** เกณฑ์เป็นร้อยละ — null = ไม่ลากเส้น และแท่งจะไม่มีสีผ่าน/ไม่ผ่าน */
   target: number | null
   goal: 'low' | 'high'
-  unit: 'visits' | 'patients' | 'admissions'
+  unit: 'visits' | 'patients' | 'admissions' | 'items'
 }) {
-  const unitLabel = unit === 'patients' ? 'คน' : unit === 'admissions' ? 'ราย' : 'ครั้ง'
+  const unitLabel =
+    unit === 'patients'
+      ? 'คน'
+      : unit === 'admissions'
+        ? 'ราย'
+        : unit === 'items'
+          ? 'รายการยา'
+          : 'ครั้ง'
 
   return (
     <Chart

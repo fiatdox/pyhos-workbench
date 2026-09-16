@@ -47,8 +47,8 @@ type Indicator = {
   name: string
   label: string
   short: string
-  group: 'antibiotic' | 'chronic' | 'special'
-  unit: 'visits' | 'patients' | 'admissions'
+  group: 'antibiotic' | 'chronic' | 'special' | 'prescribing'
+  unit: 'visits' | 'patients' | 'admissions' | 'items'
   goal: 'low' | 'high'
   target: number | null
   reportHref: string
@@ -67,9 +67,18 @@ const GROUP_LABEL: Record<Indicator['group'], string> = {
   antibiotic: 'กลุ่มยาปฏิชีวนะ',
   chronic: 'กลุ่มโรคเรื้อรัง',
   special: 'กลุ่มผู้ป่วยพิเศษ',
+  prescribing: 'ภาพรวมการสั่งใช้ยา',
 }
 
-const GROUP_ORDER: Indicator['group'][] = ['antibiotic', 'chronic', 'special']
+const GROUP_ORDER: Indicator['group'][] = ['antibiotic', 'chronic', 'special', 'prescribing']
+
+/** หน่วยของตัวหาร — ข้อความเดียวกันนี้ใช้ทั้งบนการ์ด ในกราฟ และในไฟล์ที่ส่งออก */
+const UNIT_LABEL: Record<Indicator['unit'], string> = {
+  visits: 'ครั้ง',
+  patients: 'คน',
+  admissions: 'ราย',
+  items: 'รายการยา',
+}
 
 /** ใส่ BOM เพราะ Excel บนวินโดวส์เดาว่า CSV เป็น CP874 */
 function toCsv(rows: string[][]): string {
@@ -270,7 +279,7 @@ export default function RduSummaryPage() {
       item.target == null
         ? 'ยังไม่ได้ตั้งเกณฑ์'
         : `${item.goal === 'low' ? 'ไม่เกิน' : 'ตั้งแต่'} ${item.target}%`,
-      item.unit === 'patients' ? 'คน' : item.unit === 'admissions' ? 'ราย' : 'ครั้ง',
+      UNIT_LABEL[item.unit],
       ...years.map(year => {
         const row = byCell.get(`${item.name}|${year}`)
         if (row == null) return 'ยังไม่ได้คำนวณ'
@@ -487,12 +496,7 @@ export default function RduSummaryPage() {
                                 )}
                               </div>
                               <div className="mt-0.5 text-[11px] font-normal text-ink-3">
-                                นับเป็น
-                                {item.unit === 'patients'
-                                  ? 'คน'
-                                  : item.unit === 'admissions'
-                                    ? 'ราย'
-                                    : 'ครั้ง'}
+                                นับเป็น{UNIT_LABEL[item.unit]}
                                 {item.target != null &&
                                   ` · เกณฑ์${item.goal === 'low' ? 'ไม่เกิน' : 'ตั้งแต่'} ${item.target}%`}
                                 {latest != null && ` · ปีล่าสุด ${latest.percent.toFixed(2)}%`}

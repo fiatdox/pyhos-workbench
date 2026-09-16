@@ -4,6 +4,7 @@ import { hisDb } from '@/lib/db/his'
 import { labCodes } from '@/lib/his/lab-codes'
 import { CKD_STAGE3_EGFR } from '@/lib/his/rdu-ckd-nsaid'
 import { countDeliveryPair } from '@/lib/his/rdu-delivery'
+import { countEdPair } from '@/lib/his/rdu-ed'
 import { METFORMIN_GENERIC, METFORMIN_MIN_EGFR } from '@/lib/his/rdu-metformin'
 import { countPregnancyPair } from '@/lib/his/rdu-pregnancy'
 import { diagnosisTable, drugTable } from '@/lib/his/rdu-registry'
@@ -71,9 +72,9 @@ export function comparedFiscalYears(now = new Date()): number[] {
 type Indicator = {
   label: string
   short: string
-  group: 'antibiotic' | 'chronic' | 'special'
+  group: 'antibiotic' | 'chronic' | 'special' | 'prescribing'
   /** หน่วยของตัวตั้งและตัวหาร — มีผลกับคำที่ขึ้นบนกราฟ */
-  unit: 'visits' | 'patients' | 'admissions'
+  unit: 'visits' | 'patients' | 'admissions' | 'items'
   target: TargetSetting
   reportHref: string
 }
@@ -174,6 +175,24 @@ export const INDICATORS = {
     unit: 'patients',
     target: 'pregnancy-contra-target',
     reportHref: '/home/rdu/reports/pregnancy',
+  },
+  /* แยกสองข้อ ไม่ได้รวมเป็นข้อเดียวแล้วเลือกฝั่งใดฝั่งหนึ่งมาขึ้นกราฟ — สองฝั่ง
+     ต่างกันเกือบหกจุดและใช้เกณฑ์คนละตัว การเลือกฝั่งเดียวเท่ากับซ่อนอีกครึ่ง */
+  'ed-opd': {
+    label: 'รายการยาที่สั่งจากบัญชียาหลักแห่งชาติ — ผู้ป่วยนอก',
+    short: 'บัญชียาหลัก (OPD)',
+    group: 'prescribing',
+    unit: 'items',
+    target: 'ed-opd-target',
+    reportHref: '/home/rdu/reports/ed',
+  },
+  'ed-ipd': {
+    label: 'รายการยาที่สั่งจากบัญชียาหลักแห่งชาติ — ผู้ป่วยใน',
+    short: 'บัญชียาหลัก (IPD)',
+    group: 'prescribing',
+    unit: 'items',
+    target: 'ed-ipd-target',
+    reportHref: '/home/rdu/reports/ed',
   },
 } as const satisfies Record<string, Indicator>
 
@@ -477,6 +496,10 @@ export async function computeYearly(
   const pair =
     indicator === 'delivery'
       ? await countDeliveryPair(input)
+      : indicator === 'ed-opd'
+      ? await countEdPair({ ...input, scope: 'opd' })
+      : indicator === 'ed-ipd'
+      ? await countEdPair({ ...input, scope: 'ipd' })
       : indicator === 'pregnancy'
       ? await countPregnancyPair(input)
       : indicator === 'ckd-nsaid'

@@ -126,6 +126,19 @@ export const TARGET_SETTINGS = {
     goal: 'low',
     fallback: 0,
   },
+  /* แยกเกณฑ์ผู้ป่วยนอกกับผู้ป่วยในคนละค่า ไม่ได้มัดเป็นค่าเดียว — วัดจริงแล้ว
+     ต่างกันเกือบหกจุด (86.53% กับ 92.39%) เพราะยานอกบัญชีส่วนใหญ่เป็นยากิน
+     ที่สั่งกลับบ้าน ถ้าใช้เกณฑ์เดียวกันจะมีฝั่งหนึ่งผ่านหรือไม่ผ่านโดยอัตโนมัติ */
+  'ed-opd-target': {
+    indicator: 'การสั่งใช้ยาในบัญชียาหลัก — ผู้ป่วยนอก',
+    goal: 'high',
+    fallback: null,
+  },
+  'ed-ipd-target': {
+    indicator: 'การสั่งใช้ยาในบัญชียาหลัก — ผู้ป่วยใน',
+    goal: 'high',
+    fallback: null,
+  },
 } as const satisfies Record<
   string,
   { indicator: string; goal: 'low' | 'high'; fallback: number | null }
