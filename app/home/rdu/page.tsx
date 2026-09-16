@@ -4,12 +4,14 @@
 import Link from 'next/link'
 import { Alert, Card, Tag, Typography } from 'antd'
 import {
+  BarChartOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   FileSearchOutlined,
   HeartOutlined,
   MedicineBoxOutlined,
   MonitorOutlined,
+  NumberOutlined,
   RightOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
@@ -26,9 +28,9 @@ const { Paragraph, Text, Title } = Typography
  * และรายการยาที่ได้รับ) และกลุ่มผู้ป่วยพิเศษ (จำกัดตามช่วงอายุ) — คนละฐานของ
  * การนับ จึงแยกส่วนกันบนหน้าจอด้วย
  *
- * ทำครบทุกข้อที่อยู่ในขอบเขตของหน้านี้แล้ว — ตัวชี้วัดสตรีคลอดปกติครบกำหนด
- * ทางช่องคลอดไม่ได้อยู่ในนี้ เพราะนับจากการคลอดซึ่งเป็นเหตุการณ์ของผู้ป่วยใน
- * คนละฐานกับทุกข้อที่นับจากครั้งที่มารับบริการแบบผู้ป่วยนอก
+ * สองข้อที่ฐานของการนับไม่เหมือนกลุ่มที่ตัวเองอยู่ มีคำอธิบายกำกับไว้บนการ์ด —
+ * ข้อ NL นับจากการคลอดซึ่งเป็นเหตุการณ์ของผู้ป่วยใน ส่วนข้อสตรีตั้งครรภ์นับยา
+ * ที่ได้รับตลอดช่วงที่ตั้งครรภ์ ไม่ใช่ยาที่ได้ในครั้งที่ลงรหัสไว้
  */
 
 const ANTIBIOTIC_KPIS = [
@@ -50,8 +52,16 @@ const ANTIBIOTIC_KPIS = [
   {
     title: 'บาดแผลสดจากอุบัติเหตุ (APL)',
     reportHref: '/home/rdu/reports/apl',
-    /* ข้อนี้มีลิงก์ตั้งค่าอันเดียวเหมือน AD — ยาปฏิชีวนะดูจากธง drugitems.antibiotic */
-    settings: [{ href: '/home/rdu/settings/apl-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' }],
+    settings: [
+      { href: '/home/rdu/settings/apl-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' },
+      { href: '/home/rdu/settings/apl-antibiotic', label: 'ตั้งค่ายาปฏิชีวนะ' },
+    ],
+  },
+  {
+    title: 'สตรีคลอดปกติครบกำหนดทางช่องคลอด (NL)',
+    desc: 'ข้อเดียวในกลุ่มนี้ที่นับจากฝั่งผู้ป่วยใน — ตัวหารคือการคลอด ไม่ใช่ครั้งที่มารับบริการ',
+    reportHref: '/home/rdu/reports/delivery',
+    settings: [{ href: '/home/rdu/settings/nl-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' }],
   },
 ]
 
@@ -74,6 +84,16 @@ const CHRONIC_KPIS = [
     settings: [
       { href: '/home/rdu/settings/ckd-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' },
       { href: '/home/rdu/settings/nsaid', label: 'ตั้งค่ายา NSAIDs' },
+    ],
+  },
+  {
+    title: 'การใช้ยา metformin ในผู้ป่วยเบาหวาน',
+    reportHref: '/home/rdu/reports/metformin',
+    /* ไม่มีลิงก์ตั้งค่ายา metformin — ตัวตั้งอ่านจาก drugitems.generic_name
+       เหมือนที่ข้อ AD อ่านยาปฏิชีวนะจากธง drugitems.antibiotic */
+    settings: [
+      { href: '/home/rdu/settings/dm-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' },
+      { href: '/home/rdu/settings/antidiabetic', label: 'ตั้งค่ายาลดน้ำตาล' },
     ],
   },
   {
@@ -107,6 +127,25 @@ const SPECIAL_GROUP_KPIS = [
     settings: [
       { href: '/home/rdu/settings/ruauri-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' },
       { href: '/home/rdu/settings/nonsedating-antihist', label: 'ตั้งค่ายาต้านฮิสตามีน' },
+    ],
+  },
+  {
+    title: 'ผู้ป่วยนอกสูงอายุที่ได้รับยา long-acting benzodiazepine',
+    reportHref: '/home/rdu/reports/benzo',
+    /* ข้อเดียวในระบบที่ไม่มีลิงก์ตั้งค่ารหัสวินิจฉัย — ตัวหารคือผู้ป่วยนอกสูงอายุ
+       ทุกคน ไม่เกี่ยงว่ามาด้วยโรคอะไร คำถามเป็นเรื่องของวัยกับตัวยา ไม่ใช่เรื่องโรค */
+    settings: [
+      { href: '/home/rdu/settings/long-acting-benzo', label: 'ตั้งค่ายาออกฤทธิ์ยาว' },
+      { href: '/home/rdu/settings/age-criteria', label: 'ตั้งค่าเกณฑ์อายุ' },
+    ],
+  },
+  {
+    title: 'สตรีตั้งครรภ์ที่ได้รับยาที่ห้ามใช้',
+    desc: 'ยาไม่ต้องมาจากครั้งเดียวกับที่ลงรหัสตั้งครรภ์ — นับทุกครั้งที่ได้รับยาในช่วงที่ตั้งครรภ์อยู่',
+    reportHref: '/home/rdu/reports/pregnancy',
+    settings: [
+      { href: '/home/rdu/settings/pregnancy-icd10', label: 'ตั้งค่ารหัสวินิจฉัย' },
+      { href: '/home/rdu/settings/pregnancy-contra', label: 'ตั้งค่ายาที่ห้ามใช้' },
     ],
   },
 ]
@@ -186,11 +225,32 @@ export default function RduPage() {
         }
       />
 
-      {/* วางไว้เหนือการ์ดตัวชี้วัด เพราะเป็นที่ที่คนเปิดหน้านี้มาดูบ่อยที่สุด —
-          การ์ดรายข้อไว้เข้าหน้ารายเคส ส่วนหน้านี้ไว้ดูภาพรวมทุกมุมในที่เดียว */}
-      <section className="mb-6">
+      {/* สองการ์ดนี้ตอบคนละคำถาม จึงวางคู่กันเหนือการ์ดตัวชี้วัด — หน้าสรุปตอบว่า
+          "ทั้งชุดดีขึ้นหรือแย่ลงและถึงเกณฑ์หรือยัง" ส่วนหน้าวิเคราะห์ตอบว่า
+          "ตัวเลขของข้อนี้มาจากห้องตรวจไหน" ที่เหลือคือการ์ดรายข้อไว้ตามเคส */}
+      <section className="mb-6 grid gap-3 lg:grid-cols-2">
+        <Link href="/home/rdu/summary">
+          <Card hoverable variant="borderless" className="h-full border! border-line!">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                <BarChartOutlined />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  สรุปเปรียบเทียบ 3 ปี
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
+                  ตัวชี้วัดทุกข้อเทียบกับเกณฑ์ของตัวเอง ย้อนหลังสามปีงบประมาณ เป็นกราฟ
+                  เห็นได้ทันทีว่าข้อไหนดีขึ้นและข้อไหนยังไม่ถึงเกณฑ์
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Link href="/home/rdu/dashboard">
-          <Card hoverable variant="borderless" className="border! border-line!">
+          <Card hoverable variant="borderless" className="h-full border! border-line!">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
                 <DashboardOutlined />
@@ -214,7 +274,7 @@ export default function RduPage() {
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
           <ExperimentOutlined className="text-accent" /> กลุ่มยาปฏิชีวนะ
           <Text type="secondary" className="text-xs font-normal">
-            นับตามครั้งที่มารับบริการ
+            นับตามครั้งที่มารับบริการ ยกเว้นข้อคลอดปกติที่นับตามการคลอด
           </Text>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -330,6 +390,24 @@ export default function RduPage() {
             </Card>
           </Link>
 
+          <Link href="/home/rdu/settings/apl-antibiotic">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยาปฏิชีวนะ (APL)
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยาที่นับเป็นยาปฏิชีวนะของตัวชี้วัดแผลสด — แยกทะเบียนจากข้อ RI
+                ตั้งต้นไว้ตามธงใน HIS
+              </p>
+            </Card>
+          </Link>
+
           <Link href="/home/rdu/settings/ad-icd10">
             <Card hoverable variant="borderless" className="h-full border! border-line!">
               <div className="mb-2 flex items-center gap-3">
@@ -344,6 +422,42 @@ export default function RduPage() {
               <p className="text-xs leading-relaxed text-ink-3">
                 เลือกรหัส ICD-10 ที่นับเป็นโรคอุจจาระร่วงเฉียบพลัน — ข้อนี้ไม่มีทะเบียนยา
                 เพราะดูยาปฏิชีวนะจากธงที่ติดไว้ใน HIS
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/nl-icd10">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <FileSearchOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  รหัสวินิจฉัยการคลอดปกติ
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรหัส ICD-10 ที่นับเป็นการคลอดปกติครบกำหนดทางช่องคลอด
+                ใช้เป็นตัวหารของตัวชี้วัด NL
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/pregnancy-icd10">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <FileSearchOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  รหัสวินิจฉัยการตั้งครรภ์
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรหัส ICD-10 ที่แปลว่ากำลังตั้งครรภ์ ใส่ไว้ให้ตั้งต้นเฉพาะรหัสฝากครรภ์
+                เพราะหมวด O ถูกใช้ผิดอยู่หลายรหัส
               </p>
             </Card>
           </Link>
@@ -449,8 +563,26 @@ export default function RduPage() {
                 </div>
               </div>
               <p className="text-xs leading-relaxed text-ink-3">
-                เลือกรหัส ICD-10 ที่นับเป็นโรคเบาหวาน ใช้เป็นตัวหารของตัวชี้วัด glibenclamide
-                ในผู้สูงอายุ
+                เลือกรหัส ICD-10 ที่นับเป็นโรคเบาหวาน ใช้เป็นตัวหารของทั้งตัวชี้วัด metformin
+                และตัวชี้วัด glibenclamide ในผู้สูงอายุ
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/antidiabetic">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยาลดระดับน้ำตาลในเลือด
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยาลดน้ำตาลทุกกลุ่มรวมอินซูลิน ใช้เป็นตัวหารของตัวชี้วัดการใช้
+                metformin
               </p>
             </Card>
           </Link>
@@ -504,6 +636,62 @@ export default function RduPage() {
               </div>
               <p className="text-xs leading-relaxed text-ink-3">
                 เลือกรายการยาต้านตัวรับแองจิโอเทนซิน II รวม ARNI และยายับยั้งเรนินโดยตรง
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/long-acting-benzo">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยา benzodiazepine ออกฤทธิ์ยาว
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยาที่นับว่าออกฤทธิ์ยาว — แยกด้วยชื่อสามัญไม่ได้
+                ต้องดูค่าครึ่งชีวิตของยาแต่ละตัว
+              </p>
+            </Card>
+          </Link>
+
+          <Link href="/home/rdu/settings/pregnancy-contra">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <MedicineBoxOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  ยาที่ห้ามใช้ในสตรีตั้งครรภ์
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                เลือกรายการยาที่ห้ามใช้ขณะตั้งครรภ์ — warfarin, statins และ ergots
+                ที่ใช้แก้ไมเกรน
+              </p>
+            </Card>
+          </Link>
+
+          {/* การ์ดสุดท้าย เพราะเป็นการตั้งค่าคนละชนิดกับที่เหลือ — ทะเบียนบอกว่า
+              "นับรายการไหน" ส่วนหน้านี้บอกว่า "นับใคร" และมีผลข้ามหลายตัวชี้วัด */}
+          <Link href="/home/rdu/settings/age-criteria">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <NumberOutlined />
+                </div>
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+                  เกณฑ์อายุของตัวชี้วัด
+                  <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-ink-3">
+                ตั้งว่า &ldquo;ผู้สูงอายุ&rdquo; และ &ldquo;ผู้ป่วยเด็ก&rdquo; ของแต่ละตัวชี้วัด
+                เริ่มที่อายุเท่าไร มีผลทั้งหน้ารายงานและหน้าวิเคราะห์
               </p>
             </Card>
           </Link>

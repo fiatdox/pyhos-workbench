@@ -6,6 +6,7 @@ import {
   ANTIBIOTIC_FLAG,
   ANTIBIOTIC_FLAG_VALUE,
   ageFilterOf,
+  ageLimitsOf,
   DISPENSED_QTY,
   OPD_ONLY,
   reportSpec,
@@ -123,9 +124,9 @@ export async function loadDashboardFacts(input: {
           JOIN ${sql.raw(drugTable(spec.drug))} r ON r.icode = o.icode
          WHERE o.vn = v.vn ${qtyFilter}`
 
-  const maxAgeYears = spec.maxAgeYears ?? null
-  const minAgeYears = spec.minAgeYears ?? null
-  const ageFilter = ageFilterOf(spec)
+  // อ่านเกณฑ์อายุผ่านตัวช่วยตัวเดียวกับหน้ารายงาน — สองหน้านี้ต้องได้เลขเท่ากันเสมอ
+  const { maxAgeYears, minAgeYears } = await ageLimitsOf(input.kind)
+  const ageFilter = ageFilterOf({ maxAgeYears, minAgeYears })
 
   const [result] = await hisDb.execute(sql`
     SELECT DATE_FORMAT(v.vstdate, '%Y-%m-%d') AS d,

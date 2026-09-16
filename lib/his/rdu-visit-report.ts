@@ -7,6 +7,7 @@ import {
   type DiagnosisRegistry,
   type DrugRegistry,
 } from '@/lib/his/rdu-registry'
+import { loadAgeSettings, type AgeSetting } from '@/lib/his/rdu-settings'
 
 /**
  * รายงานผู้ป่วยนอกตามตัวชี้วัด RDU — วินิจฉัยด้วยรหัสในทะเบียน แล้วได้รับยา
@@ -34,8 +35,12 @@ import {
  * และไม่ต้องคอยตามให้ทะเบียนตรงกับที่ตั้งไว้ในโปรแกรม HIS
  *
  * ข้อเสียที่ต้องรู้: ธงนี้แคบกว่าการจัดกลุ่มแบบ BNF ที่งาน DUE ใช้ — ยาในบทที่ 5
- * (Infections) ที่เปิดใช้งานมี 236 รายการ ติดธงไว้แค่ 81 รายการ ถ้าวันหนึ่ง
- * คณะกรรมการอยากได้ชุดที่คุมเอง ให้เปลี่ยนมาใช้ทะเบียนแบบข้ออื่นแทน
+ * (Infections) ที่เปิดใช้งานมี 236 รายการ ติดธงไว้แค่ 81 รายการ
+ *
+ * ตอนนี้เหลือข้อ AD ข้อเดียวที่ใช้ธง — ข้อ APL ย้ายไปใช้ทะเบียนของตัวเองแล้ว
+ * ตามที่เภสัชกรขอปรับชุดยาเอง ถ้าวันหนึ่งข้อ AD อยากได้แบบเดียวกัน ให้ทำตาม
+ * รอยเดิม: สร้างทะเบียนใหม่ ใส่รายการตามธงไว้ก่อนให้ตัวเลขย้อนหลังไม่ขยับ
+ * แล้วเปลี่ยน drug ของข้อนั้นมาชี้ทะเบียน
  */
 export const ANTIBIOTIC_FLAG = 'antibiotic-flag'
 
@@ -45,10 +50,13 @@ export const ANTIBIOTIC_FLAG_VALUE = 'Y'
 /**
  * ตัวชี้วัดหนึ่งข้อ = ทะเบียนวินิจฉัยหนึ่งชุด คู่กับแหล่งยาหนึ่งแหล่ง
  *
- * maxAgeYears / minAgeYears มีเฉพาะข้อที่นิยามจำกัดอายุไว้ — ตัวชี้วัดกลุ่มผู้ป่วย
- * พิเศษของ RUA-URI นับเฉพาะผู้ป่วยเด็กอายุ 0–12 ปี ส่วนข้อ glibenclamide นับเฉพาะ
- * ผู้สูงอายุตั้งแต่ 65 ปีขึ้นไป ถ้าไม่กรอง ตัวหารจะรวมคนนอกนิยามเข้ามา
- * แล้วร้อยละที่ได้จะไม่ใช่ตัวเลขของตัวชี้วัดข้อนั้น
+ * ageSetting มีเฉพาะข้อที่นิยามจำกัดอายุไว้ — ตัวชี้วัดกลุ่มผู้ป่วยพิเศษของ
+ * RUA-URI นับเฉพาะผู้ป่วยเด็ก ส่วนข้อ glibenclamide นับเฉพาะผู้สูงอายุ
+ * ถ้าไม่กรอง ตัวหารจะรวมคนนอกนิยามเข้ามา แล้วร้อยละที่ได้จะไม่ใช่ตัวเลขของ
+ * ตัวชี้วัดข้อนั้น
+ *
+ * ตัวเลขอายุไม่ได้อยู่ตรงนี้ แต่อยู่ใน lib/his/rdu-settings.ts เพราะคณะกรรมการ
+ * ตั้งเองได้ — ที่นี่บอกแค่ว่าข้อไหนใช้เกณฑ์ตัวไหน และเป็นเพดานบนหรือล่าง
  *
  * countContinued เปิดเฉพาะข้อที่เป็นยาใช้ต่อเนื่อง — ดูคำอธิบายที่ CONTINUED_QTY
  */
@@ -59,27 +67,33 @@ const REPORTS = {
   ri: { diagnosis: 'ri', drug: 'ri-antibiotic' },
   /** ผู้ป่วยโรคอุจจาระร่วงเฉียบพลันที่ได้รับยาปฏิชีวนะ — ใช้ธงใน drugitems */
   ad: { diagnosis: 'ad', drug: ANTIBIOTIC_FLAG },
-  /** ผู้ป่วยบาดแผลสดจากอุบัติเหตุที่ได้รับยาปฏิชีวนะ — ใช้ธงใน drugitems เช่นเดียวกับ AD */
-  apl: { diagnosis: 'apl', drug: ANTIBIOTIC_FLAG },
+  /**
+   * ผู้ป่วยบาดแผลสดจากอุบัติเหตุที่ได้รับยาปฏิชีวนะ
+   *
+   * ใช้ทะเบียนของตัวเอง ไม่ได้ใช้ธงเหมือนข้อ AD — เภสัชกรขอปรับชุดยาเอง
+   * เพราะแผลสดถามถึงยาที่ให้ป้องกันการติดเชื้อที่แผล ซึ่งแคบกว่ายาปฏิชีวนะ
+   * ทุกตัวที่ธงติดไว้ (ดูทะเบียน apl-antibiotic ใน lib/his/rdu-registry.ts)
+   */
+  apl: { diagnosis: 'apl', drug: 'apl-antibiotic' },
   /** ผู้ป่วยเด็กโรคติดเชื้อทางเดินหายใจ (RUA-URI) ที่ได้รับยาต้านฮิสตามีน non-sedating */
   'ruauri-child': {
     diagnosis: 'ruauri',
     drug: 'nonsedating-antihist',
-    maxAgeYears: 12,
+    maxAgeSetting: 'ruauri-max-age',
   },
   /** ผู้ป่วยเบาหวานสูงอายุที่ได้รับยา glibenclamide */
   'glibenclamide-elderly': {
     diagnosis: 'dm',
     drug: 'glibenclamide',
-    minAgeYears: 65,
+    minAgeSetting: 'glibenclamide-min-age',
   },
 } as const satisfies Record<
   string,
   {
     diagnosis: DiagnosisRegistry
     drug: DrugRegistry | typeof ANTIBIOTIC_FLAG
-    maxAgeYears?: number
-    minAgeYears?: number
+    maxAgeSetting?: AgeSetting
+    minAgeSetting?: AgeSetting
     countContinued?: boolean
   }
 >
@@ -95,17 +109,42 @@ export const VISIT_REPORT_KINDS = Object.keys(REPORTS) as VisitReportKind[]
 /**
  * สเปกของตัวชี้วัดหนึ่งข้อ — เปิดให้โมดูลวิเคราะห์ใช้คิวรีชุดเดียวกัน
  *
- * คืนเป็นรูปแบบเดียวกันทุกข้อ (maxAgeYears เป็น undefined เมื่อไม่จำกัดอายุ)
+ * คืนเป็นรูปแบบเดียวกันทุกข้อ (ฟิลด์เกณฑ์อายุเป็น undefined เมื่อไม่จำกัดอายุ)
  * ผู้เรียกจะได้ไม่ต้องรู้ว่าข้อไหนมีฟิลด์นั้นบ้าง
  */
 export function reportSpec(kind: VisitReportKind): {
   diagnosis: DiagnosisRegistry
   drug: DrugRegistry | typeof ANTIBIOTIC_FLAG
-  maxAgeYears?: number
-  minAgeYears?: number
+  maxAgeSetting?: AgeSetting
+  minAgeSetting?: AgeSetting
   countContinued?: boolean
 } {
   return REPORTS[kind]
+}
+
+/**
+ * แปลงสเปกของตัวชี้วัดเป็นตัวเลขอายุที่ใช้จริง ตามค่าที่ตั้งไว้
+ *
+ * รวมไว้ที่เดียวเพราะทั้งหน้ารายงานและหน้าวิเคราะห์ต้องได้ตัวเลขชุดเดียวกัน —
+ * ถ้าต่างคนต่างอ่านค่าตั้งค่าเองแล้ววันหนึ่งมีข้อที่จำกัดสองด้าน จะพลาดไปแก้
+ * ที่เดียวแล้วสองหน้าจะให้ตัวเลขคนละอย่างโดยหาต้นเหตุยาก
+ */
+export async function ageLimitsOf(kind: VisitReportKind): Promise<{
+  maxAgeYears: number | null
+  minAgeYears: number | null
+}> {
+  const spec = REPORTS[kind]
+  const hasMax = 'maxAgeSetting' in spec
+  const hasMin = 'minAgeSetting' in spec
+
+  // ข้อที่ไม่จำกัดอายุไม่ต้องไปอ่านตารางตั้งค่าเลย — ส่วนใหญ่เป็นแบบนั้น
+  if (!hasMax && !hasMin) return { maxAgeYears: null, minAgeYears: null }
+
+  const ages = await loadAgeSettings()
+  return {
+    maxAgeYears: hasMax ? ages[spec.maxAgeSetting] : null,
+    minAgeYears: hasMin ? ages[spec.minAgeSetting] : null,
+  }
 }
 
 /**
@@ -294,8 +333,7 @@ export async function listReportVisits(input: {
       ? drugNamesWhere(sql`o.qty <= ${CONTINUED_QTY}`)
       : sql`SELECT NULL`
   // ข้อที่ไม่จำกัดอายุต่อชิ้นส่วนว่างเข้าไป จะได้ใช้คิวรีหลักชุดเดียวกันทั้งหมด
-  const maxAgeYears = 'maxAgeYears' in report ? report.maxAgeYears : null
-  const minAgeYears = 'minAgeYears' in report ? report.minAgeYears : null
+  const { maxAgeYears, minAgeYears } = await ageLimitsOf(input.kind)
   const ageFilter = ageFilterOf({ maxAgeYears, minAgeYears })
 
   const drugSource = byFlag

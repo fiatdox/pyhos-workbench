@@ -26,6 +26,22 @@ const DRUG_TABLES = {
   inhaler: 'pyhos_inhaler_drug',
   /** ยาปฏิชีวนะที่นับในตัวชี้วัดโรคติดเชื้อทางเดินหายใจส่วนบน */
   'ri-antibiotic': 'pyhos_ri_atb_icode',
+  /**
+   * ยาปฏิชีวนะที่นับในตัวชี้วัดบาดแผลสดจากอุบัติเหตุ
+   *
+   * แยกทะเบียนของตัวเอง ไม่ได้ใช้ธง drugitems.antibiotic เหมือนข้อ AD —
+   * เภสัชกรขอปรับชุดยาของข้อนี้เอง เพราะคำถามของแต่ละข้อไม่เหมือนกัน:
+   * แผลสดถามถึงยาที่ให้เพื่อป้องกันการติดเชื้อที่แผล ซึ่งเป็นชุดที่แคบกว่า
+   * "ยาปฏิชีวนะทุกตัวในโรงพยาบาล" ที่ธงนั้นติดไว้ (249 รายการ)
+   *
+   * ใส่ไว้ตั้งต้นครบทั้ง 249 รายการตามธงเดิม ตัวเลขย้อนหลังจึงไม่ขยับในวันที่
+   * เปลี่ยนมาใช้ทะเบียน — จากนั้นเภสัชกรค่อยตัดออกทีละตัวตามที่ตกลงกัน
+   *
+   * แยกจากทะเบียนของข้อ RI ด้วย ทั้งที่เป็นยาปฏิชีวนะเหมือนกัน — สองข้อนี้
+   * คนละนิยาม ถ้ามัดเป็นทะเบียนเดียว วันที่ข้อหนึ่งตัดยาออก อีกข้อจะเปลี่ยน
+   * ตามไปเงียบ ๆ ทั้งที่ไม่มีใครสั่ง (เหตุผลเดียวกับที่เกณฑ์อายุแยกต่อข้อ)
+   */
+  'apl-antibiotic': 'pyhos_apl_atb_icode',
   /** ยาต้านฮิสตามีนชนิด non-sedating (รุ่นที่สอง) */
   'nonsedating-antihist': 'pyhos_nonsedating_antihist_icode',
   /** ยาต้านการอักเสบที่ไม่ใช่สเตียรอยด์ (ตัวชี้วัด NSAIDs ในผู้ป่วยโรคไตเรื้อรัง) */
@@ -39,6 +55,36 @@ const DRUG_TABLES = {
   'ras-arb': 'pyhos_ras_arb_icode',
   /** ยา glibenclamide — ซัลโฟนิลยูเรียที่ออกฤทธิ์ยาว เสี่ยงน้ำตาลต่ำในผู้สูงอายุ */
   glibenclamide: 'pyhos_glibenclamide_icode',
+  /* ตัวชี้วัดการใช้ metformin ใช้ทะเบียนนี้เป็น "ตัวหาร" ไม่ใช่ตัวตั้งเหมือนข้ออื่น
+     ส่วนตัวตั้ง (ยาที่มี metformin) ไม่ต้องมีทะเบียน เพราะหาจาก drugitems.generic_name
+     ได้ตรง ๆ (ดู METFORMIN_GENERIC ใน lib/his/rdu-metformin.ts) */
+  /** ยาลดระดับน้ำตาลในเลือดทุกกลุ่ม รวมอินซูลิน — ตัวหารของตัวชี้วัด metformin */
+  antidiabetic: 'pyhos_antidiabetic_icode',
+  /**
+   * ยา benzodiazepine ที่ออกฤทธิ์ยาว (ตัวชี้วัดการใช้ยาในผู้ป่วยนอกสูงอายุ)
+   *
+   * ต้องเป็นทะเบียนที่ตั้งเอง แยกด้วยชื่อสามัญไม่ได้เหมือนข้อ metformin — เส้นแบ่ง
+   * คือค่าครึ่งชีวิตของยา ซึ่งไม่มีคอลัมน์ไหนในฐานบอก (clonazepam กับ lorazepam
+   * ชื่อลงท้ายเหมือนกันแต่คนละฝั่งของเส้น)
+   */
+  'long-acting-benzo': 'pyhos_long_acting_benzo_icode',
+  /**
+   * ยาที่ห้ามใช้ในสตรีตั้งครรภ์ — warfarin, statins, ergots
+   *
+   * ต้องเป็นทะเบียนที่ตั้งเอง ทั้งที่ฐานมีคอลัมน์ drugitems.pregnancy เก็บหมวด
+   * ความเสี่ยงต่อการตั้งครรภ์ไว้แล้ว เพราะคอลัมน์นั้นเชื่อไม่ได้สองชั้น:
+   * กรอกไม่ครบ (ยาที่เปิดใช้งาน 1,092 รายการ มีค่าแค่ 233) และไม่สม่ำเสมอ
+   * — atorvastatin รหัสที่ใช้อยู่ตอนนี้เป็นค่าว่าง ส่วนรหัสเก่าของยาตัวเดียวกัน
+   * ติดหมวด X ไว้ ถ้านับตามคอลัมน์นี้ ยาตัวเดียวกันจะถูกนับบ้างไม่ถูกนับบ้าง
+   *
+   * และหมวด D/X ก็ไม่ใช่คำตอบอยู่ดีถึงจะกรอกครบ — ที่ติดหมวด X ไว้มี oxytocin
+   * กับ misoprostol ซึ่งเป็นยาที่ใช้ "ตอนคลอด" ไม่ใช่ยาที่ห้ามใช้ขณะตั้งครรภ์
+   *
+   * ส่วนชื่อสามัญก็แยกไม่ได้เหมือนข้อ metformin เพราะคำว่า statin ไปตรงกับ
+   * NYSTATIN, IMIPENEM+CILASTATIN, SOMATOSTATIN ส่วน ergo ไปตรงกับ
+   * ERGOCALCIFEROL (วิตามินดี) และ NICERGOLINE
+   */
+  'preg-contra': 'pyhos_preg_contra_icode',
 } as const
 
 /**
@@ -85,8 +131,42 @@ const DIAGNOSIS_TABLES = {
    * ต้องตัดสินเองว่านับหรือไม่นับ
    */
   ckd: { table: 'pyhos_ckd_icd10', chapters: [{ from: 'N17', to: 'N19' }] },
-  /** โรคเบาหวาน — ตัวหารของตัวชี้วัด glibenclamide ในผู้สูงอายุ */
+  /** โรคเบาหวาน — ใช้เป็นตัวหารทั้งข้อ glibenclamide ในผู้สูงอายุ และข้อการใช้ metformin */
   dm: { table: 'pyhos_dm_icd10', chapters: [{ from: 'E10', to: 'E14' }] },
+  /**
+   * การคลอดปกติครบกำหนดทางช่องคลอด — ตัวหารของตัวชี้วัด NL
+   *
+   * ยกหมวด O80–O84 มาทั้งหมด 32 รหัส ไม่ได้ยกมาแต่ O800 ที่ใส่ไว้ตั้งต้น เพราะ
+   * คณะกรรมการต้องตัดสินเองว่าการคลอดที่ใช้เครื่องช่วย (O81 คีมและเครื่องดูด)
+   * นับเป็น "คลอดปกติ" ด้วยหรือไม่ ซึ่งแต่ละที่ตีความไม่เหมือนกัน
+   *
+   * ข้อจำกัดที่ต้องรู้: รหัส ICD-10 ไม่ได้บอกอายุครรภ์ คำว่า "ครบกำหนด" ในชื่อ
+   * ตัวชี้วัดจึงยังไม่ได้ถูกกรองด้วยคิวรี — การคลอดก่อนกำหนดที่ลงรหัส O800 ไว้
+   * จะเข้าตัวหารด้วย (ตามปกติการคลอดก่อนกำหนดลงรหัส O60 ซึ่งไม่อยู่ในหมวดนี้)
+   */
+  nl: { table: 'pyhos_nl_icd10', chapters: [{ from: 'O80', to: 'O84' }] },
+  /**
+   * รหัสที่แปลว่า "กำลังตั้งครรภ์" — ตัวหารของตัวชี้วัดยาที่ห้ามใช้ในสตรีตั้งครรภ์
+   *
+   * ยกหมวด O00–O99 กับ Z32–Z36 มาให้เลือก แต่ใส่ไว้ตั้งต้นแค่ Z33–Z36 (25 รหัส)
+   * ซึ่งเป็นรหัสฝากครรภ์และตรวจครรภ์ — ตรวจแล้วเป็นชุดที่ลงรหัสตรงกับความจริง
+   * ในฐานนี้ ส่วนหมวด O ถูกใช้ผิดเยอะจนเอามาเป็นตัวหารตรง ๆ ไม่ได้: O223
+   * (หลอดเลือดดำอุดตันขณะตั้งครรภ์) ถูกคลินิกความดันใช้แทนรหัสหลอดเลือดดำ
+   * อุดตันทั่วไป จนมีทั้งผู้ชายและผู้ป่วยอายุ 80–90 ปีติดมาด้วย
+   *
+   * ที่ไม่ใส่ Z32 ไว้ให้เพราะ Z320 คือ "ตรวจแล้วยังไม่ยืนยันว่าตั้งครรภ์"
+   * ซึ่งอยู่รหัสสามหลักเดียวกับ Z321 ที่ยืนยันแล้ว
+   *
+   * คนที่คลอดหรือแท้งไปแล้ว (O80–O84, O00–O08) ก็ไม่ได้ใส่ไว้ — ตัวชี้วัดถาม
+   * ถึงยาที่ถึงตัวทารกในครรภ์ ซึ่งจบไปแล้วตั้งแต่วันที่รหัสเหล่านั้นถูกบันทึก
+   */
+  pregnancy: {
+    table: 'pyhos_pregnancy_icd10',
+    chapters: [
+      { from: 'O00', to: 'O99' },
+      { from: 'Z32', to: 'Z36' },
+    ],
+  },
   /** โรคติดเชื้อทางเดินหายใจตามนิยาม RUA-URI (รวมหูชั้นกลางอักเสบ) */
   ruauri: {
     table: 'pyhos_ruauri_icd10',
@@ -164,6 +244,19 @@ export type DrugOption = {
   strength: string | null
   units: string | null
   dosageform: string | null
+  /**
+   * ชื่อสามัญ — ตัวเดียวในตารางที่มัดยาคนละรหัสแต่ตัวเดียวกันเข้าด้วยกัน
+   *
+   * ชื่อในคอลัมน์ name เป็นชื่อการค้าปนรหัสภายในปนชื่อบริษัท ("(ง)Atorvastatin-40
+   * Tablet [ช,ต](LIPITOR, บ.ทีโอ)") การไล่หายาตัวเดียวกันให้ครบทุกรหัสจากชื่อนั้น
+   * ต้องรู้ชื่อการค้าทุกยี่ห้อที่โรงพยาบาลเคยซื้อ ซึ่งเป็นงานที่พลาดง่ายมาก —
+   * ชื่อสามัญตัดปัญหานั้นทิ้ง (เติมไว้ครบทั้ง 2,935 รายการ ไม่มีแถวว่าง)
+   *
+   * แต่เชื่อเป็นกลุ่มยาไม่ได้ ใช้ได้แค่เป็นตัวช่วยค้น — ค่าในคอลัมน์นี้มีทั้งที่
+   * สะกดผิด (SAXAGLIOTIN) และที่เป็นชื่อการค้าล้วน (BeSTATIN40MG.E*TAB.(ONCALL))
+   * การเลือกเข้าทะเบียนจึงยังต้องให้คนดูทีละรายการอยู่ดี
+   */
+  generic: string | null
   /** ยังเปิดใช้งานอยู่ใน drugitems หรือไม่ — ของที่ปิดไปแล้วยังค้างอยู่ในทะเบียนได้ */
   active: boolean
 }
@@ -182,7 +275,7 @@ export type DrugOption = {
 export async function listDrugCandidates(kind: DrugRegistry): Promise<DrugOption[]> {
   const table = sql.raw(drugTable(kind))
   const [result] = await hisDb.execute(sql`
-    SELECT d.icode, d.name, d.strength, d.units, d.dosageform, d.istatus
+    SELECT d.icode, d.name, d.strength, d.units, d.dosageform, d.generic_name, d.istatus
     FROM drugitems d
     WHERE d.istatus = ${ACTIVE_ITEM_STATUS}
        OR d.icode IN (SELECT r.icode FROM ${table} r)
@@ -194,6 +287,7 @@ export async function listDrugCandidates(kind: DrugRegistry): Promise<DrugOption
     strength: str(row.strength),
     units: str(row.units),
     dosageform: str(row.dosageform),
+    generic: str(row.generic_name),
     active: String(row.istatus ?? '').trim() === ACTIVE_ITEM_STATUS,
   }))
 }
@@ -256,6 +350,15 @@ export type Icd10Option = {
   name: string
   /** ชื่อโรคภาษาไทย — ว่างมากกว่าครึ่งของตาราง (185 จาก 294 แถวในหมวด J) */
   tname: string | null
+  /**
+   * ครั้งที่รหัสนี้ถูกลงจริงใน 12 เดือนล่าสุด — ผู้ป่วยนอก / ผู้ป่วยใน
+   *
+   * เป็นตัวแยก "รหัสที่หมอลงจริง" ออกจาก "รหัสหมวดที่ไม่มีใครลง" ซึ่งอยู่ปนกัน
+   * ในตาราง icd101 และแยกจากหน้าตาไม่ออก (S00 กับ S000 ต่างกันแค่ตัวเดียว
+   * แต่ตัวแรกมีคนใช้ 0 ครั้ง ส่วนตัวหลัง 504 ครั้ง) ดู lib/his/rdu-icd10-usage.ts
+   */
+  opdUses: number
+  ipdUses: number
   /** ยังใช้ได้อยู่หรือไม่ — รหัสที่ถูกยกเลิกยังค้างอยู่ในทะเบียนได้ */
   active: boolean
 }
@@ -280,17 +383,23 @@ export async function listIcd10Candidates(
   const table = sql.raw(diagnosisTable(kind))
   const search = keyword.trim()
 
+  /* จำนวนการใช้มาจากตารางแคช ไม่ได้นับสดตรงนี้ — การนับสดต้องกวาด ovstdiag
+     ทั้งปีซึ่งใช้เวลาห้าวินาที ทำให้พิมพ์ค้นไม่ได้ (ดู lib/his/rdu-icd10-usage.ts)
+     LEFT JOIN เพราะรหัสที่ไม่มีใครใช้ต้องยังขึ้นในรายการ ไม่ใช่หายไป —
+     รหัสเหล่านั้นคือรหัสที่ต้องมองเห็นที่สุด */
   const [result] = await hisDb.execute(
     search === ''
       ? sql`
-        SELECT c.code, c.name, c.tname, c.active_status
+        SELECT c.code, c.name, c.tname, c.active_status, u.opd_uses, u.ipd_uses
         FROM icd101 c
+        LEFT OUTER JOIN pyhos_icd10_usage u ON u.icd10 = c.code
         WHERE (c.active_status = ${ACTIVE_CODE_STATUS} AND (${chapterFilter(kind)}))
            OR c.code IN (SELECT r.icd10 FROM ${table} r)
         ORDER BY c.code`
       : sql`
-        SELECT c.code, c.name, c.tname, c.active_status
+        SELECT c.code, c.name, c.tname, c.active_status, u.opd_uses, u.ipd_uses
         FROM icd101 c
+        LEFT OUTER JOIN pyhos_icd10_usage u ON u.icd10 = c.code
         WHERE (c.active_status = ${ACTIVE_CODE_STATUS}
                AND (c.code LIKE ${`${search}%`}
                     OR c.name LIKE ${`%${search}%`}
@@ -305,6 +414,8 @@ export async function listIcd10Candidates(
     name: String(row.name ?? '').trim(),
     // ชื่อไทยในฐานมีช่องว่างต่อท้ายหลายแถว ('โรคหอบหืด   ') ตัดทิ้งก่อนส่งออกไป
     tname: str(row.tname),
+    opdUses: Number(row.opd_uses ?? 0),
+    ipdUses: Number(row.ipd_uses ?? 0),
     active: String(row.active_status ?? '').trim() === ACTIVE_CODE_STATUS,
   }))
 }
