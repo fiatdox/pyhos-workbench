@@ -24,6 +24,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
 import type { ReportVisit } from '@/lib/his/rdu-visit-report'
+import RowSearch, { matchesRow } from './row-search'
 import VisitDetailModal from './visit-modal'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
@@ -159,6 +160,8 @@ export default function VisitReportPage({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
+  /** คำค้นในตาราง — กรองในเบราว์เซอร์ ไม่ได้ยิงกลับไปที่ฐาน */
+  const [keyword, setKeyword] = useState('')
   const [picked, setPicked] = useState<ReportVisit | null>(null)
   const [toast, toastHolder] = message.useMessage()
 
@@ -201,11 +204,30 @@ export default function VisitReportPage({
     }
   }, [report])
 
+  /* ค้นทับตัวกรองกลุ่ม ไม่ใช่แทนที่ — สองอย่างตอบคนละคำถาม ตัวกรองบอกว่า
+     "กลุ่มไหน" ส่วนช่องค้นบอกว่า "คนไหน" และมักใช้คู่กัน (เลือกกลุ่มที่ต้อง
+     ทบทวนไว้ก่อน แล้วค้นชื่อยาเพื่อดูว่ายาตัวไหนเป็นต้นเหตุ) */
   const visible = useMemo(() => {
     const visits = report?.visits ?? []
-    if (filter === 'all') return visits
-    return visits.filter(visit => statusOf(visit) === FILTER_STATUS[filter])
-  }, [report, filter])
+    const byFilter =
+      filter === 'all' ? visits : visits.filter(visit => statusOf(visit) === FILTER_STATUS[filter])
+    return byFilter.filter(visit =>
+      matchesRow(
+        [
+          visit.hn,
+          visit.patientName,
+          visit.vn,
+          visit.ageYears,
+          visit.department,
+          visit.doctor,
+          ...visit.icd10,
+          ...visit.drugs,
+          ...visit.continuedDrugs,
+        ],
+        keyword,
+      ),
+    )
+  }, [report, filter, keyword])
 
   /**
    * ดาวน์โหลดตารางที่เห็นอยู่เป็นไฟล์ CSV ที่ Excel เปิดได้
@@ -555,13 +577,18 @@ export default function VisitReportPage({
                   },
                 ]}
               />
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <RowSearch
+                  value={keyword}
+                  onChange={setKeyword}
+                  placeholder="ค้น HN ชื่อผู้ป่วย รหัสโรค ชื่อยา ห้องตรวจ แพทย์"
+                />
                 <span className="text-xs text-ink-3">
                   แสดง {visible.length} แถว · ต้องทบทวน {followUpCount} ครั้ง
                 </span>
                 {/* ส่งออกเฉพาะที่กรองอยู่ ไม่ใช่ทั้งช่วงวันที่ — เขียนกำกับไว้ที่ tooltip
                     ของปุ่ม เพราะเป็นเรื่องที่ทำให้เข้าใจไฟล์ผิดได้ง่ายที่สุด */}
-                <Tooltip title="ได้ไฟล์ตามตัวกรองที่เลือกอยู่ · มีชื่อผู้ป่วยและ HN อย่าส่งต่อออกนอกงาน">
+                <Tooltip title="ได้ไฟล์ตามตัวกรองและคำค้นที่ใช้อยู่ · มีชื่อผู้ป่วยและ HN อย่าส่งต่อออกนอกงาน">
                   <Button
                     icon={<FileExcelOutlined />}
                     onClick={exportCsv}
@@ -585,9 +612,11 @@ export default function VisitReportPage({
                   emptyText: (
                     <Empty
                       description={
-                        filter === 'all'
-                          ? `ไม่พบ${labels.patientLabel}ในช่วงวันที่ที่เลือก`
-                          : 'ไม่มีแถวที่ตรงกับตัวกรองนี้'
+                        keyword.trim() !== ''
+                          ? `ไม่มีแถวที่ตรงกับคำค้น "${keyword.trim()}"`
+                          : filter === 'all'
+                            ? `ไม่พบ${labels.patientLabel}ในช่วงวันที่ที่เลือก`
+                            : 'ไม่มีแถวที่ตรงกับตัวกรองนี้'
                       }
                     />
                   ),

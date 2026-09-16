@@ -1,4 +1,5 @@
 import { denyRduUser, requireRduUser } from '@/lib/auth/rdu-user'
+import { ensureIcd10Usage } from '@/lib/his/rdu-icd10-usage'
 import {
   addIcd10,
   isDiagnosisRegistry,
@@ -74,11 +75,14 @@ export async function GET(
   const keyword = (new URL(request.url).searchParams.get('q') ?? '').trim().slice(0, MAX_KEYWORD)
 
   try {
+    /* ตัวเลขการใช้จริงต้องพร้อมก่อนค้น เพราะคิวรีรายชื่อ join ตารางแคชนั้น —
+       ปกติเป็นการอ่านค่าเดียวแล้วจบ จะคำนวณใหม่ก็ต่อเมื่อค้างเกินหนึ่งวัน */
+    const usageComputedAt = await ensureIcd10Usage()
     const [codes, selected] = await Promise.all([
       listIcd10Candidates(kind, keyword),
       listRegisteredIcd10(kind),
     ])
-    return Response.json({ success: true, codes, selected })
+    return Response.json({ success: true, codes, selected, usageComputedAt })
   } catch (error) {
     console.error(`[his/rdu/registry/diagnosis/${kind}] ล้มเหลว:`, error)
     return Response.json(

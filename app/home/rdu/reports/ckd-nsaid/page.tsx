@@ -23,6 +23,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
 import type { CkdNsaidCase } from '@/lib/his/rdu-ckd-nsaid'
+import RowSearch, { matchesRow } from '../row-search'
 import VisitDetailModal from '../visit-modal'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
@@ -101,6 +102,8 @@ export default function CkdNsaidReportPage() {
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  /** คำค้นในตาราง — กรองในเบราว์เซอร์ ไม่ได้ยิงกลับไปที่ฐาน */
+  const [keyword, setKeyword] = useState('')
   const [picked, setPicked] = useState<CkdNsaidCase | null>(null)
   const [toast, toastHolder] = message.useMessage()
 
@@ -137,10 +140,32 @@ export default function CkdNsaidReportPage() {
     return (report.casePatients * 100) / report.denominatorPatients
   }, [report])
 
-  const cases = report?.cases ?? []
+  const cases = useMemo(() => report?.cases ?? [], [report])
+
+  /** แถวที่เหลือหลังค้น — ตัวเลขบนการ์ดไม่ขยับตาม เพราะนับมาจากฐานทั้งช่วง */
+  const shown = useMemo(
+    () =>
+      cases.filter(row =>
+        matchesRow(
+          [
+            row.hn,
+            row.vn,
+            row.patientName,
+            row.ageYears,
+            row.department,
+            row.doctor,
+            row.egfr,
+            ...row.ckdCodes,
+            ...row.drugs,
+          ],
+          keyword,
+        ),
+      ),
+    [cases, keyword],
+  )
 
   const exportCsv = () => {
-    if (cases.length === 0) {
+    if (shown.length === 0) {
       toast.info('ไม่มีรายการให้ส่งออก')
       return
     }
@@ -160,7 +185,7 @@ export default function CkdNsaidReportPage() {
       'รหัสวินิจฉัย CKD',
       'รายการ NSAIDs ที่ได้รับ',
     ]
-    const body = cases.map(row => [
+    const body = shown.map(row => [
       toThaiDate(row.date),
       // นำหน้าด้วย ' เพื่อให้ Excel เก็บเป็นข้อความ ไม่ตัดศูนย์หน้า HN/VN ทิ้ง
       `'${row.vn}`,
@@ -432,15 +457,20 @@ export default function CkdNsaidReportPage() {
             </section>
 
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+              <RowSearch
+                value={keyword}
+                onChange={setKeyword}
+                placeholder="ค้น HN ชื่อผู้ป่วย รหัสโรค ชื่อยา ห้องตรวจ แพทย์"
+              />
               <span className="text-xs text-ink-3">
-                ต้องทบทวน {cases.length.toLocaleString('th-TH')} ครั้ง จากผู้ป่วย{' '}
+                ต้องทบทวน {shown.length.toLocaleString('th-TH')} ครั้ง จากผู้ป่วย{' '}
                 {report.casePatients.toLocaleString('th-TH')} คน
               </span>
               <Tooltip title="ได้ไฟล์ทุกเคสที่แสดงอยู่ · มีชื่อผู้ป่วยและ HN อย่าส่งต่อออกนอกงาน">
                 <Button
                   icon={<FileExcelOutlined />}
                   onClick={exportCsv}
-                  disabled={cases.length === 0}
+                  disabled={shown.length === 0}
                 >
                   ส่งออก Excel
                 </Button>
@@ -452,12 +482,18 @@ export default function CkdNsaidReportPage() {
                 rowKey="vn"
                 size="small"
                 columns={columns}
-                dataSource={cases}
+                dataSource={shown}
                 pagination={{ pageSize: 50, showSizeChanger: false }}
                 scroll={{ x: 'max-content' }}
                 locale={{
                   emptyText: (
-                    <Empty description="ไม่พบผู้ป่วยโรคไตเรื้อรังที่ได้รับยา NSAIDs ในช่วงวันที่ที่เลือก" />
+                    <Empty
+                      description={
+                        keyword.trim() === ''
+                          ? 'ไม่พบผู้ป่วยโรคไตเรื้อรังที่ได้รับยา NSAIDs ในช่วงวันที่ที่เลือก'
+                          : `ไม่มีแถวที่ตรงกับคำค้น "${keyword.trim()}"`
+                      }
+                    />
                   ),
                 }}
               />

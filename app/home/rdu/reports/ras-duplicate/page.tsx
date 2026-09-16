@@ -1,7 +1,7 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
 // (การตรวจสิทธิ์ยังทำที่ app/home/rdu/layout.tsx ซึ่งเป็น Server Component)
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   Alert,
@@ -24,6 +24,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
 import type { RasDuplicateCase } from '@/lib/his/rdu-ras-duplicate'
+import RowSearch, { matchesRow } from '../row-search'
 import VisitDetailModal from '../visit-modal'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
@@ -79,6 +80,8 @@ export default function RasDuplicateReportPage() {
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  /** คำค้นในตาราง — กรองในเบราว์เซอร์ ไม่ได้ยิงกลับไปที่ฐาน */
+  const [keyword, setKeyword] = useState('')
   const [picked, setPicked] = useState<RasDuplicateCase | null>(null)
   const [toast, toastHolder] = message.useMessage()
 
@@ -102,7 +105,28 @@ export default function RasDuplicateReportPage() {
     }
   }
 
-  const cases = report?.cases ?? []
+  const cases = useMemo(() => report?.cases ?? [], [report])
+
+  /** แถวที่เหลือหลังค้น — ตัวเลขบนการ์ดไม่ขยับตาม เพราะนับมาจากฐานทั้งช่วง */
+  const shown = useMemo(
+    () =>
+      cases.filter(row =>
+        matchesRow(
+          [
+            row.hn,
+            row.vn,
+            row.patientName,
+            row.ageYears,
+            row.department,
+            row.doctor,
+            ...row.generics,
+            ...row.drugs,
+          ],
+          keyword,
+        ),
+      ),
+    [cases, keyword],
+  )
 
   /* ร้อยละคิดจากรายผู้ป่วยเหมือนตัวชี้วัดกลุ่มโรคเรื้อรังข้ออื่น — ผู้ป่วยความดัน
      มารับยาทุกเดือน ถ้าหารด้วยจำนวนครั้ง เคสเดียวที่ซ้ำซ้อนจะถูกเจือจางจนมองไม่เห็น */
@@ -112,7 +136,7 @@ export default function RasDuplicateReportPage() {
       : (report.casePatients * 100) / report.denominatorPatients
 
   const exportCsv = () => {
-    if (cases.length === 0) {
+    if (shown.length === 0) {
       toast.info('ไม่มีรายการให้ส่งออก')
       return
     }
@@ -130,7 +154,7 @@ export default function RasDuplicateReportPage() {
       'ชื่อสามัญ',
       'รายการยาที่ได้รับ',
     ]
-    const body = cases.map(row => [
+    const body = shown.map(row => [
       toThaiDate(row.date),
       // นำหน้าด้วย ' เพื่อให้ Excel เก็บเป็นข้อความ ไม่ตัดศูนย์หน้า HN/VN ทิ้ง
       `'${row.vn}`,
@@ -361,15 +385,20 @@ export default function RasDuplicateReportPage() {
             ) : (
               <>
                 <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <RowSearch
+                    value={keyword}
+                    onChange={setKeyword}
+                    placeholder="ค้น HN ชื่อผู้ป่วย ชื่อสามัญ ชื่อยา ห้องตรวจ แพทย์"
+                  />
                   <span className="text-xs text-ink-3">
-                    ต้องทบทวน {cases.length.toLocaleString('th-TH')} ครั้ง จากผู้ป่วย{' '}
+                    ต้องทบทวน {shown.length.toLocaleString('th-TH')} ครั้ง จากผู้ป่วย{' '}
                     {report.casePatients.toLocaleString('th-TH')} คน
                   </span>
                   <Tooltip title="ได้ไฟล์ทุกเคสที่แสดงอยู่ · มีชื่อผู้ป่วยและ HN อย่าส่งต่อออกนอกงาน">
                     <Button
                       icon={<FileExcelOutlined />}
                       onClick={exportCsv}
-                      disabled={cases.length === 0}
+                      disabled={shown.length === 0}
                     >
                       ส่งออก Excel
                     </Button>
@@ -381,10 +410,20 @@ export default function RasDuplicateReportPage() {
                     rowKey="vn"
                     size="small"
                     columns={columns}
-                    dataSource={cases}
+                    dataSource={shown}
                     pagination={{ pageSize: 50, showSizeChanger: false }}
                     scroll={{ x: 'max-content' }}
-                    locale={{ emptyText: <Empty description="ไม่มีรายการ" /> }}
+                    locale={{
+                      emptyText: (
+                        <Empty
+                          description={
+                            keyword.trim() === ''
+                              ? 'ไม่มีรายการ'
+                              : `ไม่มีแถวที่ตรงกับคำค้น "${keyword.trim()}"`
+                          }
+                        />
+                      ),
+                    }}
                   />
                 </div>
               </>
