@@ -222,7 +222,14 @@ const chapterFilter = (kind: DiagnosisRegistry) =>
     sql` OR `,
   )
 
-/** จำนวนผลค้นสูงสุดต่อครั้ง — กันคำค้นสั้น ๆ อย่าง 'a' ลากมาทั้งตาราง */
+/**
+ * จำนวนผลค้นสูงสุดต่อครั้ง — กันคำค้นสั้น ๆ อย่าง 'a' ลากมาทั้งตาราง
+ *
+ * จำกัดเฉพาะฝั่งที่ค้นเจอ ไม่รวมรหัสที่อยู่ในทะเบียน — ทะเบียน APL มี 441 รหัส
+ * ถ้านับรวมกันแล้วตัดที่ 200 พอพิมพ์ค้นอะไรก็ตาม กล่องขวาจะเหลือแค่รหัสต้น ๆ
+ * ตามลำดับตัวอักษร (ตัดขาดกลางหมวด S) แล้วหมวด T หายไปทั้งหมวดทั้งที่ยังอยู่ครบ
+ * ในฐาน ทะเบียนจะโตเกิน 200 ได้เสมอ ขีดจำกัดจึงต้องอยู่แค่กับผลค้น
+ */
 const MAX_SEARCH_RESULTS = 200
 
 const rows = (result: unknown) => result as unknown as Record<string, unknown>[]
@@ -400,13 +407,17 @@ export async function listIcd10Candidates(
         SELECT c.code, c.name, c.tname, c.active_status, u.opd_uses, u.ipd_uses
         FROM icd101 c
         LEFT OUTER JOIN pyhos_icd10_usage u ON u.icd10 = c.code
-        WHERE (c.active_status = ${ACTIVE_CODE_STATUS}
-               AND (c.code LIKE ${`${search}%`}
-                    OR c.name LIKE ${`%${search}%`}
-                    OR c.tname LIKE ${`%${search}%`}))
+        WHERE c.code IN (
+                SELECT m.code FROM (
+                  SELECT s.code FROM icd101 s
+                   WHERE s.active_status = ${ACTIVE_CODE_STATUS}
+                     AND (s.code LIKE ${`${search}%`}
+                          OR s.name LIKE ${`%${search}%`}
+                          OR s.tname LIKE ${`%${search}%`})
+                   ORDER BY s.code
+                   LIMIT ${MAX_SEARCH_RESULTS}) m)
            OR c.code IN (SELECT r.icd10 FROM ${table} r)
-        ORDER BY c.code
-        LIMIT ${MAX_SEARCH_RESULTS}`,
+        ORDER BY c.code`,
   )
 
   return rows(result).map(row => ({
