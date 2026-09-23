@@ -7,6 +7,7 @@ import {
   setRiderStaffActive,
 } from '@/lib/his/health-rider'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
+import { denyRiderAdmin, requireRiderAdmin } from '@/lib/auth/rider-admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -49,15 +50,13 @@ export async function GET(request: Request) {
 
 /** เพิ่มเจ้าหน้าที่หนึ่งคน — active เป็น 'Y' เสมอ ไม่รับค่ามาจากฟอร์ม */
 export async function POST(request: Request) {
-  const token = (await cookies()).get('auth_token')?.value
-  const claims = token ? await verifyAuthToken(token) : null
-  if (!claims?.sub) {
-    return Response.json({ success: false, message: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
-  }
+  // เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม — ส่วนนี้คือการมอบหมายงานของหน่วยงาน
+  const admin = await requireRiderAdmin()
+  if (!admin.ok) return denyRiderAdmin(admin.error)
 
   const ip = clientIp(request)
   const limited = rateLimit(
-    `rider-staff-add:${claims.sub}:${ip}`,
+    `rider-staff-add:${admin.sub}:${ip}`,
     PER_IP_WRITE.limit,
     PER_IP_WRITE.windowSeconds,
   )
@@ -118,15 +117,13 @@ export async function POST(request: Request) {
  * ค่อยเพิ่มทีละช่องพร้อมกติกาของมัน ไม่ใช่เปิดรับทั้งแถวไว้ก่อน
  */
 export async function PATCH(request: Request) {
-  const token = (await cookies()).get('auth_token')?.value
-  const claims = token ? await verifyAuthToken(token) : null
-  if (!claims?.sub) {
-    return Response.json({ success: false, message: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
-  }
+  // เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม — ส่วนนี้คือการมอบหมายงานของหน่วยงาน
+  const admin = await requireRiderAdmin()
+  if (!admin.ok) return denyRiderAdmin(admin.error)
 
   const ip = clientIp(request)
   const limited = rateLimit(
-    `rider-staff-active:${claims.sub}:${ip}`,
+    `rider-staff-active:${admin.sub}:${ip}`,
     PER_IP_WRITE.limit,
     PER_IP_WRITE.windowSeconds,
   )

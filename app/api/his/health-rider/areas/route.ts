@@ -1,7 +1,6 @@
-import { cookies } from 'next/headers'
-import { verifyAuthToken } from '@/lib/auth/jwt'
 import { createRiderAreas, deleteRiderAreas, listRiderAreas } from '@/lib/his/health-rider'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
+import { denyRiderAdmin, requireRiderAdmin } from '@/lib/auth/rider-admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,19 +22,13 @@ function bad(message: string) {
   return Response.json({ success: false, message }, { status: 400 })
 }
 
-async function requireUser() {
-  const token = (await cookies()).get('auth_token')?.value
-  return token ? await verifyAuthToken(token) : null
-}
-
 export async function GET(request: Request) {
-  const claims = await requireUser()
-  if (!claims?.sub) {
-    return Response.json({ success: false, message: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
-  }
+  // เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม — ส่วนนี้คือการมอบหมายงานของหน่วยงาน
+  const admin = await requireRiderAdmin()
+  if (!admin.ok) return denyRiderAdmin(admin.error)
 
   const ip = clientIp(request)
-  const limited = rateLimit(`rider-area:${claims.sub}:${ip}`, PER_IP.limit, PER_IP.windowSeconds)
+  const limited = rateLimit(`rider-area:${admin.sub}:${ip}`, PER_IP.limit, PER_IP.windowSeconds)
   if (!limited.ok) {
     return tooManyRequests(limited.retryAfterSeconds, 'เรียกบ่อยเกินไป กรุณารอสักครู่')
   }
@@ -57,14 +50,13 @@ export async function GET(request: Request) {
 
 /** เพิ่มพื้นที่รับผิดชอบ — ทีละหลายหมู่ในตำบลเดียวกัน */
 export async function POST(request: Request) {
-  const claims = await requireUser()
-  if (!claims?.sub) {
-    return Response.json({ success: false, message: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
-  }
+  // เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม — ส่วนนี้คือการมอบหมายงานของหน่วยงาน
+  const admin = await requireRiderAdmin()
+  if (!admin.ok) return denyRiderAdmin(admin.error)
 
   const ip = clientIp(request)
   const limited = rateLimit(
-    `rider-area-add:${claims.sub}:${ip}`,
+    `rider-area-add:${admin.sub}:${ip}`,
     PER_IP_ADD.limit,
     PER_IP_ADD.windowSeconds,
   )
@@ -114,14 +106,13 @@ export async function POST(request: Request) {
  * ส่ง id ที่ไม่ใช่ของเจ้าหน้าที่ที่เปิดอยู่แล้วลบแถวของคนอื่นทิ้งโดยไม่ตั้งใจ
  */
 export async function DELETE(request: Request) {
-  const claims = await requireUser()
-  if (!claims?.sub) {
-    return Response.json({ success: false, message: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
-  }
+  // เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม — ส่วนนี้คือการมอบหมายงานของหน่วยงาน
+  const admin = await requireRiderAdmin()
+  if (!admin.ok) return denyRiderAdmin(admin.error)
 
   const ip = clientIp(request)
   const limited = rateLimit(
-    `rider-area-del:${claims.sub}:${ip}`,
+    `rider-area-del:${admin.sub}:${ip}`,
     PER_IP_DELETE.limit,
     PER_IP_DELETE.windowSeconds,
   )

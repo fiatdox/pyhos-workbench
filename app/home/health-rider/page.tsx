@@ -12,6 +12,7 @@ import {
   UserAddOutlined,
 } from '@ant-design/icons'
 import { MotorcycleOutlined } from '../icons'
+import { usePermissions } from '../app-shell'
 
 const { Paragraph, Title } = Typography
 
@@ -38,12 +39,14 @@ const SECTIONS = [
     href: '/home/health-rider/staff',
     icon: <UserAddOutlined />,
     title: 'เพิ่มเจ้าหน้าที่',
+    adminOnly: true,
     desc: 'ทะเบียนเจ้าหน้าที่ส่งยา — เพิ่ม แก้ไข และปิดการใช้งานรายบุคคล',
   },
   {
     href: '/home/health-rider/areas',
     icon: <EnvironmentOutlined />,
     title: 'จัดการรับผิดชอบพื้นที่ส่งยา',
+    adminOnly: true,
     desc: 'กำหนดว่าเจ้าหน้าที่คนไหนรับผิดชอบพื้นที่ใด',
   },
   {
@@ -55,6 +58,11 @@ const SECTIONS = [
 ]
 
 export default function HealthRiderPage() {
+  // การ์ดต้องหายไปพร้อมสิทธิ์จริง ไม่งั้นหน้ารวมจะชวนให้กดแล้วเด้งกลับมาที่เดิม
+  // (หน้าปลายทางกันซ้ำอีกชั้นอยู่แล้ว การซ่อนตรงนี้เป็นเรื่องความสะอาดของหน้าจอ)
+  const { riderAdmin } = usePermissions()
+  const sections = SECTIONS.filter(section => !section.adminOnly || riderAdmin)
+
   return (
     <>
       <section className="mb-6">
@@ -69,7 +77,7 @@ export default function HealthRiderPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {SECTIONS.map(section => (
+        {sections.map(section => (
           <Link key={section.href} href={section.href}>
             <Card hoverable variant="borderless" className="h-full border! border-line!">
               <div className="mb-2 flex items-center gap-3">

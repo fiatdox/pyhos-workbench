@@ -126,6 +126,23 @@ export const majors = coreKon.table('majors', {
   updatedAt: timestamp('updated_at', { withTimezone: true }),
 })
 
+/**
+ * core_kon.submajors — งานย่อยภายในกลุ่มงาน
+ *
+ * ชั้นล่างถัดจาก majors หนึ่งขั้น หัวหน้าที่บันทึกไว้ในตารางนี้คือ "หัวหน้างาน"
+ * (role CHIEF_UNIT) คนละคนกับ "หัวหน้ากลุ่มงาน" ที่อยู่ใน majors (CHIEF_GROUP)
+ */
+export const submajors = coreKon.table('submajors', {
+  submajorId: integer('submajor_id').primaryKey().generatedByDefaultAsIdentity(),
+  majorId: integer('major_id'),
+  name: varchar('name').notNull(),
+  supervisorId: integer('supervisor_id'),
+  actingSupervisorId: integer('acting_supervisor_id'),
+  isActive: char('is_active', { length: 1 }),
+  createdAt: timestamp('created_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
+})
+
 /** core_kon.user_types */
 export const userTypes = coreKon.table('user_types', {
   userTypeId: integer('user_type_id').primaryKey().generatedByDefaultAsIdentity(),

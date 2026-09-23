@@ -25,6 +25,8 @@ export type ShellPermissions = {
   due: boolean
   rdu: boolean
   audit: boolean
+  /** ตั้งค่า Health Rider ได้ไหม — เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม */
+  riderAdmin: boolean
 }
 
 /** งานที่จำกัดสิทธิ์ตามตำแหน่ง — ชื่อตรงกับคีย์ใน ShellPermissions */
@@ -56,6 +58,7 @@ const PermissionsContext = createContext<ShellPermissions>({
   due: true,
   rdu: true,
   audit: false,
+  riderAdmin: false,
 })
 
 export function useSessionUser(): ShellUser | null {
