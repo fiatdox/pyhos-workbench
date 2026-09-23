@@ -26,6 +26,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
+import { trackExport } from '@/lib/client/track-export'
 import { GapChart, meetsTarget, YearlyChart, type YearPoint } from './charts'
 
 const { Paragraph, Text, Title } = Typography
@@ -295,6 +296,9 @@ export default function RduSummaryPage() {
     link.href = url
     link.download = `สรุปตัวชี้วัด-RDU-${years[0]}-ถึง-${years[years.length - 1]}.csv`
     link.click()
+    // แจ้งเซิร์ฟเวอร์ว่าข้อมูลชุดนี้ถูกนำออกจากระบบ — ไฟล์สร้างในเบราว์เซอร์
+    // จึงไม่มีคำขอไหนวิ่งไปให้ proxy ดักได้เอง
+    trackExport({ label: link.download, rows: body.length })
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     toast.success('ส่งออกแล้ว')
   }

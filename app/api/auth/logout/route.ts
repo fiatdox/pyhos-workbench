@@ -7,6 +7,7 @@ import { verifyAuthToken } from '@/lib/auth/jwt'
 import { describeDevice, notifyLogout } from '@/lib/auth/notify'
 import { AUTH_COOKIE } from '@/lib/auth/session'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
+import { recordActivity } from '@/lib/audit/activity-log'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,6 +51,20 @@ export async function POST(request: Request) {
         userId: user.id,
         idCard: user.idCard,
         info: { username: user.username, clientIp: ip, device },
+      }),
+    )
+
+    // proxy ไม่ดัก /api/auth จึงต้องบันทึกเองตรงนี้ เหตุผลเดียวกับฝั่งเข้าระบบ
+    after(() =>
+      recordActivity({
+        userId: user.id,
+        username: user.username,
+        action: 'logout',
+        method: 'POST',
+        path: '/api/auth/logout',
+        feature: 'auth',
+        clientIp: ip,
+        device,
       }),
     )
 

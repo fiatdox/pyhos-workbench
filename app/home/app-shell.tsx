@@ -21,7 +21,11 @@ const { Text, Title } = Typography
 
 /** สิทธิ์รายงานที่เซิร์ฟเวอร์คำนวณให้ ใช้ซ่อนเมนูของงานที่ผู้ใช้ไม่มีสิทธิ์
  *  การกันจริงอยู่ที่ layout และ API ฝั่งเซิร์ฟเวอร์ ตรงนี้แค่ไม่โชว์ทางเข้า */
-export type ShellPermissions = { due: boolean; rdu: boolean }
+export type ShellPermissions = {
+  due: boolean
+  rdu: boolean
+  audit: boolean
+}
 
 /** งานที่จำกัดสิทธิ์ตามตำแหน่ง — ชื่อตรงกับคีย์ใน ShellPermissions */
 export type RestrictedFeature = keyof ShellPermissions
@@ -45,7 +49,14 @@ export type ShellUser = {
  * ข้อมูลผู้ใช้ค้างอยู่ในเบราว์เซอร์
  */
 const SessionUserContext = createContext<ShellUser | null>(null)
-const PermissionsContext = createContext<ShellPermissions>({ due: true, rdu: true })
+// ค่าตั้งต้นของ audit เป็น false ต่างจากอีกสองงาน — ถ้า Provider หลุดไปด้วย
+// เหตุใดก็ตาม เมนูของงานทั่วไปหายไปยังแค่กวนใจ แต่เมนูดูร่องรอยโผล่ให้ทุกคน
+// เห็นคือการรั่วของข้อมูลที่บอกว่าใครเปิดดูคนไข้คนไหน
+const PermissionsContext = createContext<ShellPermissions>({
+  due: true,
+  rdu: true,
+  audit: false,
+})
 
 export function useSessionUser(): ShellUser | null {
   return useContext(SessionUserContext)
@@ -76,6 +87,12 @@ export const MENU_ITEMS: {
     feature: 'rdu',
   },
   { key: '/home/health-rider', icon: <MotorcycleOutlined />, label: 'Health Rider' },
+  {
+    key: '/home/admin/activity',
+    icon: <SafetyCertificateOutlined />,
+    label: 'ร่องรอยการใช้งาน',
+    feature: 'audit',
+  },
 ]
 
 export default function AppShell({

@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { coreKonDb } from '@/lib/db/core-kon'
 import { authMfaUsers, majors, userPositions, userTypes, users } from '@/lib/db/schema/core-kon'
 import { canUseDue, canUseRdu, isPositionAllowed } from '@/lib/auth/access'
+import { userCanAudit } from '@/lib/auth/audit-user'
 import { verifyAuthToken } from '@/lib/auth/jwt'
 import AppShell from './app-shell'
 
@@ -53,6 +54,8 @@ export default async function HomeLayout({ children }: LayoutProps<'/home'>) {
       permissions={{
         due: canUseDue(user.userPositionId),
         rdu: canUseRdu(user.userPositionId),
+        // สิทธิ์ดูร่องรอยคุมด้วย role ไม่ใช่ตำแหน่ง จึงต้องถามฐานแยกอีกครั้ง
+        audit: await userCanAudit(claims.sub),
       }}
       user={{
         fullName: [user.pname, user.fname, user.lname].filter(Boolean).join(' '),

@@ -23,6 +23,7 @@ import { EyeOutlined, FileExcelOutlined, MedicineBoxOutlined } from '@ant-design
 import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
+import { trackExport } from '@/lib/client/track-export'
 import type { MetforminCase, MetforminCaseKind } from '@/lib/his/rdu-metformin'
 import RowSearch, { matchesRow } from '../row-search'
 import VisitDetailModal from '../visit-modal'
@@ -215,6 +216,9 @@ export default function MetforminReportPage() {
     link.href = url
     link.download = `การใช้-metformin-ในผู้ป่วยเบาหวาน-${range[0].format('YYYY-MM-DD')}-ถึง-${range[1].format('YYYY-MM-DD')}.csv`
     link.click()
+    // แจ้งเซิร์ฟเวอร์ว่าข้อมูลชุดนี้ถูกนำออกจากระบบ — ไฟล์สร้างในเบราว์เซอร์
+    // จึงไม่มีคำขอไหนวิ่งไปให้ proxy ดักได้เอง
+    trackExport({ label: link.download, rows: body.length })
     // คืนหน่วยความจำของ blob หลังเบราว์เซอร์เริ่มดาวน์โหลดแล้ว
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     toast.success(`ส่งออก ${body.length} รายการแล้ว`)

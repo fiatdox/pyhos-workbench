@@ -1,4 +1,4 @@
-import { char, date, integer, pgSchema, smallint, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
+import { bigint, char, date, integer, pgSchema, smallint, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 import { coreKonConfig } from '../env'
 
 /** ทุกตารางของ CoreKon อยู่ใต้ schema นี้ (ค่าเริ่มต้น: core_kon) */
@@ -132,3 +132,34 @@ export const userTypes = coreKon.table('user_types', {
   typeName: varchar('type_name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }),
 })
+
+/**
+ * core_kon.activity_log — ร่องรอยการใช้งาน workbench
+ *
+ * สร้างตรงในฐาน ไม่ผ่าน migration เหมือนตารางอื่นในไฟล์นี้ (ดูหมายเหตุที่ users)
+ *
+ * เก็บ target_hn ไว้ด้วยตั้งใจ — ระบบล็อกของโรงพยาบาลต้องตอบให้ได้ว่า "ใครเปิดดู
+ * คนไข้รายนี้บ้าง" ซึ่งตอบไม่ได้เลยถ้าเก็บแต่ชื่อหน้า ตัวตารางนี้จึงเป็นข้อมูล
+ * อ่อนไหวเสียเอง ต้องคุมสิทธิ์เข้มกว่าหน้าอื่น (ดู lib/auth/audit-user.ts)
+ */
+export const activityLog = coreKon.table('activity_log', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  userId: integer('user_id'),
+  username: varchar('username', { length: 50 }),
+  /** 'page' | 'api' | 'export' | 'login' | 'logout' | 'denied' */
+  action: varchar('action', { length: 24 }).notNull(),
+  method: varchar('method', { length: 8 }),
+  path: varchar('path', { length: 300 }).notNull(),
+  /** งานที่เส้นทางนั้นสังกัด เช่น rdu / due / health-rider — ใช้กรองในหน้า admin */
+  feature: varchar('feature', { length: 40 }),
+  /** HN ที่ถูกเปิดดู — null เมื่อคำขอนั้นไม่ได้เจาะจงผู้ป่วยรายใด */
+  targetHn: varchar('target_hn', { length: 20 }),
+  detail: varchar('detail', { length: 400 }),
+  status: integer('status'),
+  durationMs: integer('duration_ms'),
+  clientIp: varchar('client_ip', { length: 64 }),
+  device: varchar('device', { length: 200 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export type ActivityLogRow = typeof activityLog.$inferSelect

@@ -31,6 +31,7 @@ import {
   UserSwitchOutlined,
 } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
+import { trackExport } from '@/lib/client/track-export'
 import type { DeliveryPatient, RiderCoverage } from '@/lib/his/drug-delivery'
 import type { RiderStaff } from '@/lib/his/health-rider'
 
@@ -498,6 +499,9 @@ export default function DrugDeliveriesPage() {
     link.href = url
     link.download = `ส่งยาถึงบ้าน-${date.format('YYYY-MM-DD')}.csv`
     link.click()
+    // แจ้งเซิร์ฟเวอร์ว่าข้อมูลชุดนี้ถูกนำออกจากระบบ — ไฟล์สร้างในเบราว์เซอร์
+    // จึงไม่มีคำขอไหนวิ่งไปให้ proxy ดักได้เอง
+    trackExport({ label: link.download, rows: body.length })
     // คืนหน่วยความจำของ blob หลังเบราว์เซอร์เริ่มดาวน์โหลดแล้ว
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     toast.success(`ส่งออก ${body.length} รายการแล้ว`)

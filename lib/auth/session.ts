@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { signAuthToken } from './jwt'
 import { describeDevice, notifyLoginSuccess } from './notify'
 import { clientIp } from '@/lib/rate-limit'
+import { recordActivity } from '@/lib/audit/activity-log'
 
 /** ชื่อ cookie ที่เก็บ JWT — ทุกฝั่งเซิร์ฟเวอร์อ่านจากตัวนี้ */
 export const AUTH_COOKIE = 'auth_token'
@@ -90,6 +91,22 @@ export async function buildLoginSuccess(
       userId: user.id,
       idCard: user.idCard,
       info: { username: user.username, clientIp: ip, device, viaMfa: context.viaMfa },
+    }),
+  )
+
+  // บันทึกการเข้าระบบจากตรงนี้ ไม่ใช่จาก proxy — ตอนคำขอล็อกอินวิ่งผ่าน proxy
+  // ยังไม่มี cookie จึงไม่รู้ว่าเป็นใคร ที่นี่รู้แล้วทั้งรหัสและชื่อผู้ใช้
+  after(() =>
+    recordActivity({
+      userId: user.id,
+      username: user.username,
+      action: 'login',
+      method: 'POST',
+      path: '/api/auth/login',
+      feature: 'auth',
+      detail: context.viaMfa ? 'รหัสผ่าน + OTP' : 'รหัสผ่าน',
+      clientIp: ip,
+      device,
     }),
   )
 
