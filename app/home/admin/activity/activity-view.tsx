@@ -23,6 +23,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { ReloadOutlined, SafetyCertificateOutlined, SearchOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
+import ArchivePanel from './archive-panel'
 
 const { RangePicker } = DatePicker
 const { Text, Title } = Typography
@@ -312,6 +313,9 @@ export default function ActivityView() {
           <StatCard label="ผู้ป่วยที่ถูกเปิดดู (ไม่ซ้ำ)" value={summary.patientsTouched} />
         </section>
       )}
+
+      <ArchivePanel onDone={() => setReloadKey(key => key + 1)} />
+
       <section className="mb-4 flex flex-wrap items-center gap-2">
         <RangePicker
           allowClear={false}

@@ -41,3 +41,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ไฟล์สำรองร่องรอยการใช้งาน — มี HN ของผู้ป่วยอยู่ข้างใน ห้ามขึ้น git เด็ดขาด
+# (ค่าตั้งต้นของ ACTIVITY_ARCHIVE_DIR ชี้มาที่นี่ ควรตั้งไปยังที่เก็บสำรองจริงแทน)
+/.archive/
