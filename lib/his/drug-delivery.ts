@@ -31,15 +31,26 @@ export type DeliveryPatient = {
   /**
    * เบอร์โทรตามทะเบียนผู้ป่วย — เอาไว้โทรนัดเวลาก่อนไปส่ง
    *
+   * รวมทุกช่องที่ทะเบียนเก็บไว้ (เบอร์บ้าน มือถือ เบอร์ผู้แจ้ง) ตัดที่ซ้ำกันออก
+   * แล้วคั่นด้วย ' · ' ดูเหตุผลและตัวเลขที่วัดได้ที่ joinPhones
+   *
    * ส่งค่าดิบตามที่บันทึกไว้ ไม่จัดรูปแบบให้ เพราะหลายแถวเก็บสองเบอร์คั่นด้วย
    * เครื่องหมาย หรือมีหมายเหตุติดมาเช่น '(แม่)' ซึ่งเป็นข้อมูลที่คนโทรต้องเห็น
    */
   phone: string | null
-  /** ที่อยู่ตามทะเบียนผู้ป่วย ประกอบเป็นข้อความบรรทัดเดียวไว้แล้ว */
+  /** บ้านเลขที่และถนนตามทะเบียนผู้ป่วย — หมู่กับตำบลอยู่ในฟิลด์ของตัวเองข้างล่าง */
   address: string | null
   /** รหัสตำบล 6 หลักและหมู่ของที่อยู่ — ใช้จับคู่กับพื้นที่รับผิดชอบของเจ้าหน้าที่ */
   tambonId: string | null
   tambonName: string | null
+  /**
+   * 'ต.x อ.y จ.z' เต็ม ๆ จากตารางที่อยู่
+   *
+   * ช่องตำบลในตารางแสดงแค่ชื่อตำบลเพราะคนส่งยาส่วนใหญ่อยู่ในอำเภอเดียวกันอยู่แล้ว
+   * แต่ผู้ป่วยนอกพื้นที่ก็มี ถ้าตัดอำเภอกับจังหวัดทิ้งไปเลยจะแยกไม่ออกว่าปลายทาง
+   * อยู่ไกลแค่ไหน จึงเก็บไว้ให้หน้าจอเอาไปแสดงตอนชี้ดู
+   */
+  tambonFull: string | null
   moo: string | null
   /** รหัสเจ้าหน้าที่ที่รับไปส่ง — null เมื่อยังไม่ได้จ่ายงาน */
   riderId: number | null
@@ -56,11 +67,14 @@ export type DeliveryPatient = {
 const str = (v: unknown): string | null => (v == null || v === '' ? null : String(v).trim() || null)
 
 /**
- * ประกอบที่อยู่เป็นข้อความบรรทัดเดียว
+ * ประกอบที่อยู่เป็นข้อความบรรทัดเดียว — เฉพาะบ้านเลขที่กับถนน
  *
  * ตาราง patient เก็บแยกเป็นบ้านเลขที่ หมู่ ถนน และรหัสตำบล/อำเภอ/จังหวัด
- * ส่วนชื่อตำบล-อำเภอ-จังหวัดมาจาก full_name ของตารางที่อยู่ ('ต.x อ.y จ.z')
- * ท่อนไหนว่างก็ข้ามไป จะได้ไม่เหลือคำว่า "หมู่" หรือ "ถ." ลอยอยู่โดด ๆ
+ * หมู่กับตำบลส่งออกไปเป็นฟิลด์ของตัวเอง (moo / tambonName) เพราะหน้าจอแสดง
+ * แยกช่องและใช้จับคู่พื้นที่รับผิดชอบด้วย ถ้าเอามาต่อในข้อความนี้อีกจะซ้ำกันเอง
+ * ทั้งในตาราง ในไฟล์ CSV และในหน้าต่างจ่ายงาน
+ *
+ * ท่อนไหนว่างก็ข้ามไป จะได้ไม่เหลือคำว่า "ถ." ลอยอยู่โดด ๆ
  */
 const joinAddress = (row: Record<string, unknown>): string | null => {
   // บางแถวใส่ '-' หรือ '0' ไว้แทนการเว้นว่าง ถ้าไม่กรองจะได้ที่อยู่ที่มี "ถ.-" ติดมา
@@ -69,16 +83,66 @@ const joinAddress = (row: Record<string, unknown>): string | null => {
     return text && text !== '-' && text !== '0' ? text : null
   }
 
-  const moo = filled(row.moopart)
   const road = filled(row.road)
-  const parts = [
-    str(row.addrpart),
-    moo && `ม.${moo}`,
-    road && `ถ.${road}`,
-    str(row.tambon_full) ?? str(row.tambon_name),
-  ].filter(Boolean)
+  const parts = [str(row.addrpart), road && `ถ.${road}`].filter(Boolean)
 
   return parts.length > 0 ? parts.join(' ') : null
+}
+
+/**
+ * รวมเบอร์โทรทุกช่องของทะเบียนผู้ป่วยให้เป็นข้อความเดียว
+ *
+ * hometel เป็นช่องหลัก mobile_phone_number มีน้อย ส่วน informtel คือเบอร์ผู้แจ้ง
+ * หรือผู้ติดต่อแทนผู้ป่วย ซึ่งในกลุ่มส่งยาถึงบ้าน 90 วันล่าสุดกรอกไว้ 720 จาก
+ * 1,548 คน และมี 39 คนที่มีแต่ช่องนี้ช่องเดียว ถ้าไม่เอามารวมคนกลุ่มนั้นจะขึ้นว่า
+ * "ไม่มีเบอร์" ทั้งที่โทรได้ — คนที่ไม่มีเบอร์เลยจริง ๆ มีแค่ 5 คน
+ *
+ * เทียบซ้ำด้วยเลขล้วน ไม่ใช่ข้อความตรง ๆ — informtel ซ้ำกับ hometel อยู่ 172 จาก
+ * 672 คนที่กรอกทั้งสองช่อง และแต่ละช่องเขียนคนละแบบ ('054-461087' กับ '054461087')
+ * ถ้าเทียบเป็นข้อความจะมองไม่เห็นว่าซ้ำแล้วแสดงเบอร์เดียวกันสองครั้ง
+ *
+ * เทียบแบบขึ้นต้นตรงกันด้วย ไม่ใช่เท่ากันเป๊ะ — อีก 18 คนเก็บเบอร์เดียวกันไว้สองช่อง
+ * โดยช่องหนึ่งมีวันที่ต่อท้าย ('0813546895' กับ '081-3546895(27/5/64)') หรือมีขยะ
+ * ต่อท้าย ('0885692259' กับ '0885692259088*---') เทียบเท่ากันเป๊ะจะไม่เห็นว่าซ้ำ
+ * กำหนดขั้นต่ำ 9 หลักกันเบอร์สั้น ๆ ที่บังเอิญเป็นคำขึ้นต้นของอีกเบอร์ และเก็บตัว
+ * ที่สั้นกว่าไว้เพราะเป็นตัวที่สะอาดกว่าเสมอในข้อมูลจริง
+ *
+ * ค่าที่ไม่มีตัวเลขเลย ("-", "'", ".") คือการกรอกแทนการเว้นว่าง ทิ้งไปทั้งหมด
+ *
+ * ส่งค่าดิบตามที่บันทึกไว้ ไม่จัดรูปแบบให้ เพราะหลายแถวมีหมายเหตุติดมาเช่น '(แม่)'
+ * ซึ่งเป็นข้อมูลที่คนโทรต้องเห็น
+ */
+const MIN_PREFIX_DIGITS = 9
+
+const joinPhones = (row: Record<string, unknown>): string | null => {
+  const entries: { text: string; digits: string; order: number }[] = []
+
+  for (const value of [row.hometel, row.mobile, row.informtel]) {
+    const text = str(value)
+    if (!text) continue
+    const digits = text.replace(/\D/g, '')
+    if (!digits) continue
+    entries.push({ text, digits, order: entries.length })
+  }
+
+  // ไล่จากเบอร์ที่สั้นที่สุดก่อน ตัวที่ยาวกว่าและขึ้นต้นด้วยตัวที่เก็บไว้แล้วถือว่าซ้ำ
+  const kept: typeof entries = []
+  for (const entry of [...entries].sort((a, b) => a.digits.length - b.digits.length)) {
+    const duplicate = kept.some(
+      other =>
+        other.digits === entry.digits ||
+        (other.digits.length >= MIN_PREFIX_DIGITS && entry.digits.startsWith(other.digits)),
+    )
+    if (!duplicate) kept.push(entry)
+  }
+
+  // แสดงตามลำดับช่องเดิม (บ้าน มือถือ ผู้แจ้ง) ไม่ใช่ตามความยาวที่ใช้ตอนตัดซ้ำ
+  return kept.length > 0
+    ? kept
+        .sort((a, b) => a.order - b.order)
+        .map(entry => entry.text)
+        .join(' · ')
+    : null
 }
 
 const sexLabel = (code: unknown): string | null => {
@@ -105,8 +169,10 @@ export async function listDrugDeliveryPatients(date: string): Promise<DeliveryPa
            t.name AS pttype_name,
            -- เบอร์บ้านเป็นช่องหลักที่ห้องบัตรกรอก (มีอยู่ราว 97% ของผู้ป่วยส่งยา)
            -- ส่วน mobile_phone_number มีน้อยแต่เติมเคสที่ช่องหลักว่างได้อีกเล็กน้อย
+           -- informtel คือเบอร์ผู้แจ้ง/ผู้ติดต่อแทนผู้ป่วย กรอกไว้เกือบครึ่ง ดู joinPhones
            NULLIF(TRIM(p.hometel), '') AS hometel,
            NULLIF(TRIM(p.mobile_phone_number), '') AS mobile,
+           NULLIF(TRIM(p.informtel), '') AS informtel,
            p.addrpart, p.moopart, p.road,
            CONCAT(p.chwpart, p.amppart, p.tmbpart) AS tambon_id,
            addr.name AS tambon_name, addr.full_name AS tambon_full,
@@ -131,7 +197,7 @@ export async function listDrugDeliveryPatients(date: string): Promise<DeliveryPa
     -- ยุบเป็นหนึ่งแถวต่อหนึ่งครั้งที่มารับบริการ ถ้าครั้งเดียวมีค่าบริการนี้หลายบรรทัด
     -- จะได้ไม่แสดงชื่อคนเดิมซ้ำ ๆ และ vn ใช้เป็นคีย์ของแถวได้จริง
     GROUP BY o.vn, o.hn, p.pname, p.fname, p.lname, p.sex, p.birthday, o.vstdate,
-             v.vsttime, t.name, p.hometel, p.mobile_phone_number,
+             v.vsttime, t.name, p.hometel, p.mobile_phone_number, p.informtel,
              p.addrpart, p.moopart, p.road, p.chwpart, p.amppart, p.tmbpart,
              addr.name, addr.full_name,
              tr.rider, tr.manager, ru.pname, ru.fname, ru.lname, mu.pname, mu.fname, mu.lname
@@ -148,12 +214,13 @@ export async function listDrugDeliveryPatients(date: string): Promise<DeliveryPa
     age: row.age == null || Number(row.age) < 0 ? null : Number(row.age),
     visitTime: str(row.visit_time),
     pttypeName: str(row.pttype_name),
-    phone: str(row.hometel) ?? str(row.mobile),
+    phone: joinPhones(row),
     address: joinAddress(row),
     // รหัสตำบลต้องครบ 6 หลักถึงจะเทียบกับพื้นที่รับผิดชอบได้ ที่อยู่ที่กรอกไม่ครบ
     // จะได้สตริงสั้นกว่านั้น ถือว่าไม่มีรหัสไปเลยดีกว่าเอาไปจับคู่ผิด
     tambonId: /^\d{6}$/.test(String(row.tambon_id ?? '')) ? String(row.tambon_id) : null,
     tambonName: str(row.tambon_name),
+    tambonFull: str(row.tambon_full),
     moo: str(row.moopart),
     riderId: row.rider_id == null ? null : Number(row.rider_id),
     riderName: str(row.rider_name),
@@ -169,7 +236,21 @@ export async function listDrugDeliveryPatients(date: string): Promise<DeliveryPa
 export type RiderCoverage = {
   riderId: number
   tambonId: string
-  moo: string
+  /**
+   * หมู่ที่รับผิดชอบ — null เมื่อตำบลนั้นไม่ได้แบ่งเขตด้วยหมู่
+   *
+   * ในเขตเทศบาล (ต.เวียง 560101 และ ต.แม่ต๋ำ 560102) ที่อยู่ไม่มีหมู่ ทั้งหกแถว
+   * ของสองตำบลนี้จึงเว้นหมู่ไว้แล้วไปแบ่งกันด้วยชื่อชุมชนในช่อง prefix แทน
+   */
+  moo: string | null
+  /**
+   * เขตรับผิดชอบแบบชื่อ คั่นด้วยจุลภาค — ใช้เมื่อไม่มีหมู่
+   *
+   * มีสองแบบปนกันในตาราง: ชื่อชุมชนหลายชื่อ ('ศรีโคมคำ,บุญยืน,ไชยอาวาส,...')
+   * ซึ่งต้องเอาไปค้นในข้อความที่อยู่ กับชื่อตำบลเดี่ยว ๆ ('เวียง', 'แม่ต๋ำ')
+   * ซึ่งแปลว่ารับผิดชอบทั้งตำบล ไม่ได้แปลว่าต้องมีคำนั้นอยู่ในที่อยู่
+   */
+  prefix: string | null
 }
 
 /**
@@ -181,18 +262,22 @@ export type RiderCoverage = {
  * เอาเฉพาะคนที่ยังใช้งานอยู่ — คนที่ปิดสถานะไปแล้วไม่ควรถูกแนะนำให้จ่ายงานใหม่
  */
 export async function listRiderCoverage(): Promise<RiderCoverage[]> {
+  // ไม่กรอง s.moo IS NOT NULL อีกแล้ว — เงื่อนไขเดิมตัดหกแถวของเขตเทศบาลทิ้งหมด
+  // (ห้าแถวหมู่เป็น NULL อีกแถวเป็น '-') ทำให้ผู้ป่วยใน ต.เวียง กับ ต.แม่ต๋ำ
+  // ไม่เคยมีใครขึ้นในกลุ่ม "รับผิดชอบพื้นที่นี้" เลยสักคน
   const [result] = await hisDb.execute(sql`
-    SELECT s.rider, s.tambon_id, s.moo
+    SELECT s.rider, s.tambon_id, s.moo, s.prefix
     FROM fiat_pyhos_health_rider_send s
     JOIN fiat_pyhos_health_rider_users u ON u.id = s.rider AND u.active = 'Y'
-    WHERE s.tambon_id IS NOT NULL AND s.moo IS NOT NULL`)
+    WHERE s.tambon_id IS NOT NULL`)
 
   const rows = result as unknown as Record<string, unknown>[]
 
   return rows.map(row => ({
     riderId: Number(row.rider),
     tambonId: String(row.tambon_id).trim(),
-    moo: String(row.moo).trim(),
+    moo: str(row.moo),
+    prefix: str(row.prefix),
   }))
 }
 

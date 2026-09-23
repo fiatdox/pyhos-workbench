@@ -42,6 +42,65 @@ const MANAGER_ROLE = 1
 /** บัญชีผู้ดูแลระบบ — ไม่ใช่คน ไม่ต้องโผล่ในรายการผู้ส่งยาไม่ว่ากรณีใด */
 const ADMIN_ROLE = 0
 
+/** จำนวนแถวต่อหน้า — ช่องลำดับต้องใช้ค่านี้คำนวณเลขต่อข้ามหน้าด้วย */
+const PAGE_SIZE = 25
+
+/**
+ * ค่าแทน "ช่องนี้ว่าง" ในตัวกรอง
+ *
+ * ไม่ใช้สตริงว่าง เพราะ antd เอาค่านี้ไปทำ key ของ checkbox ด้วย และสตริงว่าง
+ * เป็น key ที่ React จัดการได้ไม่แน่นอน ส่วนขีดคร่อมแบบนี้ไม่มีทางไปชนกับชื่อคน
+ * หรือชื่อตำบลจริง และยังเป็นตัวอักษรที่อ่านออกเวลาเปิดไฟล์ดู
+ */
+const NO_VALUE = '--ว่าง--'
+
+/**
+ * ชื่อผู้ส่งยาที่ใช้เป็นค่าในตัวกรอง — ต้องตรงกับที่ตาเห็นในตาราง
+ *
+ * แถวที่จ่ายงานให้รหัสที่หาในทะเบียนไม่เจอ ตารางขึ้นว่า 'ไม่พบเจ้าหน้าที่ N'
+ * ถ้าจับรวมไปกับ 'ยังไม่จ่ายงาน' ตัวกรองจะบอกคนละเรื่องกับสิ่งที่แสดงอยู่ —
+ * สองอย่างนี้ต้องแยกกัน เพราะอันหนึ่งคืองานที่ยังไม่ได้ทำ อีกอันคือข้อมูลที่ผิด
+ */
+const riderKey = (row: DeliveryPatient) =>
+  row.riderName ?? (row.riderId != null ? `ไม่พบเจ้าหน้าที่ ${row.riderId}` : NO_VALUE)
+
+const managerKey = (row: DeliveryPatient) => row.managerName ?? NO_VALUE
+
+/**
+ * ตัวเลือกของตัวกรองหนึ่งคอลัมน์ — สร้างจากข้อมูลของวันนั้น ไม่ใช่ทะเบียนทั้งระบบ
+ *
+ * ติดจำนวนไว้ท้ายชื่อ จะได้เห็นว่ากดแล้วจะเหลือกี่รายการก่อนกด และเรียงแบบไทย
+ * ('แม่ใส' ต้องมาก่อน 'แม่ต๋ำ' ตามพจนานุกรม ไม่ใช่ตามรหัสอักขระ)
+ *
+ * ดันตัวเลือก "ช่องว่าง" ไปท้ายสุดเสมอ ไม่ปล่อยให้ไปโผล่กลางรายการตามการเรียง
+ */
+const buildFilters = (
+  rows: DeliveryPatient[],
+  pick: (row: DeliveryPatient) => string,
+  emptyLabel: string,
+) => {
+  const counts = new Map<string, number>()
+  for (const row of rows) {
+    const key = pick(row)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+
+  return [...counts.entries()]
+    .sort(([a], [b]) => {
+      if (a === NO_VALUE) return 1
+      if (b === NO_VALUE) return -1
+      return a.localeCompare(b, 'th')
+    })
+    .map(([key, count]) => ({
+      text: `${key === NO_VALUE ? emptyLabel : key} (${count})`,
+      value: key,
+    }))
+}
+
+/** ตัวกรองสองชุดเหมือนกันไหม — ใช้ตัดสินว่าต้องเด้งกลับหน้าแรกหรือไม่ */
+const sameList = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index])
+
 /** แปลง 'YYYY-MM-DD' เป็น วว/ดด/ปปปป พ.ศ. */
 function toThaiDate(value: Dayjs): string {
   return `${value.format('DD/MM')}/${value.year() + 543}`
@@ -79,6 +138,42 @@ const sameMoo = (a: string | null, b: string | null) => {
   return Number.isFinite(left) && Number.isFinite(right) ? left === right : a.trim() === b.trim()
 }
 
+/** '-' และ '0' ในช่องหมู่คือการกรอกแทนการเว้นว่าง ไม่ใช่หมู่ที่มีอยู่จริง */
+const hasMoo = (value: string | null) => {
+  const text = value?.trim()
+  return Boolean(text) && text !== '-' && text !== '0'
+}
+
+/**
+ * เขตรับผิดชอบแบบชื่อชุมชนตรงกับที่อยู่ของผู้ป่วยหรือไม่
+ *
+ * ใช้เฉพาะแถวที่ไม่ได้ระบุหมู่ ซึ่งตอนนี้มีแต่เขตเทศบาลสองตำบล — ที่อยู่ในเมือง
+ * ไม่มีหมู่ แต่มีชื่อชุมชนหรือถนนอยู่ในช่องบ้านเลขที่กับช่องถนนแทน
+ * ('50/1 ศรีจอมเรือง', '27ถ.วัดลี') จึงต้องค้นจากข้อความที่อยู่
+ *
+ * ชื่อเดี่ยวที่ตรงกับชื่อตำบลพอดีแปลว่ารับผิดชอบทั้งตำบล ไม่ใช่ต้องมีคำนั้นในที่อยู่
+ * — คำว่า 'เวียง' แทบไม่เคยปรากฏในที่อยู่ของคนที่อยู่ ต.เวียง ถ้าตีความตรงตัวคนที่
+ * ดูแลทั้งตำบลจะไม่เคยถูกแนะนำเลย
+ *
+ * จับคู่ได้ราว 69 จาก 389 ครั้งใน 180 วัน ส่วนที่เหลือเป็นถนนที่ยังไม่มีใครลงชื่อไว้
+ * (สุสาน ดอนสนาม จอมทอง ร่วมมิตร) หรือที่อยู่ที่มีแต่บ้านเลขที่ ซึ่งตกไปอยู่กับคน
+ * ที่รับผิดชอบทั้งตำบลแทน และยังเลือกคนนอกพื้นที่ได้เหมือนเดิมอยู่แล้ว
+ */
+const matchesPrefix = (prefix: string | null, row: DeliveryPatient) => {
+  if (!prefix) return false
+
+  const keywords = prefix
+    .split(',')
+    .map(word => word.trim())
+    .filter(Boolean)
+
+  const tambon = row.tambonName?.trim()
+  if (tambon && keywords.some(word => word === tambon)) return true
+
+  const address = row.address ?? ''
+  return address !== '' && keywords.some(word => address.includes(word))
+}
+
 /**
  * รายชื่อผู้ป่วยที่ต้องส่งยาถึงบ้านในแต่ละวัน
  *
@@ -95,6 +190,13 @@ export default function DrugDeliveriesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /**
+   * หน้าที่เปิดอยู่ของตาราง — ต้องถือไว้เองเพราะช่องลำดับนับต่อข้ามหน้า
+   *
+   * antd ส่ง index ของแถวในหน้านั้น ๆ มาให้ ถ้าใช้ตรง ๆ หน้าที่สองจะเริ่มนับ 1 ใหม่
+   * แล้วเลขลำดับจะซ้ำกับหน้าแรกทั้งชุด
+   */
+  const [page, setPage] = useState(1)
   const [staff, setStaff] = useState<RiderStaff[]>([])
   /** แยกจาก error ของรายชื่อผู้ป่วย — อันนี้กระทบแค่การจ่ายงาน ตารางยังดูได้ */
   const [staffError, setStaffError] = useState('')
@@ -131,7 +233,7 @@ export default function DrugDeliveriesPage() {
           setStaff(staffJson.staff as RiderStaff[])
         }
         if (!coverageRes.ok || !coverageJson.success) {
-          setStaffError(coverageJson.message ?? 'โหลดพื้นที่รับผิดชอบไม่สำเร็จ ระบบจะไม่แนะนำผู้ส่งยาตามพื้นที่')
+          setStaffError(coverageJson.message ?? 'โหลดพื้นที่รับผิดชอบไม่สำเร็จ ระบบจะไม่แนะนำ rider ตามพื้นที่')
         } else {
           setCoverage(coverageJson.coverage as RiderCoverage[])
         }
@@ -178,17 +280,64 @@ export default function DrugDeliveriesPage() {
     }
   }, [date])
 
+  /**
+   * ตัวกรองของหัวคอลัมน์ — กรองเองในนี้ ไม่ปล่อยให้ Table กรองให้
+   *
+   * ถ้าใช้ onFilter ของ antd ตารางจะกรองอยู่ฝ่ายเดียว แล้วไฟล์ CSV กับตัวเลข
+   * สรุปด้านบนจะยังเป็นชุดเต็ม — กดกรองแล้วส่งออกจะได้ไฟล์ที่ไม่ตรงกับที่เห็น
+   * ซึ่งเป็นความต่างที่มองไม่เห็นจนกว่าจะเปิดไฟล์
+   */
+  const [tambonFilter, setTambonFilter] = useState<string[]>([])
+  const [riderFilter, setRiderFilter] = useState<string[]>([])
+  const [managerFilter, setManagerFilter] = useState<string[]>([])
+
   const visible = useMemo(() => {
     const term = keyword.trim().toLowerCase()
-    if (!term) return patients
-    return patients.filter(row =>
-      [row.hn, row.name, row.phone, row.address, row.pttypeName, row.riderName, row.managerName]
+    const matches = (chosen: string[], value: string) =>
+      chosen.length === 0 || chosen.includes(value)
+    const inFilters = (row: DeliveryPatient) =>
+      matches(tambonFilter, row.tambonName ?? NO_VALUE) &&
+      matches(riderFilter, riderKey(row)) &&
+      matches(managerFilter, managerKey(row))
+
+    if (!term) return patients.filter(inFilters)
+    return patients.filter(inFilters).filter(row =>
+      // ตำบลกับหมู่ไม่ได้อยู่ในข้อความที่อยู่แล้ว ต้องใส่เข้ามาเอง ไม่งั้นพิมพ์ชื่อ
+      // ตำบลค้นแล้วจะไม่เจอทั้งที่เห็นอยู่ในตาราง
+      [
+        row.hn,
+        row.name,
+        row.phone,
+        row.address,
+        row.moo && `หมู่ ${row.moo}`,
+        row.tambonName,
+        row.pttypeName,
+        row.riderName,
+        row.managerName,
+      ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(term),
     )
-  }, [patients, keyword])
+  }, [patients, keyword, tambonFilter, riderFilter, managerFilter])
+
+  const tambonFilters = useMemo(
+    () => buildFilters(patients, row => row.tambonName ?? NO_VALUE, 'ไม่ระบุตำบล'),
+    [patients],
+  )
+  const riderFilters = useMemo(
+    () => buildFilters(patients, riderKey, 'ยังไม่จ่ายงาน'),
+    [patients],
+  )
+  const managerFilters = useMemo(
+    () => buildFilters(patients, managerKey, 'ยังไม่มี manager'),
+    [patients],
+  )
+
+  /** มีตัวกรองคอลัมน์ไหนเปิดอยู่บ้างหรือไม่ — ใช้เลือกข้อความที่ขึ้นตอนไม่พบรายการ */
+  const filtering =
+    tambonFilter.length > 0 || riderFilter.length > 0 || managerFilter.length > 0
 
   /** นับ HN ไม่ซ้ำ — คนเดียวมาสองครั้งในวันเดียวได้ ต้องไม่นับเป็นสองคน */
   const patientCount = useMemo(() => new Set(patients.map(row => row.hn)).size, [patients])
@@ -232,11 +381,29 @@ export default function DrugDeliveriesPage() {
    *
    * ต้องตรงทั้งรหัสตำบลและหมู่ ไม่ใช่ตำบลอย่างเดียว — คนละหมู่ในตำบลเดียวกันคือ
    * คนละพื้นที่รับผิดชอบ และในข้อมูลจริงหลายตำบลก็แบ่งกันดูแลรายหมู่อยู่แล้ว
+   *
+   * ยกเว้นแถวที่ไม่ได้ระบุหมู่ ซึ่งเป็นเขตเทศบาลที่ที่อยู่ไม่มีหมู่ให้เทียบตั้งแต่ต้น
+   * แถวพวกนั้นเทียบด้วยชื่อชุมชนในช่อง prefix แทน (ดู matchesPrefix) — ตัดสินจาก
+   * ตัวข้อมูลว่าแถวนั้นระบุหมู่ไว้ไหม ไม่ได้ไล่ตามรหัสตำบลที่เขียนตายไว้ในโค้ด
+   * ถ้าวันหลังมีตำบลอื่นตั้งค่าแบบเดียวกันก็จะทำงานได้เองโดยไม่ต้องแก้ตรงนี้
    */
+  /**
+   * ตำบลของแถวนี้แบ่งเขตด้วยชื่อชุมชนแทนหมู่หรือไม่ — ใช้เลือกคำที่ขึ้นบนหน้าจอ
+   *
+   * ดูจากว่าแถวพื้นที่รับผิดชอบของตำบลนั้นเว้นหมู่ไว้ไหม ไม่ได้ดูจากหมู่ของผู้ป่วย
+   * เพราะที่อยู่ในเขตเทศบาลบางรายก็มีหมู่กรอกไว้ ('34 ม.2' ใน ต.เวียง) ถ้าดูจาก
+   * ฝั่งผู้ป่วยจะได้คำอธิบายที่ไม่ตรงกับกติกาที่ใช้จริง
+   */
+  const areaByName = (row: DeliveryPatient) =>
+    coverage.some(item => item.tambonId === row.tambonId && !hasMoo(item.moo))
+
   const areaRiderIds = (row: DeliveryPatient) =>
     new Set(
       coverage
-        .filter(item => item.tambonId === row.tambonId && sameMoo(item.moo, row.moo))
+        .filter(item => {
+          if (item.tambonId !== row.tambonId) return false
+          return hasMoo(item.moo) ? sameMoo(item.moo, row.moo) : matchesPrefix(item.prefix, row)
+        })
         .map(item => item.riderId),
     )
 
@@ -254,7 +421,7 @@ export default function DrugDeliveriesPage() {
 
     const groups = [
       {
-        label: 'รับผิดชอบตำบลและหมู่นี้',
+        label: areaByName(row) ? 'รับผิดชอบชุมชนนี้' : 'รับผิดชอบตำบลและหมู่นี้',
         options: riders
           .filter(item => inArea.has(item.id))
           .map(item => ({ value: item.id, label: label(item) })),
@@ -286,6 +453,9 @@ export default function DrugDeliveriesPage() {
       return
     }
     const header = [
+      'ลำดับ',
+      // ชื่อไฟล์มีวันที่อยู่แล้ว แต่พอเปิดใน Excel หรือก๊อบไปวางต่อ ชื่อไฟล์จะหลุดไป
+      'วันที่',
       'เวลา',
       'HN',
       'ชื่อ-สกุล',
@@ -293,14 +463,19 @@ export default function DrugDeliveriesPage() {
       'อายุ',
       'เบอร์โทร',
       'ที่อยู่',
-      'ตำบล',
-      'หมู่',
+      'หมู่ที่',
+      // ไฟล์นี้เอาไปใช้วางแผนเส้นทางจริง เก็บอำเภอกับจังหวัดไว้ด้วยต่างจากในตาราง
+      // ที่แสดงแค่ชื่อตำบล — ถ้าตัดทิ้งจะแยกผู้ป่วยนอกอำเภอไม่ออกตอนเปิดใน Excel
+      'ตำบล/อำเภอ/จังหวัด',
+      'rider',
+      'manager',
       'สิทธิการรักษา',
-      'ผู้ส่งยา',
-      'ผู้จัดการ',
       'ค่าบริการ',
     ]
-    const body = visible.map(row => [
+    const body = visible.map((row, index) => [
+      // ไล่ตามรายการที่ส่งออกจริง ไม่ใช่หน้าที่เปิดค้างอยู่ — ไฟล์มีครบทุกแถวเสมอ
+      String(index + 1),
+      toThaiDate(date),
       row.visitTime ?? '',
       row.hn,
       row.name ?? '',
@@ -309,11 +484,11 @@ export default function DrugDeliveriesPage() {
       // นำหน้าด้วย ' เพื่อให้ Excel เก็บเป็นข้อความ ไม่ตัดศูนย์หน้าเบอร์ทิ้ง
       row.phone ? `'${row.phone}` : '',
       row.address ?? '',
-      row.tambonName ?? '',
       row.moo ?? '',
-      row.pttypeName ?? '',
+      row.tambonFull ?? row.tambonName ?? '',
       row.riderName ?? (row.riderId != null ? `ไม่พบเจ้าหน้าที่ ${row.riderId}` : ''),
       row.managerName ?? '',
+      row.pttypeName ?? '',
       row.amount.toFixed(2),
     ])
 
@@ -430,6 +605,26 @@ export default function DrugDeliveriesPage() {
 
   const columns: ColumnsType<DeliveryPatient> = [
     {
+      // ลำดับของรายการที่แสดงอยู่ ไม่ใช่รหัสอะไรของผู้ป่วย — เริ่มนับ 1 ใหม่ทุกครั้ง
+      // ที่ค้น เพราะเป็นตัวเลขไว้ไล่นับของกับกระดาษที่พิมพ์ออกมา ไม่ใช่ตัวอ้างอิงถาวร
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      fixed: 'left',
+      render: (_, __, index) => (
+        <span className="font-mono text-xs text-ink-3">{(page - 1) * PAGE_SIZE + index + 1}</span>
+      ),
+    },
+    {
+      // ทุกแถวเป็นวันเดียวกันตามที่เลือกไว้ข้างบน แต่ต้องมีในแถวด้วยเพราะตารางนี้
+      // ถูกพิมพ์ออกไปถือติดรถ กระดาษที่หลุดจากหน้าจอแล้วต้องบอกวันได้ด้วยตัวเอง
+      title: 'วันที่',
+      key: 'date',
+      width: 110,
+      render: () => <span className="font-mono text-xs text-ink-2">{toThaiDate(date)}</span>,
+    },
+    {
       title: 'เวลา',
       dataIndex: 'visitTime',
       width: 80,
@@ -467,14 +662,15 @@ export default function DrugDeliveriesPage() {
     {
       title: 'เบอร์โทร',
       dataIndex: 'phone',
-      width: 150,
+      // กว้างขึ้นเพราะตอนนี้หนึ่งแถวมีได้หลายเบอร์ (บ้าน มือถือ ผู้แจ้ง)
+      width: 200,
       render: (value: string | null) =>
         value ? <span className="font-mono text-xs">{value}</span> : <Blank />,
     },
     {
       title: 'ที่อยู่',
       dataIndex: 'address',
-      width: 300,
+      width: 200,
       render: (value: string | null) =>
         value ? (
           <span className="text-xs text-ink-2">{value}</span>
@@ -486,16 +682,39 @@ export default function DrugDeliveriesPage() {
         ),
     },
     {
-      title: 'สิทธิการรักษา',
-      dataIndex: 'pttypeName',
-      width: 240,
+      // หมู่กับตำบลเป็นคู่ที่ใช้จับคู่ผู้รับผิดชอบ แยกช่องให้กวาดตาลงคอลัมน์ได้
+      // ว่าหมู่ไหนยังไม่มีคนส่ง เร็วกว่าอ่านจากที่อยู่ยาว ๆ ทีละแถว
+      title: 'หมู่ที่',
+      dataIndex: 'moo',
+      width: 90,
+      align: 'center',
       render: (value: string | null) =>
-        value ? <span className="text-xs text-ink-2">{value}</span> : <Blank />,
+        value ? <span className="font-mono text-xs text-ink-2">{value}</span> : <Blank />,
     },
     {
-      title: 'ผู้ส่งยา',
+      title: 'ตำบล',
+      dataIndex: 'tambonName',
+      width: 160,
+      filters: tambonFilters,
+      // ไม่ใส่ onFilter เพราะกรองเองใน visible แล้ว — ถ้าใส่ด้วยจะกรองซ้ำสองชั้น
+      filteredValue: tambonFilter.length > 0 ? tambonFilter : null,
+      render: (value: string | null, row) =>
+        value ? (
+          // อำเภอกับจังหวัดอยู่ในคำบรรยายตอนชี้ — ผู้ป่วยนอกอำเภอมีไม่มากแต่มีจริง
+          // และเป็นกลุ่มที่คนส่งยาต้องรู้ก่อนรับงาน ไม่ใช่รู้ตอนออกรถไปแล้ว
+          <Tooltip title={row.tambonFull ?? undefined}>
+            <span className="text-xs text-ink-2">{value}</span>
+          </Tooltip>
+        ) : (
+          <Blank />
+        ),
+    },
+    {
+      title: 'rider',
       dataIndex: 'riderName',
       width: 220,
+      filters: riderFilters,
+      filteredValue: riderFilter.length > 0 ? riderFilter : null,
       // ยังไม่จ่ายงานใช้ขีดกลางเหมือนช่องว่างอื่นในตาราง (ปุ่มท้ายแถวบอกอยู่แล้วว่า
       // ยังไม่ได้จ่าย) เก็บแท็กสีส้มไว้เฉพาะกรณีข้อมูลผิดที่ต้องไปตามแก้จริง ๆ
       render: (value: string | null, row) => {
@@ -509,24 +728,29 @@ export default function DrugDeliveriesPage() {
       },
     },
     {
-      title: 'ผู้จัดการ',
+      title: 'manager',
       dataIndex: 'managerName',
       width: 190,
+      filters: managerFilters,
+      filteredValue: managerFilter.length > 0 ? managerFilter : null,
       render: (value: string | null) =>
         value ? <span className="text-xs text-ink-2">{value}</span> : <Blank />,
     },
     {
-      title: 'ค่าบริการ',
-      dataIndex: 'amount',
-      width: 100,
-      align: 'right',
-      render: (value: number) => <span className="font-mono text-xs">{value.toFixed(2)}</span>,
+      title: 'สิทธิการรักษา',
+      dataIndex: 'pttypeName',
+      width: 240,
+      render: (value: string | null) =>
+        value ? <span className="text-xs text-ink-2">{value}</span> : <Blank />,
     },
     {
       title: '',
       key: 'assign',
       width: 110,
       align: 'right',
+      // ตรึงไว้ขวาสุด — ตารางกว้างเกินจอจนต้องเลื่อนแนวนอน ถ้าไม่ตรึงจะต้องเลื่อน
+      // ไปกดปุ่มแล้วเลื่อนกลับมาอ่านชื่อทุกแถว
+      fixed: 'right',
       render: (_, row) => (
         <Button
           size="small"
@@ -575,7 +799,7 @@ export default function DrugDeliveriesPage() {
         <Alert
           type="warning"
           showIcon
-          title="ไม่มีผู้จัดการให้เลือก"
+          title="ไม่มี manager ให้เลือก"
           description={
             <span className="text-xs">
               ต้องมีเจ้าหน้าที่ที่ประเภทเป็น Manager และเปิดใช้งานอยู่อย่างน้อยหนึ่งคน
@@ -594,6 +818,13 @@ export default function DrugDeliveriesPage() {
             if (!value) return
             setLoading(true)
             setDate(value)
+            // วันใหม่คือรายการคนละชุด ถ้าค้างอยู่หน้าสองจะเปิดมาเจอตารางว่าง
+            setPage(1)
+            // ตัวกรองที่ค้างไว้อาจไม่มีใครเข้าเงื่อนไขเลยในวันใหม่ (คนละตำบล คนละเวร)
+            // ปล่อยค้างไว้จะดูเหมือนวันนั้นไม่มีงาน
+            setTambonFilter([])
+            setRiderFilter([])
+            setManagerFilter([])
           }}
           format={value => toThaiDate(value)}
           // วันข้างหน้ายังไม่มีรายการ เลือกไปก็ได้ตารางว่างเปล่าอย่างเดียว
@@ -604,8 +835,12 @@ export default function DrugDeliveriesPage() {
           allowClear
           className="min-w-56 flex-1 sm:max-w-80"
           value={keyword}
-          onChange={event => setKeyword(event.target.value)}
-          placeholder="ค้นหา HN ชื่อ เบอร์โทร ที่อยู่ หรือผู้ส่งยา"
+          onChange={event => {
+            setKeyword(event.target.value)
+            // ผลค้นสั้นกว่าเดิมเกือบทุกครั้ง ต้องกลับหน้าแรกไม่งั้นจะเห็นตารางว่าง
+            setPage(1)
+          }}
+          placeholder="ค้นหา HN ชื่อ เบอร์โทร ที่อยู่ ตำบล หรือ rider"
           prefix={<SearchOutlined className="text-ink-3" />}
         />
         {/* ไม่ปิดปุ่มตอนไม่มีข้อมูล แต่เช็คตอนกดแทน — ค่า disabled ที่ต่างกันระหว่าง
@@ -617,7 +852,7 @@ export default function DrugDeliveriesPage() {
           </Button>
         </Tooltip>
         <Text type="secondary" className="ml-auto text-xs">
-          {keyword.trim()
+          {keyword.trim() || filtering
             ? `พบ ${visible.length} จาก ${patients.length} รายการ`
             : `${patientCount} คน · จ่ายงานแล้ว ${assignedCount}/${patients.length} · ${total.toFixed(2)} บาท`}
         </Text>
@@ -631,7 +866,28 @@ export default function DrugDeliveriesPage() {
             size="small"
             columns={columns}
             dataSource={visible}
-            pagination={{ pageSize: 25, showSizeChanger: false, hideOnSinglePage: true }}
+            pagination={{
+              current: page,
+              pageSize: PAGE_SIZE,
+              showSizeChanger: false,
+              hideOnSinglePage: true,
+            }}
+            // รับทั้งการเปลี่ยนหน้าและการกดตัวกรองจากที่เดียว — เลขหน้าเป็นค่าที่เรา
+            // ถือเอง antd จึงรีเซ็ตกลับหน้าแรกให้เองไม่ได้ตอนตัวกรองเปลี่ยน
+            onChange={(pagination, filters) => {
+              const tambon = (filters.tambonName ?? []).map(String)
+              const rider = (filters.riderName ?? []).map(String)
+              const manager = (filters.managerName ?? []).map(String)
+              const changed =
+                !sameList(tambon, tambonFilter) ||
+                !sameList(rider, riderFilter) ||
+                !sameList(manager, managerFilter)
+
+              setTambonFilter(tambon)
+              setRiderFilter(rider)
+              setManagerFilter(manager)
+              setPage(changed ? 1 : (pagination.current ?? 1))
+            }}
             scroll={{ x: 'max-content' }}
             locale={{
               emptyText: (
@@ -641,7 +897,9 @@ export default function DrugDeliveriesPage() {
                       ? 'กำลังโหลด'
                       : keyword.trim()
                         ? 'ไม่พบผู้ป่วยตามคำค้น'
-                        : `ไม่มีรายการส่งยาวันที่ ${toThaiDate(date)}`
+                        : filtering
+                          ? 'ไม่มีผู้ป่วยตามตัวกรองที่เลือก'
+                          : `ไม่มีรายการส่งยาวันที่ ${toThaiDate(date)}`
                   }
                 />
               ),
@@ -678,7 +936,7 @@ export default function DrugDeliveriesPage() {
                   title="ยกเลิกการจ่ายงาน"
                   description={
                     <span className="text-xs">
-                      เอาผู้ส่งยาและผู้จัดการออกทั้งคู่ กลับเป็นยังไม่ได้จ่ายงาน
+                      เอา rider และ manager ออกทั้งคู่ กลับเป็นยังไม่ได้จ่ายงาน
                     </span>
                   }
                   okText="ยกเลิกการจ่ายงาน"
@@ -733,10 +991,10 @@ export default function DrugDeliveriesPage() {
             </div>
 
             <label className="flex flex-col gap-1">
-              <Text className="text-xs font-semibold text-ink">ผู้จัดการ</Text>
+              <Text className="text-xs font-semibold text-ink">manager</Text>
               <Select
                 showSearch
-                placeholder="เลือกผู้จัดการ"
+                placeholder="เลือก manager"
                 value={draftManager}
                 onChange={setDraftManager}
                 optionFilterProp="label"
@@ -744,17 +1002,17 @@ export default function DrugDeliveriesPage() {
               />
               {assignTarget.managerId != null && !managerById.has(assignTarget.managerId) && (
                 <Text type="secondary" className="text-xs">
-                  ผู้จัดการเดิม ({assignTarget.managerName ?? `รหัส ${assignTarget.managerId}`})
+                  manager เดิม ({assignTarget.managerName ?? `รหัส ${assignTarget.managerId}`})
                   ไม่อยู่ในรายชื่อที่เลือกได้แล้ว ต้องเลือกใหม่
                 </Text>
               )}
             </label>
 
             <label className="flex flex-col gap-1">
-              <Text className="text-xs font-semibold text-ink">ผู้ส่งยา</Text>
+              <Text className="text-xs font-semibold text-ink">rider</Text>
               <Select
                 showSearch
-                placeholder="เลือกผู้ส่งยา"
+                placeholder="เลือก rider"
                 value={draftRider}
                 onChange={setDraftRider}
                 optionFilterProp="label"
@@ -777,14 +1035,19 @@ export default function DrugDeliveriesPage() {
                 </Checkbox>
                 {areaCount === 0 && (
                   <Tag color="orange" className="mr-0!">
-                    ไม่มีใครรับผิดชอบหมู่นี้
+                    {areaByName(assignTarget) ? 'ไม่มีใครรับผิดชอบชุมชนนี้' : 'ไม่มีใครรับผิดชอบหมู่นี้'}
                   </Tag>
                 )}
               </div>
               <Text type="secondary" className="text-xs">
                 รายชื่อตั้งต้นคือคนที่รับผิดชอบ{' '}
                 {assignTarget.tambonName ? `ต.${assignTarget.tambonName} ` : ''}
-                {assignTarget.moo ? `ม.${assignTarget.moo}` : 'หมู่ที่ไม่ได้ระบุ'} เท่านั้น
+                {areaByName(assignTarget)
+                  ? 'ตามชื่อชุมชนในที่อยู่'
+                  : assignTarget.moo
+                    ? `ม.${assignTarget.moo}`
+                    : 'หมู่ที่ไม่ได้ระบุ'}{' '}
+                เท่านั้น
               </Text>
             </label>
 

@@ -48,8 +48,8 @@ export async function POST(request: Request) {
 
   // vn ในฐานเป็นตัวเลขล้วน ยาวไม่เกิน 15 หลัก
   if (!/^\d{1,15}$/.test(vn)) return bad('รหัสการมารับบริการไม่ถูกต้อง')
-  if (!Number.isInteger(rider) || rider <= 0) return bad('กรุณาเลือกผู้ส่งยา')
-  if (!Number.isInteger(manager) || manager <= 0) return bad('กรุณาเลือกผู้จัดการ')
+  if (!Number.isInteger(rider) || rider <= 0) return bad('กรุณาเลือก rider')
+  if (!Number.isInteger(manager) || manager <= 0) return bad('กรุณาเลือก manager')
 
   try {
     const result = await assignDelivery({ vn, rider, manager })
