@@ -5,6 +5,7 @@ import {
   isValidThaiCid,
   listRiderStaff,
   setRiderStaffActive,
+  setRiderStaffRole,
 } from '@/lib/his/health-rider'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
 import { denyRiderAdmin, requireRiderAdmin } from '@/lib/auth/rider-admin'
@@ -111,10 +112,11 @@ export async function POST(request: Request) {
 }
 
 /**
- * ปิด/เปิดสถานะใช้งาน — รับได้เฉพาะคอลัมน์ active เท่านั้น
+ * แก้ไขเจ้าหน้าที่หนึ่งคน — รับได้เฉพาะสถานะใช้งาน หรือประเภทเจ้าหน้าที่
  *
- * ตั้งใจไม่ให้แก้ชื่อ เลขบัตร หรือประเภทผ่านช่องทางนี้ ถ้าวันหนึ่งต้องแก้ได้จริง
- * ค่อยเพิ่มทีละช่องพร้อมกติกาของมัน ไม่ใช่เปิดรับทั้งแถวไว้ก่อน
+ * รับทีละอย่าง ไม่ใช่ทั้งแถว ชื่อกับเลขบัตรยังแก้จากหน้านี้ไม่ได้ตั้งใจ — สองค่านั้น
+ * เป็นตัวตนของคน กรอกผิดตั้งแต่แรกควรไปแก้ที่ต้นทางพร้อมหลักฐาน ไม่ใช่พิมพ์ทับ
+ * ในตารางงาน ส่วนประเภทคือหน้าที่ที่ได้รับมอบหมาย ซึ่งย้ายกันได้จริงจึงเปิดให้แก้
  */
 export async function PATCH(request: Request) {
   // เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม — ส่วนนี้คือการมอบหมายงานของหน่วยงาน
@@ -123,7 +125,7 @@ export async function PATCH(request: Request) {
 
   const ip = clientIp(request)
   const limited = rateLimit(
-    `rider-staff-active:${admin.sub}:${ip}`,
+    `rider-staff-edit:${admin.sub}:${ip}`,
     PER_IP_WRITE.limit,
     PER_IP_WRITE.windowSeconds,
   )
@@ -139,8 +141,37 @@ export async function PATCH(request: Request) {
   }
 
   const id = Number(body.id)
-  const active = body.active
   if (!Number.isInteger(id) || id <= 0) return bad('รหัสเจ้าหน้าที่ไม่ถูกต้อง')
+
+  const wantsActive = body.active !== undefined
+  const wantsRole = body.role !== undefined
+  // บังคับให้ส่งมาอย่างเดียว ไม่ใช่เพราะฐานทำพร้อมกันไม่ได้ แต่เพราะสองเรื่องนี้
+  // มีข้อความยืนยันคนละแบบในหน้าจอ ถ้าปนกันมาจะไม่รู้ว่าควรตอบกลับว่าอะไรสำเร็จ
+  if (wantsActive === wantsRole) return bad('ระบุสิ่งที่ต้องการแก้มาอย่างเดียว')
+
+  if (wantsRole) {
+    const role = Number(body.role)
+    // ไม่กัน 0 ออก — ประเภท admin ในตารางอ้างอิงใช้รหัส 0 จริง การเช็คว่ามีอยู่จริง
+    // เป็นหน้าที่ของชั้นฐานข้อมูล ไม่ใช่การเดาจากค่าของตัวเลข
+    if (!Number.isInteger(role)) return bad('กรุณาเลือกประเภทเจ้าหน้าที่')
+
+    try {
+      const result = await setRiderStaffRole({ id, role })
+      if (result === 'not_found') {
+        return Response.json({ success: false, message: 'ไม่พบเจ้าหน้าที่คนนี้' }, { status: 404 })
+      }
+      if (result === 'unknown_role') return bad('ไม่พบประเภทเจ้าหน้าที่ที่เลือก')
+      return Response.json({ success: true })
+    } catch (error) {
+      console.error('[his/health-rider/staff] แก้ประเภทไม่สำเร็จ:', error)
+      return Response.json(
+        { success: false, message: 'แก้ประเภทเจ้าหน้าที่ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' },
+        { status: 500 },
+      )
+    }
+  }
+
+  const active = body.active
   if (active !== 'Y' && active !== 'N') return bad('สถานะไม่ถูกต้อง')
 
   try {

@@ -22,6 +22,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
+  EditOutlined,
   PlusOutlined,
   SearchOutlined,
   StopOutlined,
@@ -63,6 +64,10 @@ export default function HealthRiderStaffView() {
   const [saving, setSaving] = useState(false)
   /** รหัสของแถวที่กำลังเปลี่ยนสถานะ ใช้ล็อกปุ่มเฉพาะแถวนั้น ไม่ใช่ทั้งตาราง */
   const [togglingId, setTogglingId] = useState<number | null>(null)
+  /** แถวที่กำลังเปิดกล่องแก้ประเภท — null คือปิดอยู่ */
+  const [editing, setEditing] = useState<RiderStaff | null>(null)
+  const [nextRole, setNextRole] = useState<number | null>(null)
+  const [savingRole, setSavingRole] = useState(false)
   const [form] = Form.useForm<StaffForm>()
   const [toast, toastHolder] = message.useMessage()
 
@@ -156,6 +161,36 @@ export default function HealthRiderStaffView() {
     }
   }
 
+  /**
+   * บันทึกประเภทใหม่ของเจ้าหน้าที่หนึ่งคน
+   *
+   * โหลดรายชื่อใหม่หลังบันทึกเหมือนที่อื่นในหน้านี้ — ชื่อประเภทมาจากตารางอ้างอิง
+   * ในฐาน ถ้าเดาเองจากรายการตัวเลือกแล้วฝั่งฐานไม่ได้เปลี่ยนจริงจะเห็นข้อมูลผิด
+   */
+  const saveRole = async () => {
+    if (!editing || nextRole == null) return
+    setSavingRole(true)
+    try {
+      const res = await apiFetch('/api/his/health-rider/staff', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editing.id, role: nextRole }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        toast.error(json.message ?? 'แก้ประเภทเจ้าหน้าที่ไม่สำเร็จ')
+        return
+      }
+      toast.success('แก้ประเภทเจ้าหน้าที่แล้ว')
+      setEditing(null)
+      setStaff(await loadStaff())
+    } catch {
+      toast.error('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setSavingRole(false)
+    }
+  }
+
   const visible = useMemo(() => {
     const term = keyword.trim().toLowerCase()
     if (!term) return staff
@@ -213,38 +248,51 @@ export default function HealthRiderStaffView() {
     },
     {
       title: '',
-      key: 'toggle',
-      width: 130,
+      key: 'actions',
+      width: 230,
       align: 'right',
       // ปิดแล้วเปิดคืนได้จากปุ่มเดียวกัน คนกดผิดจึงแก้เองได้ทันที
       render: (_, row) => {
         const closing = row.active === 'Y'
         return (
-          <Popconfirm
-            title={closing ? 'ปิดสถานะการใช้งาน' : 'เปิดสถานะการใช้งาน'}
-            description={
-              <span className="text-xs">
-                {[row.pname, row.fname, row.lname].filter(Boolean).join(' ') || `รหัส ${row.id}`}
-                {closing
-                  ? ' — จะไม่ถือว่าเป็นเจ้าหน้าที่ที่ปฏิบัติงานอยู่ พื้นที่รับผิดชอบเดิมยังอยู่ครบ'
-                  : ' — กลับมาเป็นเจ้าหน้าที่ที่ปฏิบัติงานอยู่'}
-              </span>
-            }
-            okText={closing ? 'ปิดสถานะ' : 'เปิดสถานะ'}
-            cancelText="ยกเลิก"
-            okButtonProps={{ danger: closing }}
-            onConfirm={() => toggleActive(row)}
-          >
+          <div className="flex items-center justify-end gap-1">
             <Button
               type="text"
               size="small"
-              danger={closing}
-              loading={togglingId === row.id}
-              icon={closing ? <StopOutlined /> : <UndoOutlined />}
+              icon={<EditOutlined />}
+              onClick={() => {
+                setEditing(row)
+                setNextRole(row.roleId)
+              }}
             >
-              {closing ? 'ปิดสถานะ' : 'เปิดสถานะ'}
+              แก้ประเภท
             </Button>
-          </Popconfirm>
+            <Popconfirm
+              title={closing ? 'ปิดสถานะการใช้งาน' : 'เปิดสถานะการใช้งาน'}
+              description={
+                <span className="text-xs">
+                  {[row.pname, row.fname, row.lname].filter(Boolean).join(' ') || `รหัส ${row.id}`}
+                  {closing
+                    ? ' — จะไม่ถือว่าเป็นเจ้าหน้าที่ที่ปฏิบัติงานอยู่ พื้นที่รับผิดชอบเดิมยังอยู่ครบ'
+                    : ' — กลับมาเป็นเจ้าหน้าที่ที่ปฏิบัติงานอยู่'}
+                </span>
+              }
+              okText={closing ? 'ปิดสถานะ' : 'เปิดสถานะ'}
+              cancelText="ยกเลิก"
+              okButtonProps={{ danger: closing }}
+              onConfirm={() => toggleActive(row)}
+            >
+              <Button
+                type="text"
+                size="small"
+                danger={closing}
+                loading={togglingId === row.id}
+                icon={closing ? <StopOutlined /> : <UndoOutlined />}
+              >
+                {closing ? 'ปิดสถานะ' : 'เปิดสถานะ'}
+              </Button>
+            </Popconfirm>
+          </div>
         )
       },
     },
@@ -400,6 +448,52 @@ export default function HealthRiderStaffView() {
             }
           />
         </Form>
+      </Modal>
+
+      {/* ───────── กล่องแก้ประเภทเจ้าหน้าที่ ─────────
+          แก้ได้ช่องเดียว ชื่อกับเลขบัตรไม่อยู่ในนี้ตั้งใจ — สองค่านั้นเป็นตัวตน
+          ของคน ไม่ใช่หน้าที่ที่ได้รับมอบหมาย (API ก็ไม่รับมาแก้ด้วย) */}
+      <Modal
+        title="แก้ประเภทเจ้าหน้าที่"
+        open={editing !== null}
+        onCancel={() => setEditing(null)}
+        onOk={() => void saveRole()}
+        okText="บันทึก"
+        cancelText="ยกเลิก"
+        confirmLoading={savingRole}
+        okButtonProps={{ disabled: nextRole == null || nextRole === editing?.roleId }}
+        width={520}
+        destroyOnHidden
+      >
+        <div className="mb-3">
+          <Text type="secondary" className="text-xs">
+            รหัส {editing?.id} ·{' '}
+            {[editing?.pname, editing?.fname, editing?.lname].filter(Boolean).join(' ') ||
+              '— ไม่ได้ระบุชื่อ —'}
+          </Text>
+        </div>
+
+        <Select
+          className="w-full"
+          placeholder="เลือกประเภท"
+          value={nextRole ?? undefined}
+          onChange={setNextRole}
+          options={roles.map(role => ({ value: role.id, label: role.name ?? `รหัส ${role.id}` }))}
+        />
+
+        <Alert
+          className="mt-4"
+          type="info"
+          showIcon
+          title="พื้นที่รับผิดชอบเดิมยังอยู่ครบ"
+          description={
+            <span className="text-xs">
+              ตารางพื้นที่ผูกกับตัวบุคคล ไม่ได้ผูกกับประเภท คนที่ย้ายจากผู้ส่งยาไปเป็น
+              ผู้จัดการจึงยังมีพื้นที่เดิมค้างอยู่ ถ้าไม่ต้องการแล้วต้องไปถอนเองที่หน้า
+              จัดการพื้นที่
+            </span>
+          }
+        />
       </Modal>
     </>
   )

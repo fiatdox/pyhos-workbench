@@ -100,6 +100,42 @@ export async function setRiderStaffActive(input: {
   return Number((result as unknown as { affectedRows?: number }).affectedRows ?? 0) > 0
 }
 
+/** ผลของการเปลี่ยนประเภทเจ้าหน้าที่ — แยกสาเหตุเพื่อให้ผู้เรียกบอกได้ว่าพลาดตรงไหน */
+export type SetStaffRoleResult = 'ok' | 'not_found' | 'unknown_role'
+
+/**
+ * เปลี่ยนประเภทของเจ้าหน้าที่หนึ่งคน
+ *
+ * ประเภทเป็นค่าเดียวในทะเบียนที่เปลี่ยนได้หลังบันทึก — ชื่อกับเลขบัตรเป็นตัวตน
+ * ของคน ส่วนประเภทคือหน้าที่ที่ได้รับมอบหมาย ซึ่งย้ายกันได้จริงในหน่วยงาน
+ *
+ * พื้นที่รับผิดชอบเดิมไม่ถูกแตะ — ตารางนั้นผูกกับ id ของคน ไม่ได้ผูกกับประเภท
+ * คนที่ย้ายจากผู้ส่งยาไปเป็นผู้จัดการจึงยังมีพื้นที่เดิมค้างอยู่ ต้องไปถอนเองที่
+ * หน้าจัดการพื้นที่ถ้าไม่ต้องการแล้ว
+ */
+export async function setRiderStaffRole(input: {
+  id: number
+  role: number
+}): Promise<SetStaffRoleResult> {
+  // เช็คทั้งสองฝั่งก่อนแก้ จะได้แยกได้ว่า "ไม่พบคน" กับ "ประเภทไม่มีจริง"
+  // คนละเรื่องกัน — ถ้าดูแต่ affectedRows จะแยกไม่ออก และการเลือกประเภทเดิมซ้ำ
+  // ก็ให้ affectedRows เป็นศูนย์เหมือนกันทั้งที่ไม่ใช่ความผิดพลาด
+  const [staff] = await hisDb.execute(sql`
+    SELECT id FROM fiat_pyhos_health_rider_users WHERE id = ${input.id} LIMIT 1`)
+  if ((staff as unknown as unknown[]).length === 0) return 'not_found'
+
+  const [role] = await hisDb.execute(sql`
+    SELECT id FROM fiat_pyhos_health_rider_role WHERE id = ${input.role} LIMIT 1`)
+  if ((role as unknown as unknown[]).length === 0) return 'unknown_role'
+
+  await hisDb.execute(sql`
+    UPDATE fiat_pyhos_health_rider_users
+    SET role = ${input.role}
+    WHERE id = ${input.id}`)
+
+  return 'ok'
+}
+
 /** ตำบลหนึ่งแห่งจากตารางที่อยู่มาตรฐานของ HIS (thaiaddress) */
 export type Tambon = {
   /** รหัส 6 หลัก จังหวัด 2 + อำเภอ 2 + ตำบล 2 */
