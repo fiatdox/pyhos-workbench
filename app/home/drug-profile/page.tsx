@@ -49,6 +49,7 @@ import type {
   DrugPlanItem,
   WardOption,
 } from '@/lib/his/drug-profile'
+import PageHint from '../page-hint'
 
 const { Paragraph, Text, Title } = Typography
 
@@ -762,6 +763,15 @@ export default function DrugProfilePage() {
   ]
 
   const wardColumns: ColumnsType<AdmittedPatient> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{index + 1}</span>
+      ),
+    },
     { title: 'AN', dataIndex: 'an', key: 'an', width: 110, render: mono },
     { title: 'HN', dataIndex: 'hn', key: 'hn', width: 110, render: mono },
     { title: 'ชื่อ-สกุล', dataIndex: 'name', key: 'name' },
@@ -813,6 +823,15 @@ export default function DrugProfilePage() {
    * เพราะเป็นเจ้าของไข้หรือเป็นคนสั่ง admit — สองค่านี้ต่างกันในผู้ป่วยส่วนใหญ่ที่นอนอยู่
    */
   const doctorColumns: ColumnsType<AdmittedPatient> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{index + 1}</span>
+      ),
+    },
     { title: 'AN', dataIndex: 'an', key: 'an', width: 110, render: mono },
     { title: 'HN', dataIndex: 'hn', key: 'hn', width: 110, render: mono },
     { title: 'ชื่อ-สกุล', dataIndex: 'name', key: 'name' },
@@ -871,6 +890,15 @@ export default function DrugProfilePage() {
   ]
 
   const matchColumns: ColumnsType<AdmissionMatch> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{index + 1}</span>
+      ),
+    },
     { title: 'AN', dataIndex: 'an', key: 'an', width: 110, render: mono },
     { title: 'HN', dataIndex: 'hn', key: 'hn', width: 110, render: mono },
     { title: 'ชื่อ-สกุล', dataIndex: 'name', key: 'name' },
@@ -914,14 +942,14 @@ export default function DrugProfilePage() {
       <section className="mb-6">
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <ProfileOutlined /> Drug Profile ผู้ป่วยใน
+          <PageHint>
+            ตรวจสอบการให้ยาของผู้ป่วยใน — เลือกผู้ป่วยจากตึกที่นอนอยู่ตอนนี้ จากแพทย์
+            เจ้าของไข้หรือแพทย์ผู้สั่ง admit หรือค้นด้วยชื่อ-สกุล HN เลขบัตรประชาชน หรือ AN
+            แล้วเลือก AN ที่ต้องการ
+            เพราะใบยาผูกกับการนอนแต่ละครั้ง ไม่ใช่ผูกกับตัวผู้ป่วย
+          </PageHint>
         </Title>
-        <div className="mb-4 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 720, marginBottom: 0 }}>
-          ตรวจสอบการให้ยาของผู้ป่วยใน — เลือกผู้ป่วยจากตึกที่นอนอยู่ตอนนี้ จากแพทย์
-          เจ้าของไข้หรือแพทย์ผู้สั่ง admit หรือค้นด้วยชื่อ-สกุล HN เลขบัตรประชาชน หรือ AN
-          แล้วเลือก AN ที่ต้องการ
-          เพราะใบยาผูกกับการนอนแต่ละครั้ง ไม่ใช่ผูกกับตัวผู้ป่วย
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-5" />}

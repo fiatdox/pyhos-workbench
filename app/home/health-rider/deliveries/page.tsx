@@ -34,6 +34,7 @@ import { apiFetch } from '@/lib/client/session'
 import { trackExport } from '@/lib/client/track-export'
 import type { DeliveryPatient, RiderCoverage } from '@/lib/his/drug-delivery'
 import type { RiderStaff } from '@/lib/his/health-rider'
+import PageHint from '../../page-hint'
 
 const { Text, Title } = Typography
 
@@ -790,11 +791,11 @@ export default function DrugDeliveriesPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <MedicineBoxOutlined /> รายชื่อผู้ป่วยส่งยาถึงบ้าน
+          <PageHint>
+            ผู้ป่วยที่มีค่าบริการจัดส่งยาไปยังบ้านในวันที่เลือก — ข้อมูลจากระบบ HIS อ่านอย่างเดียว
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Text type="secondary" className="text-xs">
-          ผู้ป่วยที่มีค่าบริการจัดส่งยาไปยังบ้านในวันที่เลือก — ข้อมูลจากระบบ HIS อ่านอย่างเดียว
-        </Text>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}

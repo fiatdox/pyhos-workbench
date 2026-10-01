@@ -13,8 +13,9 @@ import {
 } from '@ant-design/icons'
 import { MotorcycleOutlined } from '../icons'
 import { usePermissions } from '../app-shell'
+import PageHint from '../page-hint'
 
-const { Paragraph, Title } = Typography
+const { Title } = Typography
 
 /**
  * งานย่อยของ Health Rider
@@ -68,12 +69,12 @@ export default function HealthRiderPage() {
       <section className="mb-6">
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <MotorcycleOutlined /> Health Rider
+          <PageHint>
+            งานส่งยาถึงบ้าน — ดูแลทะเบียนเจ้าหน้าที่ ประเภทเจ้าหน้าที่
+            และการแบ่งพื้นที่รับผิดชอบ
+          </PageHint>
         </Title>
-        <div className="mb-4 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 720, marginBottom: 0 }}>
-          งานส่งยาถึงบ้าน — ดูแลทะเบียนเจ้าหน้าที่ ประเภทเจ้าหน้าที่
-          และการแบ่งพื้นที่รับผิดชอบ
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

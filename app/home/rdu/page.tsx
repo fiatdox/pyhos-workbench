@@ -18,8 +18,9 @@ import {
   SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons'
+import PageHint from '../page-hint'
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 
 /**
  * RDU — หน้ารวมตัวชี้วัดการใช้ยาอย่างสมเหตุผล
@@ -222,12 +223,12 @@ export default function RduPage() {
       <section className="mb-6">
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <SafetyCertificateOutlined /> RDU ติดตามตัวชี้วัดการใช้ยา
+          <PageHint>
+            Rational Drug Use — ติดตามตัวชี้วัดการใช้ยาอย่างสมเหตุผลของโรงพยาบาล
+            ทั้งกลุ่มยาปฏิชีวนะ กลุ่มโรคเรื้อรัง และกลุ่มผู้ป่วยพิเศษ เพื่อใช้ในการประชุมคณะกรรมการและรายงานตามรอบ
+          </PageHint>
         </Title>
-        <div className="mb-4 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 760, marginBottom: 0 }}>
-          Rational Drug Use — ติดตามตัวชี้วัดการใช้ยาอย่างสมเหตุผลของโรงพยาบาล
-          ทั้งกลุ่มยาปฏิชีวนะ กลุ่มโรคเรื้อรัง และกลุ่มผู้ป่วยพิเศษ เพื่อใช้ในการประชุมคณะกรรมการและรายงานตามรอบ
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {/* ตัวชี้วัดเปิดครบแล้ว สิ่งที่ยังกั้นอยู่คือทะเบียน จึงเตือนเรื่องนั้นแทน —

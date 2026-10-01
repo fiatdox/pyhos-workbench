@@ -28,6 +28,7 @@ import {
 import { apiFetch } from '@/lib/client/session'
 import { trackExport } from '@/lib/client/track-export'
 import { GapChart, meetsTarget, YearlyChart, type YearPoint } from './charts'
+import PageHint from '../../page-hint'
 
 const { Paragraph, Text, Title } = Typography
 
@@ -323,13 +324,13 @@ export default function RduSummaryPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <BarChartOutlined /> สรุปเปรียบเทียบตัวชี้วัด 3 ปีงบประมาณ
+          <PageHint>
+            ตัวชี้วัดทุกข้อเทียบกับเกณฑ์ของตัวเอง ย้อนหลัง {years.length || 3} ปีงบประมาณ —
+            แท่งเขียวคือผ่านเกณฑ์ แดงคือยังไม่ถึง ม่วงคือยังไม่ได้ตั้งเกณฑ์ไว้
+            เครื่องหมาย * ท้ายปีแปลว่าปีงบนั้นยังไม่จบ ตัวเลขจึงยังไม่ครบปี
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 900, marginBottom: 0, fontSize: 12 }}>
-          ตัวชี้วัดทุกข้อเทียบกับเกณฑ์ของตัวเอง ย้อนหลัง {years.length || 3} ปีงบประมาณ —
-          แท่งเขียวคือผ่านเกณฑ์ แดงคือยังไม่ถึง ม่วงคือยังไม่ได้ตั้งเกณฑ์ไว้
-          เครื่องหมาย * ท้ายปีแปลว่าปีงบนั้นยังไม่จบ ตัวเลขจึงยังไม่ครบปี
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}

@@ -23,6 +23,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EnvironmentOutlined, PlusOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
 import type { RiderArea, RiderStaff, Tambon } from '@/lib/his/health-rider'
+import PageHint from '../../page-hint'
 
 const { Text, Title } = Typography
 
@@ -52,6 +53,8 @@ const fullName = (staff: RiderStaff) =>
  * หนึ่งแถวคือหนึ่งหมู่ — เจ้าหน้าที่หนึ่งคนรับผิดชอบได้หลายหมู่หลายตำบล
  * เพิ่มและลบได้ทีละแถว การลบถามยืนยันก่อนเสมอเพราะฐานไม่มีที่กู้คืนให้
  */
+/** จำนวนแถวต่อหน้า — ช่องลำดับใช้ค่านี้คำนวณเลขต่อข้ามหน้า */
+const PAGE_SIZE = 25
 export default function HealthRiderAreasView() {
   const [staff, setStaff] = useState<RiderStaff[]>([])
   const [tambons, setTambons] = useState<Tambon[]>([])
@@ -209,7 +212,27 @@ export default function HealthRiderAreasView() {
     [areas],
   )
 
+  /**
+   * หน้าที่เปิดอยู่ของตาราง — ต้องถือไว้เองเพราะช่องลำดับนับต่อข้ามหน้า
+   *
+   * antd ส่ง index ของแถวในหน้านั้น ๆ มาให้ ถ้าใช้ตรง ๆ หน้าที่สองจะเริ่มนับ 1 ใหม่
+   * แล้วเลขลำดับจะซ้ำกับหน้าแรกทั้งชุด
+   */
+  const [page, setPage] = useState(1)
+  // ผลลัพธ์หดลงได้ทุกครั้งที่เปลี่ยนตัวกรอง หน้าที่ค้างอยู่จึงอาจเลยท้ายตารางไปแล้ว
+  // หนีบไว้ตรงนี้แทนการไล่รีเซ็ตที่ตัวกรองทุกจุด — ตารางจะไม่มีทางว่างเพราะเลขหน้า
+  const pageCount = Math.max(1, Math.ceil(areas.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
   const columns: ColumnsType<RiderArea> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{(currentPage - 1) * PAGE_SIZE + index + 1}</span>
+      ),
+    },
     {
       title: 'ตำบล',
       dataIndex: 'tambonName',
@@ -292,11 +315,11 @@ export default function HealthRiderAreasView() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <EnvironmentOutlined /> จัดการรับผิดชอบพื้นที่ส่งยา
+          <PageHint>
+            เลือกเจ้าหน้าที่เพื่อดูพื้นที่ที่รับผิดชอบ — หนึ่งแถวคือหนึ่งหมู่ เพิ่มและลบได้ทีละแถว
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Text type="secondary" className="text-xs">
-          เลือกเจ้าหน้าที่เพื่อดูพื้นที่ที่รับผิดชอบ — หนึ่งแถวคือหนึ่งหมู่ เพิ่มและลบได้ทีละแถว
-        </Text>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
@@ -375,7 +398,13 @@ export default function HealthRiderAreasView() {
                 selectedRowKeys: selected,
                 onChange: keys => setSelected(keys.map(Number)),
               }}
-              pagination={{ pageSize: 25, showSizeChanger: false, hideOnSinglePage: true }}
+              pagination={{
+                current: currentPage,
+                pageSize: PAGE_SIZE,
+                showSizeChanger: false,
+                hideOnSinglePage: true,
+                onChange: setPage,
+              }}
               scroll={{ x: 'max-content' }}
               locale={{
                 emptyText: (

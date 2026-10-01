@@ -8,6 +8,7 @@ import type { TransferDirection } from 'antd/es/transfer'
 import type { Key } from 'react'
 import { apiFetch } from '@/lib/client/session'
 import type { DrugOption } from '@/lib/his/rdu-registry'
+import PageHint from '../../page-hint'
 
 const { Text, Title } = Typography
 
@@ -207,11 +208,11 @@ export default function DrugRegistryPage({
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           {icon} {title}
+          <PageHint>
+            {intro} — ย้ายรายการแล้วบันทึกทันที ไม่ต้องกดปุ่มบันทึก
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Text type="secondary" className="text-xs">
-          {intro} — ย้ายรายการแล้วบันทึกทันที ไม่ต้องกดปุ่มบันทึก
-        </Text>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}

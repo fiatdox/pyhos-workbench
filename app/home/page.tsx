@@ -13,8 +13,9 @@ import {
 } from '@ant-design/icons'
 import { usePermissions, type RestrictedFeature } from './app-shell'
 import { MotorcycleOutlined } from './icons'
+import PageHint from './page-hint'
 
-const { Paragraph, Title } = Typography
+const { Title } = Typography
 
 // การ์ดต้องตรงกับเมนูใน drawer ซ้าย (MENU_ITEMS) — เพิ่มเมนูใหม่ที่ไหน เพิ่มที่นี่ด้วย
 const FEATURES: {
@@ -79,12 +80,12 @@ export default function HomePage() {
         </div>
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           เลือกเมนูที่ต้องการใช้งาน
+          <PageHint>
+            ข้อมูลทั้งหมดดึงจากฐานข้อมูล HIS ของโรงพยาบาล — เปิดเมนูเพิ่มเติมได้จากปุ่มมุมซ้ายบน
+            และดูข้อมูลบัญชีของท่านได้จากรูปโปรไฟล์มุมขวาบน
+          </PageHint>
         </Title>
-        <div className="mb-4 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 640, marginBottom: 0 }}>
-          ข้อมูลทั้งหมดดึงจากฐานข้อมูล HIS ของโรงพยาบาล — เปิดเมนูเพิ่มเติมได้จากปุ่มมุมซ้ายบน
-          และดูข้อมูลบัญชีของท่านได้จากรูปโปรไฟล์มุมขวาบน
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

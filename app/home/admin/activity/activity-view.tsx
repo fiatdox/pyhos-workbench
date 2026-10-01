@@ -24,6 +24,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { ReloadOutlined, SafetyCertificateOutlined, SearchOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
 import ArchivePanel from './archive-panel'
+import PageHint from '../../page-hint'
 
 const { RangePicker } = DatePicker
 const { Text, Title } = Typography
@@ -179,6 +180,15 @@ export default function ActivityView() {
 
   const columns: ColumnsType<Row> = [
     {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{index + 1}</span>
+      ),
+    },
+    {
       title: 'เวลา',
       dataIndex: 'at',
       width: 170,
@@ -285,10 +295,10 @@ export default function ActivityView() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <SafetyCertificateOutlined /> ร่องรอยการใช้งาน
+          <PageHint>
+            ใครเข้าหน้าไหน ดึงข้อมูลอะไร และนำอะไรออกจากระบบไปบ้าง — เก็บทุกคำขอที่ผ่านเซิร์ฟเวอร์
+          </PageHint>
         </Title>
-        <Text type="secondary" className="text-xs">
-          ใครเข้าหน้าไหน ดึงข้อมูลอะไร และนำอะไรออกจากระบบไปบ้าง — เก็บทุกคำขอที่ผ่านเซิร์ฟเวอร์
-        </Text>
       </section>
 
       {/* หน้านี้เองก็เป็นข้อมูลอ่อนไหว บอกไว้ตรง ๆ ว่าใช้ทำอะไรได้และห้ามใช้ทำอะไร */}

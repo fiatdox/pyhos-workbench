@@ -26,11 +26,12 @@ import { apiFetch } from '@/lib/client/session'
 import { trackExport } from '@/lib/client/track-export'
 import type { DeliveryCase } from '@/lib/his/rdu-delivery'
 import RowSearch, { matchesRow } from '../row-search'
+import PageHint from '../../../page-hint'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
 dayjs.extend(buddhistEra)
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 
 /**
@@ -75,6 +76,8 @@ type Report = {
 
 const SETTINGS_DIAGNOSIS = '/home/rdu/settings/nl-icd10'
 
+/** จำนวนแถวต่อหน้า — ช่องลำดับใช้ค่านี้คำนวณเลขต่อข้ามหน้า */
+const PAGE_SIZE = 50
 export default function DeliveryReportPage() {
   const [range, setRange] = useState<[Dayjs, Dayjs]>(DEFAULT_RANGE)
   const [report, setReport] = useState<Report | null>(null)
@@ -187,7 +190,27 @@ export default function DeliveryReportPage() {
     toast.success(`ส่งออก ${body.length} รายการแล้ว`)
   }
 
+  /**
+   * หน้าที่เปิดอยู่ของตาราง — ต้องถือไว้เองเพราะช่องลำดับนับต่อข้ามหน้า
+   *
+   * antd ส่ง index ของแถวในหน้านั้น ๆ มาให้ ถ้าใช้ตรง ๆ หน้าที่สองจะเริ่มนับ 1 ใหม่
+   * แล้วเลขลำดับจะซ้ำกับหน้าแรกทั้งชุด
+   */
+  const [page, setPage] = useState(1)
+  // ผลลัพธ์หดลงได้ทุกครั้งที่เปลี่ยนตัวกรอง หน้าที่ค้างอยู่จึงอาจเลยท้ายตารางไปแล้ว
+  // หนีบไว้ตรงนี้แทนการไล่รีเซ็ตที่ตัวกรองทุกจุด — ตารางจะไม่มีทางว่างเพราะเลขหน้า
+  const pageCount = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
   const columns: ColumnsType<DeliveryCase> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{(currentPage - 1) * PAGE_SIZE + index + 1}</span>
+      ),
+    },
     {
       title: 'วันที่รับไว้',
       dataIndex: 'admitDate',
@@ -291,13 +314,13 @@ export default function DeliveryReportPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <HeartOutlined /> การใช้ยาปฏิชีวนะในสตรีคลอดปกติครบกำหนดทางช่องคลอด
+          <PageHint>
+            การคลอดปกติที่ไม่มีภาวะแทรกซ้อนไม่ต้องให้ยาปฏิชีวนะ ข้อนี้จึงยิ่งต่ำยิ่งดี —
+            หนึ่งแถวคือการนอนโรงพยาบาลหนึ่งครั้ง (AN) ไม่ใช่ครั้งที่มารับบริการแบบผู้ป่วยนอก
+            เพราะเป็นตัวชี้วัดข้อเดียวที่นับจากฝั่งผู้ป่วยใน
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 900, marginBottom: 0, fontSize: 12 }}>
-          การคลอดปกติที่ไม่มีภาวะแทรกซ้อนไม่ต้องให้ยาปฏิชีวนะ ข้อนี้จึงยิ่งต่ำยิ่งดี —
-          หนึ่งแถวคือการนอนโรงพยาบาลหนึ่งครั้ง (AN) ไม่ใช่ครั้งที่มารับบริการแบบผู้ป่วยนอก
-          เพราะเป็นตัวชี้วัดข้อเดียวที่นับจากฝั่งผู้ป่วยใน
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       <div className="mb-5">
@@ -420,7 +443,12 @@ export default function DeliveryReportPage() {
                 size="small"
                 columns={columns}
                 dataSource={shown}
-                pagination={{ pageSize: 50, showSizeChanger: false }}
+                pagination={{
+                  current: currentPage,
+                  pageSize: PAGE_SIZE,
+                  showSizeChanger: false,
+                  onChange: setPage,
+                }}
                 scroll={{ x: 'max-content' }}
                 locale={{
                   emptyText: <Empty description="ไม่พบการคลอดปกติในช่วงวันที่ที่เลือก" />,

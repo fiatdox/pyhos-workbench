@@ -22,11 +22,12 @@ import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
 import { BreakdownChart, DrugChart, TrendChart, type Bucket } from './charts'
+import PageHint from '../../page-hint'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
 dayjs.extend(buddhistEra)
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 
 /* ───────────── ตัวชี้วัดที่เปิดวิเคราะห์ได้ ─────────────
@@ -362,13 +363,13 @@ export default function RduDashboardPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <DashboardOutlined /> วิเคราะห์ตัวชี้วัด RDU
+          <PageHint>
+            ดูว่าตัวเลขของตัวชี้วัดมาจากไหน — แยกตามเดือน ห้องตรวจ แพทย์ผู้ตรวจ รหัสวินิจฉัย
+            และตัวยา เลือกช่วงวันที่เองหรือเลือกทั้งปีงบประมาณ แล้วกดที่ตัวกรองเพื่อเจาะดูเฉพาะกลุ่ม —
+            นับเฉพาะผู้ป่วยนอก ไม่รวมครั้งที่รับไว้เป็นผู้ป่วยใน
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 860, marginBottom: 0, fontSize: 12 }}>
-          ดูว่าตัวเลขของตัวชี้วัดมาจากไหน — แยกตามเดือน ห้องตรวจ แพทย์ผู้ตรวจ รหัสวินิจฉัย
-          และตัวยา เลือกช่วงวันที่เองหรือเลือกทั้งปีงบประมาณ แล้วกดที่ตัวกรองเพื่อเจาะดูเฉพาะกลุ่ม —
-          นับเฉพาะผู้ป่วยนอก ไม่รวมครั้งที่รับไว้เป็นผู้ป่วยใน
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {/* ───────────── เลือกตัวชี้วัดและช่วงเวลา ───────────── */}

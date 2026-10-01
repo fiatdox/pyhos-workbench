@@ -21,11 +21,12 @@ import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
 import type { HlaResult } from '@/lib/his/hla-b5801'
+import PageHint from '../page-hint'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
 dayjs.extend(buddhistEra)
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 
 /** แปลง 'YYYY-MM-DD' เป็น วว/ดด/ปปปป พ.ศ. */
@@ -86,6 +87,15 @@ export default function HlaB5801Page() {
   }
 
   const columns: ColumnsType<HlaResult> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{index + 1}</span>
+      ),
+    },
     {
       title: 'วันที่รายงานผล',
       dataIndex: 'reportDate',
@@ -167,10 +177,12 @@ export default function HlaB5801Page() {
           <ExperimentOutlined />
         </div>
         <div>
-          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>ผลตรวจ HLA-B*5801</Title>
-          <Paragraph type="secondary" style={{ margin: 0, fontSize: 12 }}>
-            ผู้ป่วยที่มีการรายงานผลแล้วในช่วงวันที่ที่เลือก คลิกเพื่อดูรูปใบรายงาน
-          </Paragraph>
+          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>
+            ผลตรวจ HLA-B*5801
+            <PageHint>
+              ผู้ป่วยที่มีการรายงานผลแล้วในช่วงวันที่ที่เลือก คลิกเพื่อดูรูปใบรายงาน
+            </PageHint>
+          </Title>
         </div>
       </div>
 

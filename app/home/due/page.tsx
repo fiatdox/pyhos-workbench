@@ -12,8 +12,9 @@ import {
   FileAddOutlined,
   RightOutlined,
 } from '@ant-design/icons'
+import PageHint from '../page-hint'
 
-const { Paragraph, Title } = Typography
+const { Title } = Typography
 
 /**
  * ขั้นตอนของ DUE ตามที่ตกลงกันไว้ — ทำแล้วเฉพาะขั้นแรก (หน้าสร้างคำขอ)
@@ -46,15 +47,15 @@ export default function DuePage() {
       <section className="mb-6">
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <AuditOutlined /> DUE ขออนุมัติใช้ยา
+          <PageHint>
+            Drug Use Evaluation — แพทย์สั่งยากลุ่ม DUE เภสัชกรรับรายการมาวิเคราะห์ความสมเหตุสมผล
+            ทั้งของการสั่งใช้และของวิธีใช้ยา และแพทย์ผู้กำกับเป็นผู้อนุมัติรายการยาบางประเภท
+            ก่อนนำไปใช้กับผู้ป่วย
+          </PageHint>
         </Title>
-        <div className="mb-4 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
         {/* ไม่มีปุ่มลัดตรงนี้ — การ์ดใบแรกด้านล่างกดเข้าหน้าเดียวกันอยู่แล้ว
             มีสองทางเข้าที่ทำอย่างเดียวกันบนหน้าเดียวกันทำให้อ่านลำดับขั้นตอนสับสน */}
-        <Paragraph type="secondary" style={{ maxWidth: 760, marginBottom: 0 }}>
-          Drug Use Evaluation — แพทย์สั่งยากลุ่ม DUE เภสัชกรรับรายการมาวิเคราะห์ความสมเหตุสมผล
-          ทั้งของการสั่งใช้และของวิธีใช้ยา และแพทย์ผู้กำกับเป็นผู้อนุมัติรายการยาบางประเภท
-          ก่อนนำไปใช้กับผู้ป่วย
-        </Paragraph>
       </section>
 
       <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

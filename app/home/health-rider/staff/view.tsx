@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
 import type { RiderRole, RiderStaff } from '@/lib/his/health-rider'
+import PageHint from '../../page-hint'
 
 const { Text, Title } = Typography
 
@@ -54,6 +55,8 @@ type StaffForm = {
  * เพิ่มคนใหม่และปิด/เปิดสถานะได้ แต่ไม่มีปุ่มลบ — id ถูกอ้างอิงในตารางพื้นที่
  * รับผิดชอบและประวัติการส่งยา ลบทิ้งแล้วข้อมูลเก่าจะชี้ไปยังคนที่ไม่มีอยู่
  */
+/** จำนวนแถวต่อหน้า — ช่องลำดับใช้ค่านี้คำนวณเลขต่อข้ามหน้า */
+const PAGE_SIZE = 25
 export default function HealthRiderStaffView() {
   const [staff, setStaff] = useState<RiderStaff[]>([])
   const [roles, setRoles] = useState<RiderRole[]>([])
@@ -203,7 +206,27 @@ export default function HealthRiderStaffView() {
     )
   }, [staff, keyword])
 
+  /**
+   * หน้าที่เปิดอยู่ของตาราง — ต้องถือไว้เองเพราะช่องลำดับนับต่อข้ามหน้า
+   *
+   * antd ส่ง index ของแถวในหน้านั้น ๆ มาให้ ถ้าใช้ตรง ๆ หน้าที่สองจะเริ่มนับ 1 ใหม่
+   * แล้วเลขลำดับจะซ้ำกับหน้าแรกทั้งชุด
+   */
+  const [page, setPage] = useState(1)
+  // ผลลัพธ์หดลงได้ทุกครั้งที่เปลี่ยนตัวกรอง หน้าที่ค้างอยู่จึงอาจเลยท้ายตารางไปแล้ว
+  // หนีบไว้ตรงนี้แทนการไล่รีเซ็ตที่ตัวกรองทุกจุด — ตารางจะไม่มีทางว่างเพราะเลขหน้า
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
   const columns: ColumnsType<RiderStaff> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{(currentPage - 1) * PAGE_SIZE + index + 1}</span>
+      ),
+    },
     {
       title: 'รหัส',
       dataIndex: 'id',
@@ -311,11 +334,11 @@ export default function HealthRiderStaffView() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <UserAddOutlined /> เพิ่มเจ้าหน้าที่
+          <PageHint>
+            รายชื่อเจ้าหน้าที่ส่งยาจากฐาน HIS — เพิ่มคนใหม่และปิด/เปิดสถานะได้ ไม่มีการลบทิ้ง
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Text type="secondary" className="text-xs">
-          รายชื่อเจ้าหน้าที่ส่งยาจากฐาน HIS — เพิ่มคนใหม่และปิด/เปิดสถานะได้ ไม่มีการลบทิ้ง
-        </Text>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
@@ -349,7 +372,13 @@ export default function HealthRiderStaffView() {
             columns={columns}
             dataSource={visible}
             // 91 คนยาวเกินกว่าจะไล่ดูรวดเดียว แบ่งหน้าไว้แต่ยังค้นข้ามทั้งชุดได้จากช่องด้านบน
-            pagination={{ pageSize: 25, showSizeChanger: false, hideOnSinglePage: true }}
+            pagination={{
+              current: currentPage,
+              pageSize: PAGE_SIZE,
+              showSizeChanger: false,
+              hideOnSinglePage: true,
+              onChange: setPage,
+            }}
             scroll={{ x: 'max-content' }}
             locale={{
               emptyText: (

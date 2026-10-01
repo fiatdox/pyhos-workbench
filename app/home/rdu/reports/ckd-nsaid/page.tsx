@@ -26,11 +26,12 @@ import { trackExport } from '@/lib/client/track-export'
 import type { CkdNsaidCase } from '@/lib/his/rdu-ckd-nsaid'
 import RowSearch, { matchesRow } from '../row-search'
 import VisitDetailModal from '../visit-modal'
+import PageHint from '../../../page-hint'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
 dayjs.extend(buddhistEra)
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 
 /**
@@ -98,6 +99,8 @@ type Report = {
 const SETTINGS_DIAGNOSIS = '/home/rdu/settings/ckd-icd10'
 const SETTINGS_DRUG = '/home/rdu/settings/nsaid'
 
+/** จำนวนแถวต่อหน้า — ช่องลำดับใช้ค่านี้คำนวณเลขต่อข้ามหน้า */
+const PAGE_SIZE = 50
 export default function CkdNsaidReportPage() {
   const [range, setRange] = useState<[Dayjs, Dayjs]>(DEFAULT_RANGE)
   const [report, setReport] = useState<Report | null>(null)
@@ -217,7 +220,27 @@ export default function CkdNsaidReportPage() {
     toast.success(`ส่งออก ${body.length} รายการแล้ว`)
   }
 
+  /**
+   * หน้าที่เปิดอยู่ของตาราง — ต้องถือไว้เองเพราะช่องลำดับนับต่อข้ามหน้า
+   *
+   * antd ส่ง index ของแถวในหน้านั้น ๆ มาให้ ถ้าใช้ตรง ๆ หน้าที่สองจะเริ่มนับ 1 ใหม่
+   * แล้วเลขลำดับจะซ้ำกับหน้าแรกทั้งชุด
+   */
+  const [page, setPage] = useState(1)
+  // ผลลัพธ์หดลงได้ทุกครั้งที่เปลี่ยนตัวกรอง หน้าที่ค้างอยู่จึงอาจเลยท้ายตารางไปแล้ว
+  // หนีบไว้ตรงนี้แทนการไล่รีเซ็ตที่ตัวกรองทุกจุด — ตารางจะไม่มีทางว่างเพราะเลขหน้า
+  const pageCount = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
   const columns: ColumnsType<CkdNsaidCase> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{(currentPage - 1) * PAGE_SIZE + index + 1}</span>
+      ),
+    },
     {
       title: 'วันที่',
       dataIndex: 'date',
@@ -341,13 +364,13 @@ export default function CkdNsaidReportPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <MonitorOutlined /> การใช้ยา NSAIDs ในผู้ป่วยโรคไตเรื้อรัง
+          <PageHint>
+            ผู้ป่วยนอกที่เป็นโรคไตเรื้อรังระดับ 3 ขึ้นไป และได้รับยากลุ่ม NSAIDs ในช่วงวันที่ที่เลือก
+            — ตารางแสดงเฉพาะเคสที่ต้องทบทวน ส่วนตัวหารทั้งหมดอยู่บนการ์ดด้านบน
+            กดปุ่มดูเพื่อเปิดรายการยาและการวินิจฉัยของครั้งนั้น
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 860, marginBottom: 0, fontSize: 12 }}>
-          ผู้ป่วยนอกที่เป็นโรคไตเรื้อรังระดับ 3 ขึ้นไป และได้รับยากลุ่ม NSAIDs ในช่วงวันที่ที่เลือก
-          — ตารางแสดงเฉพาะเคสที่ต้องทบทวน ส่วนตัวหารทั้งหมดอยู่บนการ์ดด้านบน
-          กดปุ่มดูเพื่อเปิดรายการยาและการวินิจฉัยของครั้งนั้น
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       <div className="mb-5">
@@ -487,7 +510,12 @@ export default function CkdNsaidReportPage() {
                 size="small"
                 columns={columns}
                 dataSource={shown}
-                pagination={{ pageSize: 50, showSizeChanger: false }}
+                pagination={{
+                  current: currentPage,
+                  pageSize: PAGE_SIZE,
+                  showSizeChanger: false,
+                  onChange: setPage,
+                }}
                 scroll={{ x: 'max-content' }}
                 locale={{
                   emptyText: (

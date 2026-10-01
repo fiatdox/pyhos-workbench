@@ -17,6 +17,7 @@ import {
 import { NumberOutlined, UndoOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
 import type { AgeSettingValue, TargetSettingValue } from '@/lib/his/rdu-settings'
+import PageHint from '../../../page-hint'
 
 const { Paragraph, Text, Title } = Typography
 
@@ -152,12 +153,12 @@ export default function AgeCriteriaSettingsPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <NumberOutlined /> เกณฑ์ของตัวชี้วัด
+          <PageHint>
+            ตั้งว่าตัวชี้วัดแต่ละข้อนับผู้ป่วยช่วงอายุไหน และเทียบกับเกณฑ์เป้าหมายร้อยละเท่าไร —
+            มีผลกับหน้ารายงาน หน้าวิเคราะห์ และหน้าสรุปสามปีทันทีที่กดบันทึก ไม่ต้องรอรอบแก้โปรแกรม
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 880, marginBottom: 0, fontSize: 12 }}>
-          ตั้งว่าตัวชี้วัดแต่ละข้อนับผู้ป่วยช่วงอายุไหน และเทียบกับเกณฑ์เป้าหมายร้อยละเท่าไร —
-          มีผลกับหน้ารายงาน หน้าวิเคราะห์ และหน้าสรุปสามปีทันทีที่กดบันทึก ไม่ต้องรอรอบแก้โปรแกรม
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {/* บอกไว้ก่อนแก้ ไม่ใช่หลังแก้ — คนที่เข้ามาลองขยับเส้นเล่นควรรู้ตั้งแต่ต้นว่า

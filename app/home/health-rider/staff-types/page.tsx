@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { TagsOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
 import type { RiderRole } from '@/lib/his/health-rider'
+import PageHint from '../../page-hint'
 
 const { Text, Title } = Typography
 
@@ -49,6 +50,15 @@ export default function HealthRiderStaffTypesPage() {
 
   const columns: ColumnsType<RiderRole> = [
     {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{index + 1}</span>
+      ),
+    },
+    {
       title: 'รหัส',
       dataIndex: 'id',
       width: 100,
@@ -82,11 +92,11 @@ export default function HealthRiderStaffTypesPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <TagsOutlined /> ประเภทเจ้าหน้าที่
+          <PageHint>
+            ข้อมูลตั้งต้นจากฐาน HIS — หน้านี้ดูอย่างเดียว แก้ไขหรือลบไม่ได้
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Text type="secondary" className="text-xs">
-          ข้อมูลตั้งต้นจากฐาน HIS — หน้านี้ดูอย่างเดียว แก้ไขหรือลบไม่ได้
-        </Text>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}

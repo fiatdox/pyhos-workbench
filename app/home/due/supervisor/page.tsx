@@ -130,6 +130,15 @@ export default function DueSupervisorPage() {
 
   const columns: ColumnsType<MockRequest> = [
     {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{index + 1}</span>
+      ),
+    },
+    {
       title: 'เลขคำขอ',
       dataIndex: 'id',
       width: 130,

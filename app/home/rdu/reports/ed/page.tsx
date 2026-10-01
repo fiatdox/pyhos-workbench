@@ -26,11 +26,12 @@ import { apiFetch } from '@/lib/client/session'
 import { trackExport } from '@/lib/client/track-export'
 import type { EdItem, EdScope } from '@/lib/his/rdu-ed'
 import RowSearch, { matchesRow } from '../row-search'
+import PageHint from '../../../page-hint'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
 dayjs.extend(buddhistEra)
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 
 /**
@@ -68,6 +69,8 @@ type Report = {
   truncated: boolean
 }
 
+/** จำนวนแถวต่อหน้า — ช่องลำดับใช้ค่านี้คำนวณเลขต่อข้ามหน้า */
+const PAGE_SIZE = 50
 export default function EdReportPage() {
   const [range, setRange] = useState<[Dayjs, Dayjs]>(DEFAULT_RANGE)
   const [scope, setScope] = useState<EdScope>('opd')
@@ -155,7 +158,27 @@ export default function EdReportPage() {
 
   const totalNed = figures?.ned ?? 0
 
+  /**
+   * หน้าที่เปิดอยู่ของตาราง — ต้องถือไว้เองเพราะช่องลำดับนับต่อข้ามหน้า
+   *
+   * antd ส่ง index ของแถวในหน้านั้น ๆ มาให้ ถ้าใช้ตรง ๆ หน้าที่สองจะเริ่มนับ 1 ใหม่
+   * แล้วเลขลำดับจะซ้ำกับหน้าแรกทั้งชุด
+   */
+  const [page, setPage] = useState(1)
+  // ผลลัพธ์หดลงได้ทุกครั้งที่เปลี่ยนตัวกรอง หน้าที่ค้างอยู่จึงอาจเลยท้ายตารางไปแล้ว
+  // หนีบไว้ตรงนี้แทนการไล่รีเซ็ตที่ตัวกรองทุกจุด — ตารางจะไม่มีทางว่างเพราะเลขหน้า
+  const pageCount = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
   const columns: ColumnsType<EdItem> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      align: 'center',
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="font-mono text-xs text-ink-3">{(currentPage - 1) * PAGE_SIZE + index + 1}</span>
+      ),
+    },
     {
       title: 'รหัสยา',
       dataIndex: 'icode',
@@ -248,13 +271,13 @@ export default function EdReportPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <ProfileOutlined /> ร้อยละการสั่งใช้ยาในบัญชียาหลักแห่งชาติ
+          <PageHint>
+            นับทุกบรรทัดยาที่จ่ายจริงในช่วงที่เลือก แล้วดูว่ากี่เปอร์เซ็นต์อยู่ในบัญชียาหลักแห่งชาติ —
+            ข้อนี้ยิ่งสูงยิ่งดี และไม่เกี่ยงโรค ตารางแสดงเฉพาะยานอกบัญชีที่ถูกสั่ง
+            เรียงจากที่สั่งมากที่สุด ซึ่งเป็นรายการที่ทบทวนแล้วได้ผลเร็วที่สุด
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-sky-400/70 to-transparent" />
-        <Paragraph type="secondary" style={{ maxWidth: 900, marginBottom: 0, fontSize: 12 }}>
-          นับทุกบรรทัดยาที่จ่ายจริงในช่วงที่เลือก แล้วดูว่ากี่เปอร์เซ็นต์อยู่ในบัญชียาหลักแห่งชาติ —
-          ข้อนี้ยิ่งสูงยิ่งดี และไม่เกี่ยงโรค ตารางแสดงเฉพาะยานอกบัญชีที่ถูกสั่ง
-          เรียงจากที่สั่งมากที่สุด ซึ่งเป็นรายการที่ทบทวนแล้วได้ผลเร็วที่สุด
-        </Paragraph>
+        <div className="h-px w-24 bg-linear-to-r from-sky-400/70 to-transparent" />
       </section>
 
       <div className="mb-5 flex flex-wrap items-start gap-3">
@@ -382,7 +405,12 @@ export default function EdReportPage() {
                 size="small"
                 columns={columns}
                 dataSource={shown}
-                pagination={{ pageSize: 50, showSizeChanger: false }}
+                pagination={{
+                  current: currentPage,
+                  pageSize: PAGE_SIZE,
+                  showSizeChanger: false,
+                  onChange: setPage,
+                }}
                 scroll={{ x: 'max-content' }}
                 locale={{
                   emptyText: (

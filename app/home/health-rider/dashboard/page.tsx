@@ -16,6 +16,7 @@ import {
   TambonChart,
   UptakeChart,
 } from './charts'
+import PageHint from '../../page-hint'
 
 const { RangePicker } = DatePicker
 const { Text, Title } = Typography
@@ -138,11 +139,11 @@ export default function HealthRiderDashboardPage() {
         />
         <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
           <BarChartOutlined /> ภาพรวมงานส่งยา
+          <PageHint>
+            สรุปปริมาณงาน การจ่ายงาน พื้นที่ และภาระของเจ้าหน้าที่ — ไม่มีข้อมูลรายบุคคลของผู้ป่วย
+          </PageHint>
         </Title>
-        <div className="mb-2 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-        <Text type="secondary" className="text-xs">
-          สรุปปริมาณงาน การจ่ายงาน พื้นที่ และภาระของเจ้าหน้าที่ — ไม่มีข้อมูลรายบุคคลของผู้ป่วย
-        </Text>
+        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}

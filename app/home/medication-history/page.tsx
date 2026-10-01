@@ -47,6 +47,7 @@ import type { PhysicalExam } from '@/lib/his/physical-exams'
 import type { XrayReport } from '@/lib/his/xray-reports'
 import type { VisitDetail, VisitDiagnosis, VisitLab, VisitOrder } from '@/lib/his/visit-detail'
 import type { ReconcilePrintData } from './reconcile-pdf'
+import PageHint from '../page-hint'
 
 /**
  * ตัวแสดง PDF ของ @react-pdf/renderer ทำงานได้เฉพาะในเบราว์เซอร์ (ใช้ canvas/worker)
@@ -63,7 +64,7 @@ const ReconcilePdfViewer = dynamic(() => import('./reconcile-pdf-viewer'), {
   ),
 })
 
-const { Paragraph, Text, Title } = Typography
+const { Text, Title } = Typography
 
 /**
  * สีประจำชนิดการรับยา — แสดงเป็นจุดสีที่หัวคอลัมน์ ไม่ระบายพื้นทั้งหัวหรือทั้งคอลัมน์
@@ -1005,10 +1006,12 @@ export default function MedicationHistoryPage() {
           <MedicineBoxOutlined />
         </div>
         <div>
-          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>ประวัติการได้รับยา</Title>
-          <Paragraph type="secondary" style={{ margin: 0, fontSize: 12 }}>
-            ค้นด้วย HN — เลือกช่วงย้อนหลังได้ ครอบคลุมทั้ง OPD, ยากลับบ้าน (HME) และยาต่อเนื่อง (BCH)
-          </Paragraph>
+          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>
+            ประวัติการได้รับยา
+            <PageHint>
+              ค้นด้วย HN — เลือกช่วงย้อนหลังได้ ครอบคลุมทั้ง OPD, ยากลับบ้าน (HME) และยาต่อเนื่อง (BCH)
+            </PageHint>
+          </Title>
         </div>
       </div>
 
