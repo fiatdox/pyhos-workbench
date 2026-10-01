@@ -66,7 +66,7 @@ export type DeliveryCase = {
   ageYears: number | null
   /** หอผู้ป่วย */
   ward: string | null
-  /** แพทย์ผู้รับไว้ */
+  /** แพทย์ผู้สั่ง admit (ipt.admdoctor) */
   doctor: string | null
   /** รหัสวินิจฉัยในทะเบียนที่บันทึกไว้ในการนอนครั้งนี้ */
   icd10: string[]

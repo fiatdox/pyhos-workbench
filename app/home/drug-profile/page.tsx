@@ -44,6 +44,7 @@ import LabCultureModal from '../lab-culture-modal'
 import type {
   AdmissionMatch,
   AdmittedPatient,
+  DoctorOption,
   DrugPlan,
   DrugPlanItem,
   WardOption,
@@ -90,7 +91,7 @@ function sexLabel(sex: string | null): string {
   return '—'
 }
 
-type Mode = 'ward' | 'search'
+type Mode = 'ward' | 'doctor' | 'search'
 
 const mono = (value: string) => <span className="font-mono text-xs">{value}</span>
 
@@ -197,6 +198,13 @@ export default function DrugProfilePage() {
   const [patients, setPatients] = useState<AdmittedPatient[]>([])
   const [patientsLoading, setPatientsLoading] = useState(false)
 
+  // ── โหมดเลือกแพทย์ ──
+  // โหลดรายชื่อแพทย์ตอนเข้าโหมดนี้ครั้งแรก ไม่ใช่ตอนเปิดหน้า — คนส่วนใหญ่เข้ามา
+  // ทางตึก การยิงคิวรีนี้ให้ทุกคนตั้งแต่แรกจึงเป็นงานเปล่าเสียส่วนมาก
+  const [doctors, setDoctors] = useState<DoctorOption[]>([])
+  const [doctorsLoading, setDoctorsLoading] = useState(false)
+  const [doctor, setDoctor] = useState<string | null>(null)
+
   // ── โหมดค้นหา ──
   const [term, setTerm] = useState('')
   const [matches, setMatches] = useState<AdmissionMatch[]>([])
@@ -266,6 +274,49 @@ export default function DrugProfilePage() {
     setPatients([])
     try {
       const res = await apiFetch(`/api/his/drug-profile/admitted?ward=${encodeURIComponent(code)}`)
+      const json: { success: boolean; message?: string; patients?: AdmittedPatient[] } =
+        await res.json()
+      if (!json.success) {
+        setError(json.message ?? 'ดึงรายชื่อผู้ป่วยไม่สำเร็จ')
+        return
+      }
+      setPatients(json.patients ?? [])
+    } catch {
+      setError('เชื่อมต่อฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setPatientsLoading(false)
+    }
+  }
+
+  /** ดึงรายชื่อแพทย์ครั้งเดียว — ครั้งถัดไปที่สลับกลับมาใช้ของเดิมที่โหลดไว้แล้ว */
+  const loadDoctors = async () => {
+    if (doctors.length > 0 || doctorsLoading) return
+    setDoctorsLoading(true)
+    try {
+      const res = await apiFetch('/api/his/drug-profile/doctors')
+      const json: { success: boolean; message?: string; doctors?: DoctorOption[] } =
+        await res.json()
+      if (!json.success) {
+        setError(json.message ?? 'ดึงรายชื่อแพทย์ไม่สำเร็จ')
+        return
+      }
+      setDoctors(json.doctors ?? [])
+    } catch {
+      setError('เชื่อมต่อฐานข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setDoctorsLoading(false)
+    }
+  }
+
+  const loadDoctor = async (code: string) => {
+    setDoctor(code)
+    setError(null)
+    setPatientsLoading(true)
+    setPatients([])
+    try {
+      const res = await apiFetch(
+        `/api/his/drug-profile/admitted?doctor=${encodeURIComponent(code)}`,
+      )
       const json: { success: boolean; message?: string; patients?: AdmittedPatient[] } =
         await res.json()
       if (!json.success) {
@@ -754,6 +805,71 @@ export default function DrugProfilePage() {
     },
   ]
 
+  /**
+   * ตารางของโหมดเลือกแพทย์
+   *
+   * เพิ่มช่องตึกเข้ามาเพราะคนไข้ของแพทย์คนเดียวกระจายอยู่หลายตึก ต่างจากโหมดตึก
+   * ที่ทุกแถวอยู่ตึกเดียวกันอยู่แล้ว และเพิ่มสองช่องแพทย์ไว้ให้เห็นว่าแถวนี้ติดมา
+   * เพราะเป็นเจ้าของไข้หรือเป็นคนสั่ง admit — สองค่านี้ต่างกันในผู้ป่วยส่วนใหญ่ที่นอนอยู่
+   */
+  const doctorColumns: ColumnsType<AdmittedPatient> = [
+    { title: 'AN', dataIndex: 'an', key: 'an', width: 110, render: mono },
+    { title: 'HN', dataIndex: 'hn', key: 'hn', width: 110, render: mono },
+    { title: 'ชื่อ-สกุล', dataIndex: 'name', key: 'name' },
+    {
+      title: 'ตึก',
+      dataIndex: 'wardName',
+      key: 'wardName',
+      width: 190,
+      render: (value: string | null) => value ?? '—',
+    },
+    {
+      title: 'อายุ',
+      dataIndex: 'age',
+      key: 'age',
+      width: 80,
+      render: (value: number | null) => (value == null ? '—' : `${value} ปี`),
+    },
+    {
+      title: 'วันที่รับไว้',
+      dataIndex: 'admitDate',
+      key: 'admitDate',
+      width: 120,
+      render: (value: string | null) => mono(toThaiDate(value)),
+    },
+    {
+      title: 'นอนแล้ว',
+      dataIndex: 'los',
+      key: 'los',
+      width: 90,
+      render: (value: number | null) => (value == null ? '—' : `${value} วัน`),
+    },
+    {
+      title: 'แพทย์ผู้สั่ง admit',
+      dataIndex: 'admitDoctor',
+      key: 'admitDoctor',
+      width: 200,
+      render: (value: string | null) => value ?? '—',
+    },
+    {
+      title: 'แพทย์เจ้าของไข้',
+      dataIndex: 'inchargeDoctor',
+      key: 'inchargeDoctor',
+      width: 200,
+      render: (value: string | null) => value ?? '—',
+    },
+    {
+      title: '',
+      key: 'pick',
+      width: 90,
+      render: (_: unknown, row) => (
+        <Button size="small" type="primary" onClick={() => pick(row.an)}>
+          เลือก
+        </Button>
+      ),
+    },
+  ]
+
   const matchColumns: ColumnsType<AdmissionMatch> = [
     { title: 'AN', dataIndex: 'an', key: 'an', width: 110, render: mono },
     { title: 'HN', dataIndex: 'hn', key: 'hn', width: 110, render: mono },
@@ -801,8 +917,9 @@ export default function DrugProfilePage() {
         </Title>
         <div className="mb-4 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
         <Paragraph type="secondary" style={{ maxWidth: 720, marginBottom: 0 }}>
-          ตรวจสอบการให้ยาของผู้ป่วยใน — เลือกผู้ป่วยจากตึกที่นอนอยู่ตอนนี้
-          หรือค้นด้วยชื่อ-สกุล HN เลขบัตรประชาชน หรือ AN แล้วเลือก AN ที่ต้องการ
+          ตรวจสอบการให้ยาของผู้ป่วยใน — เลือกผู้ป่วยจากตึกที่นอนอยู่ตอนนี้ จากแพทย์
+          เจ้าของไข้หรือแพทย์ผู้สั่ง admit หรือค้นด้วยชื่อ-สกุล HN เลขบัตรประชาชน หรือ AN
+          แล้วเลือก AN ที่ต้องการ
           เพราะใบยาผูกกับการนอนแต่ละครั้ง ไม่ใช่ผูกกับตัวผู้ป่วย
         </Paragraph>
       </section>
@@ -826,9 +943,18 @@ export default function DrugProfilePage() {
             onChange={value => {
               setMode(value)
               setError(null)
+              // โหมดตึกกับโหมดแพทย์ใช้ตารางเดียวกัน ถ้าไม่ล้าง รายชื่อของโหมดก่อน
+              // จะค้างอยู่ใต้ตัวเลือกที่ยังว่าง ดูเหมือนเป็นผลของตัวเลือกใหม่
+              if (value !== mode) {
+                setPatients([])
+                setWard(null)
+                setDoctor(null)
+              }
+              if (value === 'doctor') void loadDoctors()
             }}
             options={[
               { label: 'ผู้ป่วยที่นอนอยู่ในตึก', value: 'ward' },
+              { label: 'ตามแพทย์', value: 'doctor' },
               { label: 'ค้นหาผู้ป่วย', value: 'search' },
             ]}
           />
@@ -869,6 +995,53 @@ export default function DrugProfilePage() {
               locale={{
                 emptyText: (
                   <Empty description={ward ? 'ไม่มีผู้ป่วยนอนอยู่ในตึกนี้' : 'เลือกตึกก่อน'} />
+                ),
+              }}
+            />
+          </Spin>
+        </section>
+      ) : mode === 'doctor' ? (
+        <section className="mb-8">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <Select<string>
+              value={doctor}
+              onChange={loadDoctor}
+              loading={doctorsLoading}
+              placeholder="เลือกแพทย์"
+              showSearch
+              optionFilterProp="label"
+              style={{ minWidth: 320 }}
+              options={doctors.map(item => ({
+                value: item.code,
+                label: `${item.name} (${item.admitted} ราย)`,
+              }))}
+            />
+            {doctor && (
+              <Text type="secondary" className="text-xs">
+                ยังนอนอยู่ {patients.length} ราย
+              </Text>
+            )}
+          </div>
+
+          <Spin spinning={patientsLoading}>
+            <Table<AdmittedPatient>
+              rowKey="an"
+              size="small"
+              dataSource={patients}
+              columns={doctorColumns}
+              pagination={false}
+              scroll={{ x: 'max-content', y: 420 }}
+              locale={{
+                emptyText: (
+                  <Empty
+                    description={
+                      doctorsLoading
+                        ? 'กำลังโหลดรายชื่อแพทย์'
+                        : doctor
+                          ? 'ไม่มีผู้ป่วยของแพทย์คนนี้นอนอยู่'
+                          : 'เลือกแพทย์ก่อน'
+                    }
+                  />
                 ),
               }}
             />

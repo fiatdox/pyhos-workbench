@@ -45,6 +45,18 @@ export type AdmittedPatient = {
   admitDate: string | null
   /** จำนวนวันนอนถึงวันนี้ */
   los: number | null
+  /** แพทย์ผู้สั่ง admit (ipt.admdoctor) — null เมื่อรหัสไม่ตรงกับทะเบียนแพทย์ */
+  admitDoctor: string | null
+  /** แพทย์เจ้าของไข้ (ipt.incharge_doctor) — คนละคนกับผู้สั่ง admit ได้ */
+  inchargeDoctor: string | null
+}
+
+/** แพทย์หนึ่งคนที่มีผู้ป่วยนอนอยู่ตอนนี้ */
+export type DoctorOption = {
+  code: string
+  name: string
+  /** จำนวนผู้ป่วยที่ยังนอนอยู่ซึ่งแพทย์คนนี้เป็นเจ้าของไข้หรือเป็นคนสั่ง admit */
+  admitted: number
 }
 
 export type AdmissionMatch = {
@@ -97,25 +109,31 @@ export async function listWards(): Promise<WardOption[]> {
 }
 
 /**
- * ผู้ป่วยที่ยังนอนอยู่ในตึกที่เลือก
+ * คิวรีร่วมของรายชื่อผู้ที่ยังนอนอยู่ — ต่างกันแค่เงื่อนไข WHERE
  *
  * ipt มี index (dchstts, ward) อยู่แล้ว การกรองจึงไม่ไล่ทั้งตาราง
  * ไม่มีคอลัมน์เลขเตียงในผลลัพธ์ — ตาราง iptbedmove ของโรงพยาบาลนี้มีข้อมูล
  * ไม่ถึงครึ่งของผู้ป่วยที่นอนอยู่ ส่วน ipt_bed_stat ว่างเปล่า ถ้าแสดงไปจะเป็น
  * ช่องว่างเสียส่วนใหญ่และทำให้เข้าใจผิดว่าไม่มีเตียง
+ *
+ * เรียงตามตึกก่อนเสมอ — โหมดเลือกตึกมีตึกเดียวอยู่แล้วจึงไม่เปลี่ยนอะไร
+ * ส่วนโหมดเลือกแพทย์คนไข้กระจายอยู่หลายตึก การจัดกลุ่มตามตึกช่วยให้เดินราวน์ได้
  */
-export async function listAdmittedInWard(ward: string): Promise<AdmittedPatient[]> {
+async function listAdmitted(where: ReturnType<typeof sql>): Promise<AdmittedPatient[]> {
   const [result] = await hisDb.execute(sql`
     SELECT i.an, i.hn, ${PATIENT_NAME} AS ptname,
            TIMESTAMPDIFF(YEAR, p.birthday, CURDATE()) AS age, p.sex,
            i.ward, w.name AS ward_name,
            DATE_FORMAT(i.regdate, '%Y-%m-%d') AS regdate,
-           DATEDIFF(CURDATE(), i.regdate) AS los
+           DATEDIFF(CURDATE(), i.regdate) AS los,
+           da.name AS adm_doctor, di.name AS inc_doctor
     FROM ipt i
     INNER JOIN patient p ON p.hn = i.hn
     LEFT OUTER JOIN ward w ON w.ward = i.ward
-    WHERE i.ward = ${ward} AND ${STILL_ADMITTED}
-    ORDER BY i.regdate, i.an`)
+    LEFT OUTER JOIN doctor da ON da.code = i.admdoctor
+    LEFT OUTER JOIN doctor di ON di.code = i.incharge_doctor
+    WHERE ${where} AND ${STILL_ADMITTED}
+    ORDER BY i.ward, i.regdate, i.an`)
 
   return rows(result).map(row => ({
     an: String(row.an),
@@ -127,6 +145,55 @@ export async function listAdmittedInWard(ward: string): Promise<AdmittedPatient[
     wardName: str(row.ward_name),
     admitDate: str(row.regdate),
     los: num(row.los),
+    admitDoctor: str(row.adm_doctor),
+    inchargeDoctor: str(row.inc_doctor),
+  }))
+}
+
+/** ผู้ป่วยที่ยังนอนอยู่ในตึกที่เลือก */
+export async function listAdmittedInWard(ward: string): Promise<AdmittedPatient[]> {
+  return listAdmitted(sql`i.ward = ${ward}`)
+}
+
+/**
+ * ผู้ป่วยที่ยังนอนอยู่ของแพทย์ที่เลือก
+ *
+ * นับทั้งสองบทบาท — HIS แยก "ผู้สั่ง admit" (admdoctor) ออกจาก "เจ้าของไข้"
+ * (incharge_doctor) และสองค่านี้ต่างกันในผู้ป่วยส่วนใหญ่ที่นอนอยู่ตอนนี้
+ * ถ้าเลือกมาทางเดียว คนที่ถามว่า "คนไข้ของหมอคนนี้" จะได้คำตอบไม่ครบไปครึ่งหนึ่ง
+ * โดยไม่รู้ตัว ตารางแสดงทั้งสองช่องไว้ให้เห็นว่าแต่ละแถวเข้ามาด้วยบทบาทไหน
+ */
+export async function listAdmittedByDoctor(code: string): Promise<AdmittedPatient[]> {
+  return listAdmitted(sql`(i.admdoctor = ${code} OR i.incharge_doctor = ${code})`)
+}
+
+/**
+ * แพทย์ที่มีผู้ป่วยนอนอยู่ตอนนี้ พร้อมจำนวน
+ *
+ * ไม่ได้เอารายชื่อแพทย์ทั้งทะเบียน (active อยู่ราวหนึ่งพันสี่ร้อยคน) เพราะที่ใช้จริง
+ * คือแพทย์ที่มีคนไข้นอนอยู่ ซึ่งมีราวหกสิบคน รายการยาวกว่านั้นเลือกยากโดยเปล่าประโยชน์
+ *
+ * UNION ALL แล้วค่อยนับ ไม่ใช่ OR ในคิวรีเดียว — ผู้ป่วยที่แพทย์คนเดียวกันเป็นทั้ง
+ * เจ้าของไข้และผู้สั่ง admit ต้องนับเป็นหนึ่ง ไม่ใช่สอง จึงต้องนับ AN แบบไม่ซ้ำ
+ */
+export async function listAdmittingDoctors(): Promise<DoctorOption[]> {
+  const [result] = await hisDb.execute(sql`
+    SELECT r.code, d.name, COUNT(DISTINCT r.an) AS admitted
+    FROM (
+      SELECT i.admdoctor AS code, i.an FROM ipt i
+       WHERE ${STILL_ADMITTED} AND i.admdoctor IS NOT NULL AND i.admdoctor <> ''
+      UNION ALL
+      SELECT i.incharge_doctor AS code, i.an FROM ipt i
+       WHERE ${STILL_ADMITTED} AND i.incharge_doctor IS NOT NULL AND i.incharge_doctor <> ''
+    ) r
+    INNER JOIN doctor d ON d.code = r.code
+    GROUP BY r.code, d.name
+    ORDER BY d.name`)
+
+  return rows(result).map(row => ({
+    code: String(row.code),
+    name: String(row.name ?? '').trim(),
+    admitted: Number(row.admitted ?? 0),
   }))
 }
 

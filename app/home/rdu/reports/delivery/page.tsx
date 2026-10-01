@@ -154,7 +154,7 @@ export default function DeliveryReportPage() {
       'วันที่รับไว้',
       'วันที่จำหน่าย',
       'หอผู้ป่วย',
-      'แพทย์ผู้รับไว้',
+      'แพทย์ผู้สั่ง admit',
       'รหัสวินิจฉัย',
       'ได้รับยาปฏิชีวนะ',
       'รายการยาปฏิชีวนะ',
@@ -259,7 +259,7 @@ export default function DeliveryReportPage() {
         ),
     },
     {
-      title: 'แพทย์ผู้รับไว้',
+      title: 'แพทย์ผู้สั่ง admit',
       dataIndex: 'doctor',
       width: 170,
       render: (name: string | null) =>
