@@ -13,7 +13,6 @@ import {
   Modal,
   Popconfirm,
   Select,
-  Spin,
   Table,
   Tag,
   Typography,
@@ -24,6 +23,7 @@ import { DeleteOutlined, EnvironmentOutlined, PlusOutlined } from '@ant-design/i
 import { apiFetch } from '@/lib/client/session'
 import type { RiderArea, RiderStaff, Tambon } from '@/lib/his/health-rider'
 import PageHint from '../../page-hint'
+import { TableRowsSkeleton } from '@/app/home/skeletons'
 
 const { Text, Title } = Typography
 
@@ -388,33 +388,35 @@ export default function HealthRiderAreasView() {
               </Popconfirm>
             </div>
           )}
-          <Spin spinning={areaLoading}>
-            <Table<RiderArea>
-              rowKey="id"
-              size="small"
-              columns={columns}
-              dataSource={areas}
-              rowSelection={{
-                selectedRowKeys: selected,
-                onChange: keys => setSelected(keys.map(Number)),
-              }}
-              pagination={{
-                current: currentPage,
-                pageSize: PAGE_SIZE,
-                showSizeChanger: false,
-                hideOnSinglePage: true,
-                onChange: setPage,
-              }}
-              scroll={{ x: 'max-content' }}
-              locale={{
-                emptyText: (
-                  <Empty
-                    description={areaLoading ? 'กำลังโหลด' : 'เจ้าหน้าที่คนนี้ยังไม่มีพื้นที่รับผิดชอบ'}
-                  />
-                ),
-              }}
-            />
-          </Spin>
+            {/* โครงร่างแถวอยู่ในช่อง emptyText — หัวตารางยังอยู่ ความกว้างคอลัมน์จึงไม่ขยับ
+            ตอนข้อมูลมาถึง ส่วน loading ของ Table ไว้สำหรับการโหลดทับรายการที่มีอยู่แล้ว
+            ซึ่งต้องเป็นวงกลมหมุนคลุมของเดิม ไม่ใช่โครงร่างที่ลบของเดิมหายไปจากจอ */}
+          <Table<RiderArea>
+              loading={areaLoading && areas.length > 0}
+            rowKey="id"
+            size="small"
+            columns={columns}
+            dataSource={areas}
+            rowSelection={{
+              selectedRowKeys: selected,
+              onChange: keys => setSelected(keys.map(Number)),
+            }}
+            pagination={{
+              current: currentPage,
+              pageSize: PAGE_SIZE,
+              showSizeChanger: false,
+              hideOnSinglePage: true,
+              onChange: setPage,
+            }}
+            scroll={{ x: 'max-content' }}
+            locale={{
+              emptyText: areaLoading ? (
+                <TableRowsSkeleton columns={columns.length} rows={6} />
+              ) : (
+                <Empty description="เจ้าหน้าที่คนนี้ยังไม่มีพื้นที่รับผิดชอบ" />
+              ),
+            }}
+          />
         </section>
       )}
 

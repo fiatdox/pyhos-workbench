@@ -18,6 +18,7 @@ import { NumberOutlined, UndoOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
 import type { AgeSettingValue, TargetSettingValue } from '@/lib/his/rdu-settings'
 import PageHint from '../../../page-hint'
+import { StatCardsSkeleton } from '@/app/home/skeletons'
 
 const { Paragraph, Text, Title } = Typography
 
@@ -179,8 +180,13 @@ export default function AgeCriteriaSettingsPage() {
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
 
-      <Spin spinning={loading}>
-        {settings.length === 0 && !loading ? (
+      {/* วงกลมหมุนไว้เฉพาะตอนดึงใหม่ทับของที่แสดงอยู่ — ของเดิมยังอยู่ให้เทียบ
+          โหลดครั้งแรกใช้โครงร่างข้างล่าง ไม่ให้ขึ้นซ้อนกันสองอย่าง */}
+      <Spin spinning={loading && settings.length > 0}>
+        {loading && settings.length === 0 ? (
+          /* โหลดครั้งแรกขึ้นโครงร่างการ์ดเกณฑ์ ไม่ใช่ที่ว่างเปล่า */
+          <StatCardsSkeleton count={4} className="grid gap-3 sm:grid-cols-2" />
+        ) : settings.length === 0 ? (
           <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
             <Empty description="ไม่มีเกณฑ์ให้ตั้งค่า" />
           </div>

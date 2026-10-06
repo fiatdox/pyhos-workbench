@@ -4,6 +4,7 @@ import { Alert, Descriptions, Empty, Modal, Spin, Table, Tag, Typography } from 
 import type { ColumnsType } from 'antd/es/table'
 import { apiFetch } from '@/lib/client/session'
 import type { VisitDetail, VisitDiagnosis, VisitOrder } from '@/lib/his/visit-detail'
+import { DescriptionsSkeleton } from '@/app/home/skeletons'
 
 const { Text } = Typography
 
@@ -144,8 +145,12 @@ export default function VisitDetailModal({
       style={{ top: 24, maxWidth: 1200 }}
       styles={{ body: { maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' } }}
     >
-      <Spin spinning={loading}>
+      {/* วงกลมหมุนไว้เฉพาะตอนโหลดทับรายละเอียดที่แสดงอยู่ */}
+      <Spin spinning={loading && visit !== null}>
         {error && <Alert type="error" showIcon title={error} className="mb-3" />}
+        {/* โหลดครั้งแรกขึ้นโครงร่างแถวป้าย-ค่าเท่าของจริง — ลิ้นชักนี้สูงเกือบเต็มจอ
+            ถ้าปล่อยว่างแล้วเนื้อหาโผล่มาทีเดียว ตาต้องไปหาใหม่ว่าอะไรอยู่ตรงไหน */}
+        {loading && !visit && <DescriptionsSkeleton rows={9} />}
         {visit && (
           <div className="flex flex-col gap-5">
             <Descriptions

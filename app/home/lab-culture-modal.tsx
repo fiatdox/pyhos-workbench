@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Alert, Checkbox, Empty, Modal, Spin, Table, Typography } from 'antd'
 import { apiFetch } from '@/lib/client/session'
 import type { LabCultureItem } from '@/lib/his/lab-culture'
+import { TableRowsSkeleton } from './skeletons'
 
 const { Text } = Typography
 
@@ -115,7 +116,7 @@ export default function LabCultureModal({
       style={{ top: 16, maxWidth: 1600 }}
       styles={{ body: { maxHeight: 'calc(100vh - 110px)', overflow: 'hidden' } }}
     >
-      <Spin spinning={loading}>
+      <>
         {error && <Alert type="error" showIcon title={error} className="mb-3" />}
 
         <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -127,7 +128,10 @@ export default function LabCultureModal({
           </Text>
         </div>
 
-        {visible.length > 0 ? (
+        {/* ให้สองแผงขึ้นมาตั้งแต่ตอนกำลังโหลด แล้วใส่โครงร่างแถวในตารางซ้าย
+            แทนการปล่อยว่างไว้ทั้งลิ้นชัก — ลิ้นชักนี้กว้างเกือบเต็มจอ ที่ว่างเปล่า
+            ขนาดนั้นไม่บอกอะไรเลยว่ากำลังจะได้รายการใบรายงานมาทางซ้าย */}
+        {loading || visible.length > 0 ? (
           <div className="flex flex-col gap-4 lg:flex-row">
             <div className="lg:w-[380px] lg:shrink-0">
               <Table<LabCultureItem>
@@ -141,6 +145,9 @@ export default function LabCultureModal({
                   style: { cursor: 'pointer' },
                 })}
                 rowClassName={row => (row.labNo === labNo ? 'bg-accent-soft' : '')}
+                locale={
+                  loading ? { emptyText: <TableRowsSkeleton columns={2} rows={10} /> } : undefined
+                }
                 columns={[
                   {
                     title: 'วันที่สั่ง',
@@ -201,7 +208,7 @@ export default function LabCultureModal({
             />
           )
         )}
-      </Spin>
+      </>
     </Modal>
   )
 }

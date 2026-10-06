@@ -28,6 +28,7 @@ import type { RasDuplicateCase } from '@/lib/his/rdu-ras-duplicate'
 import RowSearch, { matchesRow } from '../row-search'
 import VisitDetailModal from '../visit-modal'
 import PageHint from '../../../page-hint'
+import { ReportSkeleton } from '@/app/home/skeletons'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
 dayjs.extend(buddhistEra)
@@ -369,7 +370,9 @@ export default function RasDuplicateReportPage() {
         />
       )}
 
-      <Spin spinning={loading}>
+      {/* วงกลมหมุนไว้เฉพาะตอนค้นใหม่ทับรายงานที่แสดงอยู่ — ตัวเลขชุดเดิม
+          ยังอยู่ให้เทียบ ส่วนโหลดครั้งแรกใช้โครงร่างข้างล่าง ไม่ให้ซ้อนกันสองอย่าง */}
+      <Spin spinning={loading && report !== null}>
         {report ? (
           <>
             <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -461,12 +464,14 @@ export default function RasDuplicateReportPage() {
               </>
             )}
           </>
+        ) : loading ? (
+          /* โหลดครั้งแรกขึ้นโครงร่าง — รายงานพวกนี้คิวรีหลายวินาที ที่ว่างเปล่า
+             นานขนาดนั้นไม่บอกอะไรว่ากำลังจะได้การ์ดสรุป กราฟ แล้วตารางเคส */
+          <ReportSkeleton />
         ) : (
-          !loading && (
-            <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
-              <Empty description="เลือกช่วงวันที่แล้วกดค้นหา" />
-            </div>
-          )
+          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+            <Empty description="เลือกช่วงวันที่แล้วกดค้นหา" />
+          </div>
         )}
       </Spin>
 

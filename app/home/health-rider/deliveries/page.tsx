@@ -14,7 +14,6 @@ import {
   Modal,
   Popconfirm,
   Select,
-  Spin,
   Table,
   Tag,
   Tooltip,
@@ -35,6 +34,7 @@ import { trackExport } from '@/lib/client/track-export'
 import type { DeliveryPatient, RiderCoverage } from '@/lib/his/drug-delivery'
 import type { RiderStaff } from '@/lib/his/health-rider'
 import PageHint from '../../page-hint'
+import { TableRowsSkeleton } from '@/app/home/skeletons'
 
 const { Text, Title } = Typography
 
@@ -864,53 +864,55 @@ export default function DrugDeliveriesPage() {
       </section>
 
       <section className="data-sheet rounded-2xl border border-line bg-panel p-2 backdrop-blur">
-        <Spin spinning={loading}>
-          <Table<DeliveryPatient>
-            // คิวรียุบให้เหลือหนึ่งแถวต่อหนึ่ง vn แล้ว ใช้ vn เป็นคีย์ได้ตรง ๆ
-            rowKey="vn"
-            size="small"
-            columns={columns}
-            dataSource={visible}
-            pagination={{
-              current: page,
-              pageSize: PAGE_SIZE,
-              showSizeChanger: false,
-              hideOnSinglePage: true,
-            }}
-            // รับทั้งการเปลี่ยนหน้าและการกดตัวกรองจากที่เดียว — เลขหน้าเป็นค่าที่เรา
-            // ถือเอง antd จึงรีเซ็ตกลับหน้าแรกให้เองไม่ได้ตอนตัวกรองเปลี่ยน
-            onChange={(pagination, filters) => {
-              const tambon = (filters.tambonName ?? []).map(String)
-              const rider = (filters.riderName ?? []).map(String)
-              const manager = (filters.managerName ?? []).map(String)
-              const changed =
-                !sameList(tambon, tambonFilter) ||
-                !sameList(rider, riderFilter) ||
-                !sameList(manager, managerFilter)
+          {/* โครงร่างแถวอยู่ในช่อง emptyText — หัวตารางยังอยู่ ความกว้างคอลัมน์จึงไม่ขยับ
+          ตอนข้อมูลมาถึง ส่วน loading ของ Table ไว้สำหรับการโหลดทับรายการที่มีอยู่แล้ว
+          ซึ่งต้องเป็นวงกลมหมุนคลุมของเดิม ไม่ใช่โครงร่างที่ลบของเดิมหายไปจากจอ */}
+        <Table<DeliveryPatient>
+            loading={loading && visible.length > 0}
+          // คิวรียุบให้เหลือหนึ่งแถวต่อหนึ่ง vn แล้ว ใช้ vn เป็นคีย์ได้ตรง ๆ
+          rowKey="vn"
+          size="small"
+          columns={columns}
+          dataSource={visible}
+          pagination={{
+            current: page,
+            pageSize: PAGE_SIZE,
+            showSizeChanger: false,
+            hideOnSinglePage: true,
+          }}
+          // รับทั้งการเปลี่ยนหน้าและการกดตัวกรองจากที่เดียว — เลขหน้าเป็นค่าที่เรา
+          // ถือเอง antd จึงรีเซ็ตกลับหน้าแรกให้เองไม่ได้ตอนตัวกรองเปลี่ยน
+          onChange={(pagination, filters) => {
+            const tambon = (filters.tambonName ?? []).map(String)
+            const rider = (filters.riderName ?? []).map(String)
+            const manager = (filters.managerName ?? []).map(String)
+            const changed =
+              !sameList(tambon, tambonFilter) ||
+              !sameList(rider, riderFilter) ||
+              !sameList(manager, managerFilter)
 
-              setTambonFilter(tambon)
-              setRiderFilter(rider)
-              setManagerFilter(manager)
-              setPage(changed ? 1 : (pagination.current ?? 1))
-            }}
-            scroll={{ x: 'max-content' }}
-            locale={{
-              emptyText: (
-                <Empty
-                  description={
-                    loading
-                      ? 'กำลังโหลด'
-                      : keyword.trim()
-                        ? 'ไม่พบผู้ป่วยตามคำค้น'
-                        : filtering
-                          ? 'ไม่มีผู้ป่วยตามตัวกรองที่เลือก'
-                          : `ไม่มีรายการส่งยาวันที่ ${toThaiDate(date)}`
-                  }
-                />
-              ),
-            }}
-          />
-        </Spin>
+            setTambonFilter(tambon)
+            setRiderFilter(rider)
+            setManagerFilter(manager)
+            setPage(changed ? 1 : (pagination.current ?? 1))
+          }}
+          scroll={{ x: 'max-content' }}
+          locale={{
+            emptyText: loading ? (
+              <TableRowsSkeleton columns={columns.length} rows={8} />
+            ) : (
+              <Empty
+                description={
+                  keyword.trim()
+                    ? 'ไม่พบผู้ป่วยตามคำค้น'
+                    : filtering
+                      ? 'ไม่มีผู้ป่วยตามตัวกรองที่เลือก'
+                      : `ไม่มีรายการส่งยาวันที่ ${toThaiDate(date)}`
+                }
+              />
+            ),
+          }}
+        />
       </section>
 
       {/* ───────── จ่ายงาน ─────────

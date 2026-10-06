@@ -9,6 +9,7 @@ import type { TransferDirection } from 'antd/es/transfer'
 import { apiFetch } from '@/lib/client/session'
 import type { Icd10Option } from '@/lib/his/rdu-registry'
 import PageHint from '../../page-hint'
+import { TransferSkeleton } from '@/app/home/skeletons'
 
 const { Text, Title } = Typography
 
@@ -368,65 +369,71 @@ export default function Icd10RegistryPage({
           </Text>
         </div>
 
-        <Spin spinning={loading || searching || saving}>
-          <Transfer<CodeItem>
-            dataSource={visible}
-            targetKeys={selected}
-            onChange={move}
-            onSearch={search}
-            disabled={saving}
-            showSearch
-            pagination={{ pageSize: PAGE_SIZE }}
-            titles={[
-              keyword === '' ? poolLabel : `ผลค้น "${keyword}"`,
-              `${targetTitle} (${selected.length})`,
-            ]}
-            locale={{
-              searchPlaceholder: 'ค้นรหัส ชื่อโรค ไทย/อังกฤษ',
-              itemUnit: 'รหัส',
-              itemsUnit: 'รหัส',
-              notFoundContent: searching ? 'กำลังค้น' : 'ไม่พบรหัสวินิจฉัย',
-            }}
-            /* กล่องซ้ายกรองมาจากฐานแล้ว ถ้าปล่อยให้ตัวกรองในเบราว์เซอร์ทำงานต่อ
-               ผลค้นที่ตรงกับชื่อไทยจะถูกคัดทิ้งเมื่อผู้ใช้พิมพ์เป็นภาษาอังกฤษ
-               ส่วนกล่องขวาเป็นทะเบียนที่โหลดมาครบแล้ว จึงกรองในเบราว์เซอร์ตามปกติ */
-            filterOption={(input, item, direction) => {
-              if (direction === 'left') return true
-              const word = input.trim().toLowerCase()
-              return (
-                item.code.toLowerCase().includes(word) ||
-                item.name.toLowerCase().includes(word) ||
-                (item.tname ?? '').toLowerCase().includes(word)
-              )
-            }}
-            render={item => (
-              <span className="text-xs">
-                <span className="font-mono text-ink-3">{item.code}</span> {item.name}
-                {item.tname && <span className="text-ink-3"> — {item.tname}</span>}
-                {!item.active && (
-                  <Tag className="ml-1.5 mr-0!" color="default">
-                    ยกเลิกใช้
-                  </Tag>
-                )}
-                {/* บรรทัดการใช้งานแยกออกมา ไม่ได้ต่อท้ายชื่อโรค — ชื่อโรคยาวจน
-                    ล้นกล่องอยู่แล้ว ถ้าต่อท้ายจะโดนตัดหายพอดีในรหัสที่ชื่อยาวที่สุด
-                    ซึ่งคือรหัสที่ต้องเห็นตัวเลขที่สุด */}
-                <span
-                  className={`mt-0.5 block text-[11px] ${
-                    usesOf(item) === 0 ? 'text-amber-500' : 'text-ink-3'
-                  }`}
-                >
-                  {usesOf(item) === 0
-                    ? 'ไม่มีการใช้ใน 12 เดือน'
-                    : `ใช้ ${usesOf(item).toLocaleString('th-TH')} ครั้ง/ปี`}
-                  {item.ipdUses > 0 &&
-                    ` · ผู้ป่วยใน ${item.ipdUses.toLocaleString('th-TH')}`}
+        {/* โหลดครั้งแรกขึ้นโครงร่างสองแผง ส่วนตอนกดบันทึกยังเป็นวงกลมหมุนคลุม
+            ของเดิม — รายการที่ผู้ใช้เพิ่งจัดไว้ต้องไม่หายไปจากจอระหว่างบันทึก */}
+        {loading && visible.length === 0 ? (
+          <TransferSkeleton />
+        ) : (
+          <Spin spinning={loading || searching || saving}>
+            <Transfer<CodeItem>
+              dataSource={visible}
+              targetKeys={selected}
+              onChange={move}
+              onSearch={search}
+              disabled={saving}
+              showSearch
+              pagination={{ pageSize: PAGE_SIZE }}
+              titles={[
+                keyword === '' ? poolLabel : `ผลค้น "${keyword}"`,
+                `${targetTitle} (${selected.length})`,
+              ]}
+              locale={{
+                searchPlaceholder: 'ค้นรหัส ชื่อโรค ไทย/อังกฤษ',
+                itemUnit: 'รหัส',
+                itemsUnit: 'รหัส',
+                notFoundContent: searching ? 'กำลังค้น' : 'ไม่พบรหัสวินิจฉัย',
+              }}
+              /* กล่องซ้ายกรองมาจากฐานแล้ว ถ้าปล่อยให้ตัวกรองในเบราว์เซอร์ทำงานต่อ
+                 ผลค้นที่ตรงกับชื่อไทยจะถูกคัดทิ้งเมื่อผู้ใช้พิมพ์เป็นภาษาอังกฤษ
+                 ส่วนกล่องขวาเป็นทะเบียนที่โหลดมาครบแล้ว จึงกรองในเบราว์เซอร์ตามปกติ */
+              filterOption={(input, item, direction) => {
+                if (direction === 'left') return true
+                const word = input.trim().toLowerCase()
+                return (
+                  item.code.toLowerCase().includes(word) ||
+                  item.name.toLowerCase().includes(word) ||
+                  (item.tname ?? '').toLowerCase().includes(word)
+                )
+              }}
+              render={item => (
+                <span className="text-xs">
+                  <span className="font-mono text-ink-3">{item.code}</span> {item.name}
+                  {item.tname && <span className="text-ink-3"> — {item.tname}</span>}
+                  {!item.active && (
+                    <Tag className="ml-1.5 mr-0!" color="default">
+                      ยกเลิกใช้
+                    </Tag>
+                  )}
+                  {/* บรรทัดการใช้งานแยกออกมา ไม่ได้ต่อท้ายชื่อโรค — ชื่อโรคยาวจน
+                      ล้นกล่องอยู่แล้ว ถ้าต่อท้ายจะโดนตัดหายพอดีในรหัสที่ชื่อยาวที่สุด
+                      ซึ่งคือรหัสที่ต้องเห็นตัวเลขที่สุด */}
+                  <span
+                    className={`mt-0.5 block text-[11px] ${
+                      usesOf(item) === 0 ? 'text-amber-500' : 'text-ink-3'
+                    }`}
+                  >
+                    {usesOf(item) === 0
+                      ? 'ไม่มีการใช้ใน 12 เดือน'
+                      : `ใช้ ${usesOf(item).toLocaleString('th-TH')} ครั้ง/ปี`}
+                    {item.ipdUses > 0 &&
+                      ` · ผู้ป่วยใน ${item.ipdUses.toLocaleString('th-TH')}`}
+                  </span>
                 </span>
-              </span>
-            )}
-            styles={{ section: { width: '46%', minWidth: 260, height: 560 } }}
-          />
-        </Spin>
+              )}
+              styles={{ section: { width: '46%', minWidth: 260, height: 560 } }}
+            />
+          </Spin>
+        )}
       </section>
     </>
   )

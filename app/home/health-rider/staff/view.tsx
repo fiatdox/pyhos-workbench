@@ -14,7 +14,6 @@ import {
   Modal,
   Popconfirm,
   Select,
-  Spin,
   Table,
   Tag,
   Typography,
@@ -32,6 +31,7 @@ import {
 import { apiFetch } from '@/lib/client/session'
 import type { RiderRole, RiderStaff } from '@/lib/his/health-rider'
 import PageHint from '../../page-hint'
+import { TableRowsSkeleton } from '@/app/home/skeletons'
 
 const { Text, Title } = Typography
 
@@ -365,36 +365,34 @@ export default function HealthRiderStaffView() {
       </section>
 
       <section className="data-sheet rounded-2xl border border-line bg-panel p-2 backdrop-blur">
-        <Spin spinning={loading}>
-          <Table<RiderStaff>
-            rowKey="id"
-            size="small"
-            columns={columns}
-            dataSource={visible}
-            // 91 คนยาวเกินกว่าจะไล่ดูรวดเดียว แบ่งหน้าไว้แต่ยังค้นข้ามทั้งชุดได้จากช่องด้านบน
-            pagination={{
-              current: currentPage,
-              pageSize: PAGE_SIZE,
-              showSizeChanger: false,
-              hideOnSinglePage: true,
-              onChange: setPage,
-            }}
-            scroll={{ x: 'max-content' }}
-            locale={{
-              emptyText: (
-                <Empty
-                  description={
-                    loading
-                      ? 'กำลังโหลด'
-                      : keyword.trim()
-                        ? 'ไม่พบเจ้าหน้าที่ตามคำค้น'
-                        : 'ไม่มีข้อมูลเจ้าหน้าที่'
-                  }
-                />
-              ),
-            }}
-          />
-        </Spin>
+          {/* โครงร่างแถวอยู่ในช่อง emptyText — หัวตารางยังอยู่ ความกว้างคอลัมน์จึงไม่ขยับ
+          ตอนข้อมูลมาถึง ส่วน loading ของ Table ไว้สำหรับการโหลดทับรายการที่มีอยู่แล้ว
+          ซึ่งต้องเป็นวงกลมหมุนคลุมของเดิม ไม่ใช่โครงร่างที่ลบของเดิมหายไปจากจอ */}
+        <Table<RiderStaff>
+            loading={loading && visible.length > 0}
+          rowKey="id"
+          size="small"
+          columns={columns}
+          dataSource={visible}
+          // 91 คนยาวเกินกว่าจะไล่ดูรวดเดียว แบ่งหน้าไว้แต่ยังค้นข้ามทั้งชุดได้จากช่องด้านบน
+          pagination={{
+            current: currentPage,
+            pageSize: PAGE_SIZE,
+            showSizeChanger: false,
+            hideOnSinglePage: true,
+            onChange: setPage,
+          }}
+          scroll={{ x: 'max-content' }}
+          locale={{
+            emptyText: loading ? (
+              <TableRowsSkeleton columns={columns.length} rows={8} />
+            ) : (
+              <Empty
+                description={keyword.trim() ? 'ไม่พบเจ้าหน้าที่ตามคำค้น' : 'ไม่มีข้อมูลเจ้าหน้าที่'}
+              />
+            ),
+          }}
+        />
       </section>
 
       {/* ───────── ฟอร์มเพิ่มเจ้าหน้าที่ ─────────

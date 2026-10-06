@@ -9,6 +9,7 @@ import type { Key } from 'react'
 import { apiFetch } from '@/lib/client/session'
 import type { DrugOption } from '@/lib/his/rdu-registry'
 import PageHint from '../../page-hint'
+import { TransferSkeleton } from '@/app/home/skeletons'
 
 const { Text, Title } = Typography
 
@@ -269,51 +270,57 @@ export default function DrugRegistryPage({
           </Text>
         </div>
 
-        <Spin spinning={loading || saving}>
-          <Transfer<DrugItem>
-            dataSource={visible}
-            targetKeys={selected}
-            onChange={move}
-            disabled={saving}
-            showSearch
-            pagination={{ pageSize: PAGE_SIZE }}
-            titles={['รายการยาทั้งหมด', `${targetTitle} (${selected.length})`]}
-            locale={{
-              searchPlaceholder: 'ค้นจากชื่อยา ชื่อสามัญ หรือรหัส',
-              itemUnit: 'รายการ',
-              itemsUnit: 'รายการ',
-              notFoundContent: 'ไม่พบรายการยา',
-            }}
-            // ค้นได้ทั้งชื่อยา ชื่อสามัญ และรหัส — เภสัชกรบางคนจำรหัสยาที่ใช้ประจำ
-            // ได้ขึ้นใจ ส่วนชื่อสามัญเป็นทางเดียวที่ค้นยาตัวเดียวกันได้ครบทุกยี่ห้อ
-            // ค่าตั้งต้นของ Transfer ค้นจาก title อย่างเดียวซึ่งที่นี่คือชื่อยา
-            filterOption={(input, item) => {
-              const keyword = input.trim().toLowerCase()
-              return (
-                item.name.toLowerCase().includes(keyword) ||
-                item.icode.toLowerCase().includes(keyword) ||
-                (item.generic?.toLowerCase().includes(keyword) ?? false)
-              )
-            }}
-            render={item => (
-              <span className="text-xs">
-                <span className="font-mono text-ink-3">{item.icode}</span> {item.name}
-                {item.strength && <span className="text-ink-3"> — {item.strength}</span>}
-                {!item.active && (
-                  <Tag className="ml-1.5 mr-0!" color="default">
-                    ปิดใช้งาน
-                  </Tag>
-                )}
-                {/* ชื่อสามัญขึ้นบรรทัดล่าง ไม่ได้ต่อท้ายชื่อยา — ชื่อยายาวจนล้นช่อง
-                    อยู่แล้ว ถ้าต่อท้ายจะโดนตัดหายไปพอดีในรายการที่ยาวที่สุด */}
-                {item.generic && (
-                  <span className="mt-0.5 block text-[11px] text-ink-3">{item.generic}</span>
-                )}
-              </span>
-            )}
-            styles={{ section: { width: '46%', minWidth: 260, height: 560 } }}
-          />
-        </Spin>
+        {/* โหลดครั้งแรกขึ้นโครงร่างสองแผง ส่วนตอนกดบันทึกยังเป็นวงกลมหมุนคลุม
+            ของเดิม — รายการที่ผู้ใช้เพิ่งจัดไว้ต้องไม่หายไปจากจอระหว่างบันทึก */}
+        {loading && visible.length === 0 ? (
+          <TransferSkeleton />
+        ) : (
+          <Spin spinning={loading || saving}>
+            <Transfer<DrugItem>
+              dataSource={visible}
+              targetKeys={selected}
+              onChange={move}
+              disabled={saving}
+              showSearch
+              pagination={{ pageSize: PAGE_SIZE }}
+              titles={['รายการยาทั้งหมด', `${targetTitle} (${selected.length})`]}
+              locale={{
+                searchPlaceholder: 'ค้นจากชื่อยา ชื่อสามัญ หรือรหัส',
+                itemUnit: 'รายการ',
+                itemsUnit: 'รายการ',
+                notFoundContent: 'ไม่พบรายการยา',
+              }}
+              // ค้นได้ทั้งชื่อยา ชื่อสามัญ และรหัส — เภสัชกรบางคนจำรหัสยาที่ใช้ประจำ
+              // ได้ขึ้นใจ ส่วนชื่อสามัญเป็นทางเดียวที่ค้นยาตัวเดียวกันได้ครบทุกยี่ห้อ
+              // ค่าตั้งต้นของ Transfer ค้นจาก title อย่างเดียวซึ่งที่นี่คือชื่อยา
+              filterOption={(input, item) => {
+                const keyword = input.trim().toLowerCase()
+                return (
+                  item.name.toLowerCase().includes(keyword) ||
+                  item.icode.toLowerCase().includes(keyword) ||
+                  (item.generic?.toLowerCase().includes(keyword) ?? false)
+                )
+              }}
+              render={item => (
+                <span className="text-xs">
+                  <span className="font-mono text-ink-3">{item.icode}</span> {item.name}
+                  {item.strength && <span className="text-ink-3"> — {item.strength}</span>}
+                  {!item.active && (
+                    <Tag className="ml-1.5 mr-0!" color="default">
+                      ปิดใช้งาน
+                    </Tag>
+                  )}
+                  {/* ชื่อสามัญขึ้นบรรทัดล่าง ไม่ได้ต่อท้ายชื่อยา — ชื่อยายาวจนล้นช่อง
+                      อยู่แล้ว ถ้าต่อท้ายจะโดนตัดหายไปพอดีในรายการที่ยาวที่สุด */}
+                  {item.generic && (
+                    <span className="mt-0.5 block text-[11px] text-ink-3">{item.generic}</span>
+                  )}
+                </span>
+              )}
+              styles={{ section: { width: '46%', minWidth: 260, height: 560 } }}
+            />
+          </Spin>
+        )}
       </section>
     </>
   )

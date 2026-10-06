@@ -29,6 +29,7 @@ import { apiFetch } from '@/lib/client/session'
 import { trackExport } from '@/lib/client/track-export'
 import { GapChart, meetsTarget, YearlyChart, type YearPoint } from './charts'
 import PageHint from '../../page-hint'
+import { StatCardsSkeleton } from '@/app/home/skeletons'
 
 const { Paragraph, Text, Title } = Typography
 
@@ -410,8 +411,13 @@ export default function RduSummaryPage() {
         </div>
       )}
 
-      <Spin spinning={loading}>
-        {indicators.length === 0 && !loading ? (
+      {/* วงกลมหมุนไว้เฉพาะตอนดึงใหม่ทับของที่แสดงอยู่ — ของเดิมยังอยู่ให้เทียบ
+          โหลดครั้งแรกใช้โครงร่างข้างล่าง ไม่ให้ขึ้นซ้อนกันสองอย่าง */}
+      <Spin spinning={loading && indicators.length > 0}>
+        {loading && indicators.length === 0 ? (
+          /* โหลดครั้งแรกขึ้นโครงร่างการ์ดตัวชี้วัด ไม่ใช่ที่ว่างเปล่า */
+          <StatCardsSkeleton count={6} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" />
+        ) : indicators.length === 0 ? (
           <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
             <Empty description="ไม่มีตัวชี้วัด" />
           </div>

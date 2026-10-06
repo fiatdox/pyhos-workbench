@@ -12,7 +12,6 @@ import {
   Input,
   Segmented,
   Select,
-  Spin,
   Table,
   Tag,
   Tooltip,
@@ -25,6 +24,7 @@ import { ReloadOutlined, SafetyCertificateOutlined, SearchOutlined } from '@ant-
 import { apiFetch } from '@/lib/client/session'
 import ArchivePanel from './archive-panel'
 import PageHint from '../../page-hint'
+import { TableRowsSkeleton } from '@/app/home/skeletons'
 
 const { RangePicker } = DatePicker
 const { Text, Title } = Typography
@@ -382,21 +382,25 @@ export default function ActivityView() {
       )}
 
       <section className="data-sheet rounded-2xl border border-line bg-panel p-2 backdrop-blur">
-        <Spin spinning={loading}>
-          <Table<Row>
-            rowKey="id"
-            size="small"
-            columns={columns}
-            dataSource={rows}
-            pagination={false}
-            scroll={{ x: 'max-content' }}
-            locale={{
-              emptyText: (
-                <Empty description={loading ? 'กำลังโหลด' : 'ไม่พบร่องรอยตามเงื่อนไขที่เลือก'} />
-              ),
-            }}
-          />
-        </Spin>
+          {/* โครงร่างแถวอยู่ในช่อง emptyText — หัวตารางยังอยู่ ความกว้างคอลัมน์จึงไม่ขยับ
+          ตอนข้อมูลมาถึง ส่วน loading ของ Table ไว้สำหรับการโหลดทับรายการที่มีอยู่แล้ว
+          ซึ่งต้องเป็นวงกลมหมุนคลุมของเดิม ไม่ใช่โครงร่างที่ลบของเดิมหายไปจากจอ */}
+        <Table<Row>
+            loading={loading && rows.length > 0}
+          rowKey="id"
+          size="small"
+          columns={columns}
+          dataSource={rows}
+          pagination={false}
+          scroll={{ x: 'max-content' }}
+          locale={{
+            emptyText: loading ? (
+              <TableRowsSkeleton columns={columns.length} rows={6} />
+            ) : (
+              <Empty description="ไม่พบร่องรอยตามเงื่อนไขที่เลือก" />
+            ),
+          }}
+        />
         {hasMore && (
           <div className="flex justify-center p-3">
             <Button icon={<ReloadOutlined />} loading={loadingMore} onClick={loadMore}>

@@ -3,12 +3,13 @@
 // (การตรวจสิทธิ์ยังทำที่ app/home/layout.tsx ซึ่งเป็น Server Component)
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Alert, Breadcrumb, Empty, Spin, Table, Tag, Typography } from 'antd'
+import { Alert, Breadcrumb, Empty, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { TagsOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
 import type { RiderRole } from '@/lib/his/health-rider'
 import PageHint from '../../page-hint'
+import { TableRowsSkeleton } from '@/app/home/skeletons'
 
 const { Text, Title } = Typography
 
@@ -102,19 +103,25 @@ export default function HealthRiderStaffTypesPage() {
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
 
       <section className="data-sheet rounded-2xl border border-line bg-panel p-2 backdrop-blur">
-        <Spin spinning={loading}>
-          <Table<RiderRole>
-            rowKey="id"
-            size="small"
-            columns={columns}
-            dataSource={roles}
-            pagination={false}
-            scroll={{ x: 'max-content' }}
-            locale={{
-              emptyText: <Empty description={loading ? 'กำลังโหลด' : 'ไม่มีข้อมูลประเภทเจ้าหน้าที่'} />,
-            }}
-          />
-        </Spin>
+          {/* โครงร่างแถวอยู่ในช่อง emptyText — หัวตารางยังอยู่ ความกว้างคอลัมน์จึงไม่ขยับ
+          ตอนข้อมูลมาถึง ส่วน loading ของ Table ไว้สำหรับการโหลดทับรายการที่มีอยู่แล้ว
+          ซึ่งต้องเป็นวงกลมหมุนคลุมของเดิม ไม่ใช่โครงร่างที่ลบของเดิมหายไปจากจอ */}
+        <Table<RiderRole>
+            loading={loading && roles.length > 0}
+          rowKey="id"
+          size="small"
+          columns={columns}
+          dataSource={roles}
+          pagination={false}
+          scroll={{ x: 'max-content' }}
+          locale={{
+            emptyText: loading ? (
+              <TableRowsSkeleton columns={columns.length} rows={5} />
+            ) : (
+              <Empty description="ไม่มีข้อมูลประเภทเจ้าหน้าที่" />
+            ),
+          }}
+        />
       </section>
     </>
   )
