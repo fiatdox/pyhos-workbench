@@ -1,7 +1,7 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
 // (การตรวจสิทธิ์ยังทำที่ app/home/layout.tsx ซึ่งเป็น Server Component)
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   Alert,
@@ -12,7 +12,9 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Radio,
+  Segmented,
   Select,
   Switch,
   Tag,
@@ -25,15 +27,21 @@ import {
   ExperimentOutlined,
   FileTextOutlined,
   HistoryOutlined,
+  LineChartOutlined,
   PlusOutlined,
   SearchOutlined,
+  SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
 import AssistPanel from './assist-panel'
+import AdmittedPicker from '@/app/home/admitted-picker'
+import RenalChart, { type RenalPoint } from '../renal-chart'
 import LabCultureModal from '@/app/home/lab-culture-modal'
+import LabTrendModal from '@/app/home/lab-trend-modal'
+import { FieldSkeleton } from '@/app/home/skeletons'
 import type { DueDrug as DueDrugItem, DuePatient, PriorAntimicrobial } from '@/lib/his/due'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
@@ -216,6 +224,80 @@ function Field({
  * ถ้าใช้จะได้หน้าตาไม่เหมือนกันระหว่างช่องวันที่กับช่องตัวเลข
  * สีมาจาก token --lab-* จึงเปลี่ยนตามธีมสว่าง/มืดที่ผู้ใช้เลือกเอง
  */
+/**
+ * ระดับความรุนแรงของค่าไต — 0 = ยังไม่ถึงเกณฑ์เฝ้าระวัง, 1–3 ไล่ขึ้นตามความรุนแรง
+ *
+ * สามขั้น ไม่ใช่แดง/ไม่แดง เพราะการตัดสินใจเรื่องขนาดยาต่างกันตามขั้น ไม่ได้
+ * ต่างกันแค่ "ผิดปกติหรือไม่" — ขั้น 1 คือเริ่มต้องดูขนาดยาบางตัว ขั้น 2 คือ
+ * ต้องปรับเกือบทุกตัว ขั้น 3 คือไตวายระยะสุดท้าย
+ */
+type RenalLevel = 0 | 1 | 2 | 3
+
+/** พื้นและเส้นขอบของแต่ละขั้น — เขียนเป็นสตริงเต็มเพราะ Tailwind อ่านชื่อคลาส
+ *  จากซอร์สตรง ๆ ถ้าต่อสตริงจากตัวแปรจะไม่ถูกรวมเข้าไฟล์ CSS */
+const RENAL_BOX: Record<Exclude<RenalLevel, 0>, string> = {
+  1: 'bg-renal-1-bg! border-renal-1-line!',
+  2: 'bg-renal-2-bg! border-renal-2-line!',
+  3: 'bg-renal-3-bg! border-renal-3-line!',
+}
+
+const RENAL_INK: Record<Exclude<RenalLevel, 0>, string> = {
+  1: 'text-renal-1',
+  2: 'text-renal-2',
+  3: 'text-renal-3',
+}
+
+const RENAL_LABEL: Record<Exclude<RenalLevel, 0>, string> = {
+  1: 'เฝ้าระวัง',
+  2: 'ต้องปรับขนาดยา',
+  3: 'วิกฤต',
+}
+
+/**
+ * ขอบบนของค่า Creatinine ปกติ แยกตามเพศ (mg/dL)
+ *
+ * ค่าไตของ Cr ไม่มีการแบ่งระยะแบบ eGFR — เกณฑ์ AKI ของ KDIGO เทียบกับค่าฐาน
+ * ของคนไข้คนนั้น ซึ่งใบคำขอไม่มีให้ จึงเทียบกับขอบบนของค่าปกติเป็นกี่เท่าแทน
+ * วิธีนี้บอกได้ว่า "สูงกว่าปกติมากแค่ไหน" ไม่ได้บอกว่าเป็น AKI ระยะไหน
+ */
+const CR_UPPER_LIMIT = { male: 1.3, female: 1.1 }
+
+/** ระดับของค่า Cr — เทียบกับขอบบนของค่าปกติตามเพศ */
+function crLevel(value: string, sex: string | null): RenalLevel {
+  const cr = Number(value)
+  if (!Number.isFinite(cr) || cr <= 0) return 0
+  // '2' = หญิงตามรหัสของ HIS — เพศไม่ระบุใช้เกณฑ์ของผู้ชายซึ่งกว้างกว่า
+  // จะได้ไม่ย้อมสีเกินจริงในคนที่ข้อมูลเพศขาด
+  const limit = sex === '2' ? CR_UPPER_LIMIT.female : CR_UPPER_LIMIT.male
+  const times = cr / limit
+  if (times <= 1) return 0
+  if (times <= 2) return 1
+  if (times <= 3) return 2
+  return 3
+}
+
+/**
+ * ระดับของค่าการกรอง ใช้ได้ทั้ง CrCl และ eGFR
+ *
+ * แบ่งตามขั้นที่มีผลต่อการปรับขนาดยาจริง ซึ่งตรงกับระยะ CKD ของ KDIGO
+ * ตั้งแต่ G3 ลงไป — 30–59 คือ G3, 15–29 คือ G4, ต่ำกว่า 15 คือ G5
+ * ไม่แยก G1 กับ G2 เพราะทั้งคู่ไม่ต้องปรับขนาดยา ย้อมสีไปก็ไม่ได้ใช้
+ */
+function filtrationLevel(value: string): RenalLevel {
+  const rate = Number(value)
+  if (!Number.isFinite(rate) || rate <= 0) return 0
+  if (rate >= 60) return 0
+  if (rate >= 30) return 1
+  if (rate >= 15) return 2
+  return 3
+}
+
+/** ป้ายระดับที่ติดข้างชื่อช่อง — ไม่พึ่งสีอย่างเดียว คนตาบอดสีต้องอ่านได้เท่ากัน */
+function RenalBadge({ level }: { level: RenalLevel }) {
+  if (level === 0) return null
+  return <span className={`text-[10px] font-semibold ${RENAL_INK[level]}`}>{RENAL_LABEL[level]}</span>
+}
+
 function LabField({
   label,
   children,
@@ -239,6 +321,9 @@ function LabField({
 
 /** HN ในฐาน HIS เก็บเป็นตัวเลข 9 หลักเติมศูนย์นำหน้า */
 const HN_LENGTH = 9
+
+/** ทางเข้าของการเลือกผู้ป่วย — ชื่อโหมดตรงกับที่ AdmittedPicker รับไป */
+type EntryMode = 'hn' | 'ward' | 'doctor'
 
 /**
  * CrCl ด้วยสูตร Cockcroft-Gault
@@ -412,6 +497,15 @@ function ReadonlyField({
 
 export default function DueRequestPage() {
   const [hn, setHn] = useState('')
+  /**
+   * ทางเข้าของการเลือกผู้ป่วย — กรอก HN เอง หรือไล่จากผู้ที่ยังนอนอยู่
+   *
+   * ตั้งต้นที่ 'hn' เพราะเป็นทางที่ใช้บ่อยที่สุด คนไข้ยืนอยู่ตรงหน้าแล้วมีใบ HN มาด้วย
+   * สองโหมดที่เหลือมีไว้สำหรับเภสัชกรที่ไล่ดูผู้ป่วยในทั้งตึกหรือทั้งของแพทย์คนหนึ่ง
+   */
+  const [entry, setEntry] = useState<EntryMode>('hn')
+  const [renalChartOpen, setRenalChartOpen] = useState(false)
+  const [labTrendOpen, setLabTrendOpen] = useState(false)
   const [patient, setPatient] = useState<DuePatient | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -442,6 +536,8 @@ export default function DueRequestPage() {
     setHistory(EMPTY_HISTORY)
     setPriorOpen(false)
     setLabCultureOpen(false)
+    setRenalChartOpen(false)
+    setLabTrendOpen(false)
     setDrugsError('')
   }
 
@@ -496,6 +592,17 @@ export default function DueRequestPage() {
         crclEdited: false,
         awaitingCreatinine: lab == null,
       })
+      /**
+       * มีประวัติเจาะไตมากกว่าหนึ่งครั้ง = เปิดกราฟให้ดูเลยไม่ต้องกดปุ่ม
+       *
+       * เงื่อนไขเดียวกับที่ใช้ซ่อน/แสดงปุ่ม — จุดเดียวไม่มีแนวโน้มให้ดู การเปิด
+       * หน้าต่างมาบังฟอร์มเพื่อโชว์จุดเดียวคือการขัดจังหวะเปล่า ๆ
+       *
+       * เปิดตรงนี้แทนที่จะทำใน useEffect เพราะต้องเปิด "ตอนเปลี่ยนคนไข้" ครั้งเดียว
+       * ไม่ใช่ทุกครั้งที่จำนวนจุดเปลี่ยน — เภสัชกรปิดไปแล้วต้องไม่เด้งกลับมาเอง
+       * ตอนแก้น้ำหนัก และเข้าทางนี้ทั้งพิมพ์ HN เองและเลือกจากตัวช่วยเลือกผู้ป่วย
+       */
+      if (found.renalHistory.length > 1) setRenalChartOpen(true)
     } catch {
       setError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง')
     } finally {
@@ -519,7 +626,70 @@ export default function DueRequestPage() {
     void lookup(digits)
   }
 
+  /**
+   * กลับไปเลือกผู้ป่วยรายอื่น
+   *
+   * ล้างผ่าน onHnChange('') ไม่ได้เขียนล้างเองทีละตัว — ฟังก์ชันนั้นเป็นที่เดียว
+   * ที่รู้กติกาว่าการเปลี่ยนคนไข้ต้องทิ้งอะไรบ้าง (ใบคำขอทั้งใบ หน้าต่างที่เปิดค้าง
+   * และ HN ที่จำไว้กันดึงซ้ำ) ถ้ามีสองที่ที่ล้าง วันหนึ่งจะล้างไม่ตรงกันแล้วเหลือ
+   * ข้อมูลของคนก่อนหน้าค้างอยู่ในใบของคนใหม่
+   */
+  const changePatient = () => onHnChange('')
+
+  /**
+   * ในใบมีของที่เภสัชกรกรอกเองอยู่หรือยัง — ใช้ตัดสินว่าต้องถามก่อนทิ้งไหม
+   *
+   * นับเฉพาะช่องที่คนกรอก ไม่นับค่าไตกับน้ำหนักที่ระบบเติมให้เองตอนดึงข้อมูล
+   * ผู้ป่วย ถ้านับด้วยจะกลายเป็นว่าทุกใบมีของจะเสียตั้งแต่วินาทีที่คีย์ HN เสร็จ
+   * แล้วคำถามยืนยันจะเด้งทุกครั้งจนกลายเป็นปุ่มที่ต้องกดสองทีเปล่า ๆ
+   */
+  const hasTypedWork =
+    history.drugs.length > 0 ||
+    history.specimens.length > 0 ||
+    history.diagnosis !== '' ||
+    history.diagnosisOther !== '' ||
+    history.infectionSite !== '' ||
+    history.priorAntibiotic !== '' ||
+    history.infectionSource != null ||
+    history.sepsis != null
+
   const patch = (next: Partial<DueHistory>) => setHistory(prev => ({ ...prev, ...next }))
+
+  /**
+   * ระดับความรุนแรงของค่าไตทั้งสามตัว
+   *
+   * คิดจากค่าที่อยู่ในช่องตอนนี้ ไม่ใช่ค่าที่ดึงมาจากแล็บ — เภสัชกรแก้ Cr หรือ
+   * น้ำหนักเองได้ และระบบคิด CrCl/eGFR ใหม่ตามทันที สีจึงต้องเปลี่ยนตามไปด้วย
+   * ไม่ใช่ค้างอยู่กับค่าที่ห้องแล็บออกมา
+   *
+   * ติ๊ก 'รอผล' ไว้แปลว่ายังไม่มีค่าให้ตัดสิน ต้องไม่ย้อมสีอะไรเลย
+   */
+  const crSeverity = history.awaitingCreatinine ? 0 : crLevel(history.cr, patient?.sex ?? null)
+  const crclSeverity = history.awaitingCreatinine ? 0 : filtrationLevel(history.crcl)
+  const egfrSeverity = history.awaitingCreatinine ? 0 : filtrationLevel(history.egfr)
+  /**
+   * จุดข้อมูลของกราฟแนวโน้มค่าไต
+   *
+   * cr กับ egfr มาจากห้องแล็บตรง ๆ ส่วน CrCl ห้องแล็บไม่ได้ออกให้ จึงคิดเองด้วย
+   * สูตรเดียวกับที่ฟอร์มใช้ และใช้น้ำหนักที่อยู่ในช่องตอนนี้กับทุกจุดย้อนหลัง
+   * — ไม่ใช่น้ำหนักของวันนั้น ๆ เพราะระบบไม่ได้ชั่งน้ำหนักทุกครั้งที่เจาะเลือด
+   * เส้น CrCl จึงอ่านได้ว่า "ถ้าน้ำหนักเท่าวันนี้ ค่าไตวันนั้นจะได้เท่าไร" ซึ่งเป็น
+   * การเทียบที่ใช้ตัดสินขนาดยาได้ แต่ไม่ใช่ค่าที่บันทึกไว้จริงในวันนั้น
+   *
+   * ไม่รู้น้ำหนักก็ปล่อยเป็น null ให้เส้นขาดไป ดีกว่าเดาน้ำหนักมาเติม
+   */
+  const renalPoints = useMemo<RenalPoint[]>(() => {
+    const weightKg = Number(history.weight)
+    return (patient?.renalHistory ?? []).map(point => ({
+      date: point.date,
+      cr: point.cr,
+      egfr: point.egfr,
+      crcl:
+        weightKg > 0
+          ? cockcroftGault({ age: patient?.age ?? null, sex: patient?.sex ?? null, weightKg, cr: point.cr })
+          : null,
+    }))
+  }, [patient?.renalHistory, patient?.age, patient?.sex, history.weight])
 
   /** น้ำหนักที่ดึงมาเก่าเกินไปจนไม่ควรเชื่อ — ใช้เตือนข้างช่องน้ำหนัก */
   const staleWeight =
@@ -708,6 +878,49 @@ export default function DueRequestPage() {
       </section>
 
       <section className="rounded-2xl border border-line bg-panel p-5 backdrop-blur">
+        {/* ตัวสลับทางเข้าอยู่เหนือช่อง HN — ช่อง HN กับข้อมูลผู้ป่วยไม่หายไปตามโหมด
+            เพราะเป็นตัวบอกว่าใบคำขอนี้ผูกกับใคร ต้องเห็นอยู่เสมอไม่ว่าจะหามาทางไหน
+
+            ได้ผู้ป่วยแล้วพับตัวสลับเก็บ เหลือปุ่มเปลี่ยนผู้ป่วยแบบหน้า Drug Profile
+            — ทางเข้าทั้งสามมีประโยชน์ตอนกำลังหาคน พอได้คนแล้วกลายเป็นของรกตา
+            และชื่อกับ HN ของคนที่ผูกกับใบนี้ยังอยู่ในแถวข้างล่างให้เห็นอยู่แล้ว
+            จึงไม่ต้องทำแถบสรุปซ้ำเหมือนหน้านั้น */}
+        {patient ? (
+          <div className="mb-4 flex justify-end">
+            {/* ถามก่อนเฉพาะเมื่อมีของจะเสีย — การเปลี่ยนคนไข้ทิ้งใบทั้งใบและเอาคืนไม่ได้
+                แต่ใบที่ยังไม่ได้กรอกอะไรก็ไม่มีอะไรให้ถาม */}
+            {hasTypedWork ? (
+              <Popconfirm
+                title="ทิ้งใบคำขอนี้?"
+                description="ที่กรอกไว้ทั้งใบจะหายไป และเอากลับมาไม่ได้"
+                okText="ทิ้งแล้วเปลี่ยนผู้ป่วย"
+                okButtonProps={{ danger: true }}
+                cancelText="กรอกต่อ"
+                onConfirm={changePatient}
+              >
+                <Button size="small" icon={<SwapOutlined />}>
+                  เปลี่ยนผู้ป่วย
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Button size="small" icon={<SwapOutlined />} onClick={changePatient}>
+                เปลี่ยนผู้ป่วย
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Segmented<EntryMode>
+            className="mb-4"
+            value={entry}
+            onChange={setEntry}
+            options={[
+              { label: 'กรอก HN เอง', value: 'hn' },
+              { label: 'ตามหอผู้ป่วย', value: 'ward' },
+              { label: 'ตามแพทย์เจ้าของไข้', value: 'doctor' },
+            ]}
+          />
+        )}
+
         {/* HN กับข้อมูลผู้ป่วยอยู่แถวเดียวกัน — 12 คอลัมน์แบ่ง 3/3/2/2/2
             จอแคบกว่า xl ตกลงมาเป็น 2 คอลัมน์ แล้วเหลือ 1 คอลัมน์บนมือถือ */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-12">
@@ -731,6 +944,17 @@ export default function DueRequestPage() {
               className="font-mono"
             />
           </label>
+
+          {/* ระหว่างดึงข้อมูลผู้ป่วยขึ้นโครงร่างสี่ช่องเท่าของจริง — เดิมแถวนี้ว่าง
+              แล้วช่องโผล่มาพร้อมกันทีเดียว ทำให้ฟอร์มทั้งใบกระตุกลงไปหนึ่งแถว */}
+          {loading && !patient && (
+            <>
+              <FieldSkeleton className="xl:col-span-3" />
+              <FieldSkeleton className="xl:col-span-2" />
+              <FieldSkeleton className="xl:col-span-2" />
+              <FieldSkeleton className="xl:col-span-2" />
+            </>
+          )}
 
           {patient && (
             <>
@@ -789,6 +1013,18 @@ export default function DueRequestPage() {
             </>
           )}
         </div>
+
+        {/* เลือกแล้วส่ง HN เข้าทางเดียวกับการพิมพ์เอง — onHnChange เป็นที่เดียว
+            ที่รู้กติกาการล้างฟอร์มและการยิงดึงข้อมูล จะได้ไม่มีสองเส้นทางที่ต้องดูแล
+
+            เลือกได้แล้วซ่อนด้วย hidden ไม่ใช่ถอดออกจาก DOM — ตึกหรือแพทย์ที่เลือกไว้
+            เป็นสถานะภายในของแผง ถ้า unmount จะหลุดทุกครั้ง แล้วการเดินราวน์ทีละราย
+            ในตึกเดียวกันต้องเลือกตึกใหม่ทุกใบ กดเปลี่ยนผู้ป่วยแล้วรายชื่อเดิมอยู่ที่เดิม */}
+        {entry !== 'hn' && (
+          <div className={`mt-4 border-t border-line pt-4${patient ? ' hidden' : ''}`}>
+            <AdmittedPicker mode={entry} onPick={picked => onHnChange(picked)} />
+          </div>
+        )}
 
         {error && <Alert type="error" showIcon title={error} className="mt-4" />}
 
@@ -870,10 +1106,39 @@ export default function DueRequestPage() {
             </div>
           )}
 
+          {/* ย้อมพื้นช่องตามระดับ ไม่ได้ย้อมทั้งกล่อง — ค่าสามตัวนี้ขึ้นลงไม่พร้อมกัน
+              (Cr สูงแต่ eGFR ยังพอได้ในคนตัวใหญ่) ถ้าย้อมรวมจะอ่านไม่ออกว่าตัวไหนวิกฤต */}
           {/* ───── ค่าไต ─────
               เติมจาก lab_head/lab_order รายการ Creatinine ให้อัตโนมัติ แล้วยังแก้เองได้
-              — ผลที่ห้องแล็บออกมาอาจไม่ใช่ค่าที่ใช้ตัดสินใจ เช่นเพิ่งเจาะซ้ำนอกระบบ */}
+              — ผลที่ห้องแล็บออกมาอาจไม่ใช่ค่าที่ใช้ตัดสินใจ เช่นเพิ่งเจาะซ้ำนอกระบบ
+
+              ปุ่มกราฟอยู่ในกล่องนี้ ไม่ใช่ท้ายฟอร์ม — คนกรอกต้องดูแนวโน้มตอนที่
+              กำลังตัดสินใจเรื่องค่าไต ไม่ใช่หลังกรอกครบแล้ว */}
           <div className="mb-5 rounded-xl border border-lab-line bg-lab-bg p-3">
+            {/* ปุ่มค่าแล็บไม่ผูกเงื่อนไขจำนวนครั้งเหมือนปุ่มกราฟไต เพราะยังไม่รู้ว่ามี
+                ผลกี่ครั้งจนกว่าจะกดดู — ค่าชุดนั้นไม่ได้ติดมากับข้อมูลผู้ป่วย
+                ดึงตอนกดเปิด ใบคำขอส่วนใหญ่ไม่ได้เปิดดู จึงไม่ลากมาทุกครั้งที่คีย์ HN */}
+            {patient && (
+              <div className="mb-3 flex flex-wrap justify-end gap-2">
+                {/* ขึ้นเมื่อมีจุดข้อมูลมากกว่าหนึ่งครั้ง — ครั้งเดียวไม่ใช่แนวโน้ม */}
+                {renalPoints.length > 1 && (
+                  <Button
+                    size="small"
+                    icon={<LineChartOutlined />}
+                    onClick={() => setRenalChartOpen(true)}
+                  >
+                    กราฟแนวโน้มค่าไต ({renalPoints.length} ครั้ง)
+                  </Button>
+                )}
+                <Button
+                  size="small"
+                  icon={<ExperimentOutlined />}
+                  onClick={() => setLabTrendOpen(true)}
+                >
+                  ค่าอักเสบและค่าตับย้อนหลัง
+                </Button>
+              </div>
+            )}
             {/* 24 ช่องเพราะห้าช่องกรอกต้องอยู่บรรทัดเดียวกันในจอกว้าง — 12 ช่องหารห้าไม่ลงตัว
                 จอแคบกว่า xl ตกลงมาเรียงสองคอลัมน์ตามเดิม */}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-24">
@@ -893,10 +1158,14 @@ export default function DueRequestPage() {
                   value={history.cr}
                   onChange={event => patchRenal({ cr: event.target.value })}
                   disabled={history.awaitingCreatinine}
+                  className={crSeverity === 0 ? undefined : RENAL_BOX[crSeverity]}
                   suffix={
-                    <Text type="secondary" className="text-[11px]">
-                      mg/dL
-                    </Text>
+                    <span className="flex items-center gap-2">
+                      <RenalBadge level={crSeverity} />
+                      <Text type="secondary" className="text-[11px]">
+                        mg/dL
+                      </Text>
+                    </span>
                   }
                 />
               </LabField>
@@ -939,8 +1208,10 @@ export default function DueRequestPage() {
                   onChange={event => patch({ crcl: event.target.value, crclEdited: true })}
                   disabled={history.awaitingCreatinine}
                   placeholder="ต้องมีทั้ง Cr และน้ำหนัก"
+                  className={crclSeverity === 0 ? undefined : RENAL_BOX[crclSeverity]}
                   suffix={
                     <span className="flex items-center gap-2">
+                      <RenalBadge level={crclSeverity} />
                       {history.crclEdited && (
                         <Button
                           type="link"
@@ -964,8 +1235,10 @@ export default function DueRequestPage() {
                   value={history.egfr}
                   onChange={event => patch({ egfr: event.target.value, egfrEdited: true })}
                   disabled={history.awaitingCreatinine}
+                  className={egfrSeverity === 0 ? undefined : RENAL_BOX[egfrSeverity]}
                   suffix={
                     <span className="flex items-center gap-2">
+                      <RenalBadge level={egfrSeverity} />
                       {history.egfrEdited && (
                         <Button
                           type="link"
@@ -1526,9 +1799,33 @@ export default function DueRequestPage() {
         </div>
       </Modal>
 
+      {/* destroyOnHidden จำเป็นกับกราฟ — Highcharts วัดความกว้างตอน mount
+          ถ้าค้างตัวเดิมไว้ในกล่องที่ซ่อนอยู่ ครั้งต่อไปจะได้ความกว้างศูนย์ */}
+      <Modal
+        title={
+          patient
+            ? `กราฟแนวโน้มค่าไต · HN ${patient.hn} · ${patient.name}`
+            : 'กราฟแนวโน้มค่าไต'
+        }
+        open={renalChartOpen}
+        onCancel={() => setRenalChartOpen(false)}
+        footer={null}
+        width={960}
+        destroyOnHidden
+      >
+        <RenalChart points={renalPoints} age={patient?.age ?? 0} height={380} />
+      </Modal>
+
       <LabCultureModal
         open={labCultureOpen}
         onClose={() => setLabCultureOpen(false)}
+        hn={patient?.hn ?? null}
+        patientName={patient?.name}
+      />
+
+      <LabTrendModal
+        open={labTrendOpen}
+        onClose={() => setLabTrendOpen(false)}
         hn={patient?.hn ?? null}
         patientName={patient?.name}
       />
