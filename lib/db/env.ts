@@ -17,6 +17,26 @@ export function requiredNumber(name: string): number {
   return value
 }
 
+/**
+ * ค่าตัวเลขที่ไม่ตั้งก็ได้ — ไม่ตั้งแปลว่า "ไม่มีของนี้ที่โรงพยาบาลนี้"
+ *
+ * ต่างจาก requiredNumber ที่ใช้กับค่าซึ่งขาดแล้วระบบทำงานผิด เช่นรหัส creatinine
+ * ที่เป็นแกนของการคำนวณขนาดยา ส่วนรหัสแล็บประกอบอย่าง albumin หรือ CRP
+ * โรงพยาบาลที่ไม่ได้ตรวจหรือใช้รหัสอื่นก็ยังต้องใช้ระบบส่วนที่เหลือได้
+ * จะให้แอปบูตไม่ขึ้นเพราะไม่ได้ตั้งรหัส albumin ไม่สมเหตุสมผล
+ *
+ * ตั้งมาแต่ไม่ใช่ตัวเลขยังโยน error เหมือนเดิม — นั่นคือพิมพ์ผิด ไม่ใช่เจตนาไม่ตั้ง
+ */
+export function optionalNumber(name: string): number | null {
+  const raw = process.env[name]
+  if (raw == null || raw.trim() === '') return null
+  const value = Number(raw)
+  if (!Number.isFinite(value)) {
+    throw new Error(`ค่า environment variable: ${name} ต้องเป็นตัวเลข (ตรวจสอบไฟล์ .env)`)
+  }
+  return value
+}
+
 /** HIS — MariaDB (อ่านข้อมูลโรงพยาบาล) */
 export const hisConfig = {
   host: required('HIS_HOST'),
