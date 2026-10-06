@@ -50,6 +50,7 @@ import type {
   WardOption,
 } from '@/lib/his/drug-profile'
 import PageHint from '../page-hint'
+import { BlockSkeleton, TableRowsSkeleton } from '@/app/home/skeletons'
 
 const { Paragraph, Text, Title } = Typography
 
@@ -819,8 +820,11 @@ export default function DrugProfilePage() {
    * ตารางของโหมดเลือกแพทย์
    *
    * เพิ่มช่องตึกเข้ามาเพราะคนไข้ของแพทย์คนเดียวกระจายอยู่หลายตึก ต่างจากโหมดตึก
-   * ที่ทุกแถวอยู่ตึกเดียวกันอยู่แล้ว และเพิ่มสองช่องแพทย์ไว้ให้เห็นว่าแถวนี้ติดมา
-   * เพราะเป็นเจ้าของไข้หรือเป็นคนสั่ง admit — สองค่านี้ต่างกันในผู้ป่วยส่วนใหญ่ที่นอนอยู่
+   * ที่ทุกแถวอยู่ตึกเดียวกันอยู่แล้ว
+   *
+   * ตัวกรองดูที่ช่องเจ้าของไข้เท่านั้น แต่ตารางแสดงช่องผู้สั่ง admit ไว้ด้วย —
+   * สองค่านี้ต่างกันในผู้ป่วยส่วนใหญ่ที่นอนอยู่ การเห็นว่าใครรับเคสเข้ามาจึงเป็น
+   * ข้อมูลที่ใช้ได้ แม้จะไม่ใช่สิ่งที่กรองด้วย
    */
   const doctorColumns: ColumnsType<AdmittedPatient> = [
     {
@@ -982,7 +986,7 @@ export default function DrugProfilePage() {
             }}
             options={[
               { label: 'ผู้ป่วยที่นอนอยู่ในตึก', value: 'ward' },
-              { label: 'ตามแพทย์', value: 'doctor' },
+              { label: 'ตามแพทย์เจ้าของไข้', value: 'doctor' },
               { label: 'ค้นหาผู้ป่วย', value: 'search' },
             ]}
           />
@@ -1012,7 +1016,7 @@ export default function DrugProfilePage() {
             )}
           </div>
 
-          <Spin spinning={patientsLoading}>
+          <Spin spinning={patientsLoading && patients.length > 0}>
             <Table<AdmittedPatient>
               rowKey="an"
               size="small"
@@ -1021,7 +1025,9 @@ export default function DrugProfilePage() {
               pagination={false}
               scroll={{ x: 'max-content', y: 420 }}
               locale={{
-                emptyText: (
+                emptyText: patientsLoading ? (
+                  <TableRowsSkeleton columns={9} rows={6} />
+                ) : (
                   <Empty description={ward ? 'ไม่มีผู้ป่วยนอนอยู่ในตึกนี้' : 'เลือกตึกก่อน'} />
                 ),
               }}
@@ -1051,7 +1057,7 @@ export default function DrugProfilePage() {
             )}
           </div>
 
-          <Spin spinning={patientsLoading}>
+          <Spin spinning={patientsLoading && patients.length > 0}>
             <Table<AdmittedPatient>
               rowKey="an"
               size="small"
@@ -1060,7 +1066,9 @@ export default function DrugProfilePage() {
               pagination={false}
               scroll={{ x: 'max-content', y: 420 }}
               locale={{
-                emptyText: (
+                emptyText: patientsLoading ? (
+                  <TableRowsSkeleton columns={9} rows={6} />
+                ) : (
                   <Empty
                     description={
                       doctorsLoading
@@ -1097,7 +1105,7 @@ export default function DrugProfilePage() {
             </Button>
           </div>
 
-          <Spin spinning={searching}>
+          <Spin spinning={searching && matches.length > 0}>
             <Table<AdmissionMatch>
               rowKey="an"
               size="small"
@@ -1106,7 +1114,9 @@ export default function DrugProfilePage() {
               pagination={false}
               scroll={{ x: 'max-content' }}
               locale={{
-                emptyText: (
+                emptyText: searching ? (
+                  <TableRowsSkeleton columns={7} rows={6} />
+                ) : (
                   <Empty
                     description={
                       searched ? 'ไม่พบการนอนโรงพยาบาลที่ตรงกับคำค้น' : 'พิมพ์คำค้นแล้วกดค้นหา'
@@ -1127,7 +1137,16 @@ export default function DrugProfilePage() {
         >
           {planError && <Alert type="error" showIcon title={planError} className="mb-4" />}
 
-          <Spin spinning={planLoading}>
+          {/* วงกลมหมุนไว้เฉพาะตอนโหลดทับแผนยาที่แสดงอยู่ */}
+          <Spin spinning={planLoading && plan !== null}>
+            {/* โหลดครั้งแรกขึ้นโครงร่าง — ตารางแผนยากว้างเท่าจำนวนวันที่นอน
+                กว่าคิวรีจะเสร็จใช้เวลา ปล่อยว่างไว้ไม่บอกอะไรว่ากำลังจะได้อะไรมา */}
+            {planLoading && !plan && (
+              <>
+                <BlockSkeleton height={60} className="mb-4" />
+                <TableRowsSkeleton columns={8} rows={10} />
+              </>
+            )}
             {admission && (
               <>
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -1402,8 +1421,10 @@ export default function DrugProfilePage() {
         style={{ top: 32, maxWidth: 1400 }}
         styles={{ body: { maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' } }}
       >
-        <Spin spinning={scanLoading}>
+        <Spin spinning={scanLoading && scans.length > 0}>
           {scanError && <Alert type="error" showIcon title={scanError} className="mb-3" />}
+          {/* โหลดครั้งแรกขึ้นโครงร่างแถวรายการภาพ ไม่ใช่ลิ้นชักว่าง */}
+          {scanLoading && scans.length === 0 && <TableRowsSkeleton columns={3} rows={6} />}
 
           {scans.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-3">

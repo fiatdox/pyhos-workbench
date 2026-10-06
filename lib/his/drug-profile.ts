@@ -3,8 +3,25 @@ import { sql } from 'drizzle-orm'
 import { hisDb } from '@/lib/db/his'
 import { loadAllergies, type DrugAllergy } from './medication-history'
 import { countLabCultures } from './lab-culture'
+import {
+  PATIENT_NAME,
+  STILL_ADMITTED,
+  type AdmittedPatient,
+  type DoctorOption,
+  type WardOption,
+} from './admitted'
 
 export type { DrugAllergy }
+
+// ตัวช่วยเลือกผู้ป่วยย้ายไปอยู่ ./admitted แล้ว ส่งต่อชื่อเดิมไว้ที่นี่
+// เพื่อให้หน้าและ route ที่นำเข้าจากไฟล์นี้อยู่แล้วไม่ต้องแก้ตาม
+export type { AdmittedPatient, DoctorOption, WardOption }
+export {
+  listAdmittedByDoctor,
+  listAdmittedInWard,
+  listAdmittingDoctors,
+  listWards,
+} from './admitted'
 
 /**
  * Drug Profile ผู้ป่วยใน — ขั้นตอนเลือกผู้ป่วย
@@ -20,44 +37,7 @@ export type { DrugAllergy }
  * ไม่ส่งเลขบัตรประชาชนกลับไปฝั่งหน้าเว็บ แม้จะใช้ค้นได้ก็ตาม
  */
 
-/** ยังไม่จำหน่าย = ยังไม่มีวันจำหน่ายและยังไม่มีสถานะจำหน่าย */
-const STILL_ADMITTED = sql`i.dchdate IS NULL AND (i.dchstts IS NULL OR i.dchstts = '')`
 
-/** ชื่อผู้ป่วยประกอบจาก 3 คอลัมน์ ใช้ซ้ำหลายคิวรี */
-const PATIENT_NAME = sql`CONCAT(p.pname, p.fname, ' ', p.lname)`
-
-export type WardOption = {
-  ward: string
-  name: string
-  /** จำนวนผู้ป่วยที่ยังนอนอยู่ตอนนี้ */
-  admitted: number
-}
-
-export type AdmittedPatient = {
-  an: string
-  hn: string
-  name: string
-  age: number | null
-  /** '1' = ชาย, '2' = หญิง ตามรหัสของ HIS */
-  sex: string | null
-  ward: string
-  wardName: string | null
-  admitDate: string | null
-  /** จำนวนวันนอนถึงวันนี้ */
-  los: number | null
-  /** แพทย์ผู้สั่ง admit (ipt.admdoctor) — null เมื่อรหัสไม่ตรงกับทะเบียนแพทย์ */
-  admitDoctor: string | null
-  /** แพทย์เจ้าของไข้ (ipt.incharge_doctor) — คนละคนกับผู้สั่ง admit ได้ */
-  inchargeDoctor: string | null
-}
-
-/** แพทย์หนึ่งคนที่มีผู้ป่วยนอนอยู่ตอนนี้ */
-export type DoctorOption = {
-  code: string
-  name: string
-  /** จำนวนผู้ป่วยที่ยังนอนอยู่ซึ่งแพทย์คนนี้เป็นเจ้าของไข้หรือเป็นคนสั่ง admit */
-  admitted: number
-}
 
 export type AdmissionMatch = {
   an: string
@@ -92,111 +72,6 @@ const like = (value: string) => value.replace(/[\\%_]/g, ch => `\\${ch}`)
  * ใช้ LEFT JOIN เพื่อให้ตึกที่ว่างอยู่ยังโผล่ในรายการ (แสดงเป็น 0)
  * ตึกที่ ward_active = 'N' คือตึกที่ปิดไปแล้ว ไม่ต้องเอามาให้เลือก
  */
-export async function listWards(): Promise<WardOption[]> {
-  const [result] = await hisDb.execute(sql`
-    SELECT w.ward, w.name, COUNT(i.an) AS admitted
-    FROM ward w
-    LEFT OUTER JOIN ipt i ON i.ward = w.ward AND ${STILL_ADMITTED}
-    WHERE w.ward_active = 'Y'
-    GROUP BY w.ward, w.name
-    ORDER BY w.ward`)
-
-  return rows(result).map(row => ({
-    ward: String(row.ward),
-    name: String(row.name ?? '').trim(),
-    admitted: Number(row.admitted ?? 0),
-  }))
-}
-
-/**
- * คิวรีร่วมของรายชื่อผู้ที่ยังนอนอยู่ — ต่างกันแค่เงื่อนไข WHERE
- *
- * ipt มี index (dchstts, ward) อยู่แล้ว การกรองจึงไม่ไล่ทั้งตาราง
- * ไม่มีคอลัมน์เลขเตียงในผลลัพธ์ — ตาราง iptbedmove ของโรงพยาบาลนี้มีข้อมูล
- * ไม่ถึงครึ่งของผู้ป่วยที่นอนอยู่ ส่วน ipt_bed_stat ว่างเปล่า ถ้าแสดงไปจะเป็น
- * ช่องว่างเสียส่วนใหญ่และทำให้เข้าใจผิดว่าไม่มีเตียง
- *
- * เรียงตามตึกก่อนเสมอ — โหมดเลือกตึกมีตึกเดียวอยู่แล้วจึงไม่เปลี่ยนอะไร
- * ส่วนโหมดเลือกแพทย์คนไข้กระจายอยู่หลายตึก การจัดกลุ่มตามตึกช่วยให้เดินราวน์ได้
- */
-async function listAdmitted(where: ReturnType<typeof sql>): Promise<AdmittedPatient[]> {
-  const [result] = await hisDb.execute(sql`
-    SELECT i.an, i.hn, ${PATIENT_NAME} AS ptname,
-           TIMESTAMPDIFF(YEAR, p.birthday, CURDATE()) AS age, p.sex,
-           i.ward, w.name AS ward_name,
-           DATE_FORMAT(i.regdate, '%Y-%m-%d') AS regdate,
-           DATEDIFF(CURDATE(), i.regdate) AS los,
-           da.name AS adm_doctor, di.name AS inc_doctor
-    FROM ipt i
-    INNER JOIN patient p ON p.hn = i.hn
-    LEFT OUTER JOIN ward w ON w.ward = i.ward
-    LEFT OUTER JOIN doctor da ON da.code = i.admdoctor
-    LEFT OUTER JOIN doctor di ON di.code = i.incharge_doctor
-    WHERE ${where} AND ${STILL_ADMITTED}
-    ORDER BY i.ward, i.regdate, i.an`)
-
-  return rows(result).map(row => ({
-    an: String(row.an),
-    hn: String(row.hn ?? ''),
-    name: String(row.ptname ?? '').trim(),
-    age: num(row.age),
-    sex: str(row.sex),
-    ward: String(row.ward ?? ''),
-    wardName: str(row.ward_name),
-    admitDate: str(row.regdate),
-    los: num(row.los),
-    admitDoctor: str(row.adm_doctor),
-    inchargeDoctor: str(row.inc_doctor),
-  }))
-}
-
-/** ผู้ป่วยที่ยังนอนอยู่ในตึกที่เลือก */
-export async function listAdmittedInWard(ward: string): Promise<AdmittedPatient[]> {
-  return listAdmitted(sql`i.ward = ${ward}`)
-}
-
-/**
- * ผู้ป่วยที่ยังนอนอยู่ของแพทย์ที่เลือก
- *
- * นับทั้งสองบทบาท — HIS แยก "ผู้สั่ง admit" (admdoctor) ออกจาก "เจ้าของไข้"
- * (incharge_doctor) และสองค่านี้ต่างกันในผู้ป่วยส่วนใหญ่ที่นอนอยู่ตอนนี้
- * ถ้าเลือกมาทางเดียว คนที่ถามว่า "คนไข้ของหมอคนนี้" จะได้คำตอบไม่ครบไปครึ่งหนึ่ง
- * โดยไม่รู้ตัว ตารางแสดงทั้งสองช่องไว้ให้เห็นว่าแต่ละแถวเข้ามาด้วยบทบาทไหน
- */
-export async function listAdmittedByDoctor(code: string): Promise<AdmittedPatient[]> {
-  return listAdmitted(sql`(i.admdoctor = ${code} OR i.incharge_doctor = ${code})`)
-}
-
-/**
- * แพทย์ที่มีผู้ป่วยนอนอยู่ตอนนี้ พร้อมจำนวน
- *
- * ไม่ได้เอารายชื่อแพทย์ทั้งทะเบียน (active อยู่ราวหนึ่งพันสี่ร้อยคน) เพราะที่ใช้จริง
- * คือแพทย์ที่มีคนไข้นอนอยู่ ซึ่งมีราวหกสิบคน รายการยาวกว่านั้นเลือกยากโดยเปล่าประโยชน์
- *
- * UNION ALL แล้วค่อยนับ ไม่ใช่ OR ในคิวรีเดียว — ผู้ป่วยที่แพทย์คนเดียวกันเป็นทั้ง
- * เจ้าของไข้และผู้สั่ง admit ต้องนับเป็นหนึ่ง ไม่ใช่สอง จึงต้องนับ AN แบบไม่ซ้ำ
- */
-export async function listAdmittingDoctors(): Promise<DoctorOption[]> {
-  const [result] = await hisDb.execute(sql`
-    SELECT r.code, d.name, COUNT(DISTINCT r.an) AS admitted
-    FROM (
-      SELECT i.admdoctor AS code, i.an FROM ipt i
-       WHERE ${STILL_ADMITTED} AND i.admdoctor IS NOT NULL AND i.admdoctor <> ''
-      UNION ALL
-      SELECT i.incharge_doctor AS code, i.an FROM ipt i
-       WHERE ${STILL_ADMITTED} AND i.incharge_doctor IS NOT NULL AND i.incharge_doctor <> ''
-    ) r
-    INNER JOIN doctor d ON d.code = r.code
-    GROUP BY r.code, d.name
-    ORDER BY d.name`)
-
-  return rows(result).map(row => ({
-    code: String(row.code),
-    name: String(row.name ?? '').trim(),
-    admitted: Number(row.admitted ?? 0),
-  }))
-}
-
 /** คิวรีร่วมของการค้นหา — ต่างกันแค่เงื่อนไข WHERE */
 async function findAdmissions(where: ReturnType<typeof sql>): Promise<AdmissionMatch[]> {
   const [result] = await hisDb.execute(sql`
