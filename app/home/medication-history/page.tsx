@@ -22,8 +22,10 @@ import type { ColumnsType } from 'antd/es/table'
 import { apiFetch } from '@/lib/client/session'
 import { useSessionUser } from '../app-shell'
 import { UsageSelect } from '../usage-select'
+import AppointmentsModal from '../appointments-modal'
 import LabCultureModal from '../lab-culture-modal'
 import {
+  CalendarOutlined,
   ExperimentOutlined,
   FileImageOutlined,
   FileTextOutlined,
@@ -48,6 +50,7 @@ import type { XrayReport } from '@/lib/his/xray-reports'
 import type { VisitDetail, VisitDiagnosis, VisitLab, VisitOrder } from '@/lib/his/visit-detail'
 import type { ReconcilePrintData } from './reconcile-pdf'
 import PageHint from '../page-hint'
+import { DescriptionsSkeleton, TableRowsSkeleton } from '@/app/home/skeletons'
 
 /**
  * ตัวแสดง PDF ของ @react-pdf/renderer ทำงานได้เฉพาะในเบราว์เซอร์ (ใช้ canvas/worker)
@@ -513,6 +516,7 @@ export default function MedicationHistoryPage() {
   const [scanError, setScanError] = useState('')
   const [scanVn, setScanVn] = useState<string | null>(null)
   const [labOpen, setLabOpen] = useState(false)
+  const [appointmentsOpen, setAppointmentsOpen] = useState(false)
   const [reconcileOpen, setReconcileOpen] = useState(false)
   /** ค่าที่แพทย์แก้ไว้ในหน้า Med Reconcile เก็บตาม icode — ยังไม่ถูกส่งกลับไป HIS */
   const [reconcileEdits, setReconcileEdits] = useState<
@@ -1240,6 +1244,15 @@ export default function MedicationHistoryPage() {
                 Lab Culture ({data.labCultureCount})
               </Button>
             )}
+            {data.extraCounts.appointments > 0 && (
+              <Button
+                size="small"
+                icon={<CalendarOutlined />}
+                onClick={() => setAppointmentsOpen(true)}
+              >
+                นัดหมาย ({data.extraCounts.appointments})
+              </Button>
+            )}
             {/* แสดงเฉพาะผู้ป่วยที่เคยตรวจ HLA-B*5801 — ไม่เคยตรวจก็ไม่มีปุ่มให้กด */}
             {data.hlaResults.length > 0 && (
               <Button size="small" icon={<ExperimentOutlined />} onClick={() => setHlaOpen(true)}>
@@ -1268,8 +1281,10 @@ export default function MedicationHistoryPage() {
         width="90vw"
         style={{ top: 40, maxWidth: 1400 }}
       >
-        <Spin spinning={noteLoading}>
+        <Spin spinning={noteLoading && notes.length > 0}>
           {noteError && <Alert type="error" showIcon title={noteError} className="mb-3" />}
+          {/* โหลดครั้งแรกขึ้นโครงร่าง ไม่ใช่ลิ้นชักว่าง */}
+          {noteLoading && notes.length === 0 && <TableRowsSkeleton columns={3} rows={8} />}
 
           {/* กรองตามตำแหน่งของผู้บันทึก — เลือกได้หลายตำแหน่งพร้อมกัน */}
           {positionOptions.length > 0 && (
@@ -1432,8 +1447,9 @@ export default function MedicationHistoryPage() {
         width="90vw"
         style={{ top: 40, maxWidth: 1400 }}
       >
-        <Spin spinning={dentalLoading}>
+        <Spin spinning={dentalLoading && dentalNotes.length > 0}>
           {dentalError && <Alert type="error" showIcon title={dentalError} className="mb-3" />}
+          {dentalLoading && dentalNotes.length === 0 && <TableRowsSkeleton columns={4} rows={6} />}
           <Table<DentalNote>
             rowKey="vn"
             size="small"
@@ -1459,8 +1475,9 @@ export default function MedicationHistoryPage() {
         width="90vw"
         style={{ top: 40, maxWidth: 1400 }}
       >
-        <Spin spinning={xrayLoading}>
+        <Spin spinning={xrayLoading && xrayReports.length > 0}>
           {xrayError && <Alert type="error" showIcon title={xrayError} className="mb-3" />}
+          {xrayLoading && xrayReports.length === 0 && <TableRowsSkeleton columns={4} rows={6} />}
           <Table<XrayReport>
             rowKey="xn"
             size="small"
@@ -1487,8 +1504,9 @@ export default function MedicationHistoryPage() {
         style={{ top: 32, maxWidth: 1400 }}
         styles={{ body: { maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' } }}
       >
-        <Spin spinning={scanLoading}>
+        <Spin spinning={scanLoading && scans.length > 0}>
           {scanError && <Alert type="error" showIcon title={scanError} className="mb-3" />}
+          {scanLoading && scans.length === 0 && <TableRowsSkeleton columns={3} rows={6} />}
 
           {scans.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -1558,8 +1576,9 @@ export default function MedicationHistoryPage() {
         width="90vw"
         style={{ top: 40, maxWidth: 1400 }}
       >
-        <Spin spinning={peLoading}>
+        <Spin spinning={peLoading && exams.length > 0}>
           {peError && <Alert type="error" showIcon title={peError} className="mb-3" />}
+          {peLoading && exams.length === 0 && <TableRowsSkeleton columns={3} rows={8} />}
 
           {/* กรองตามผู้บันทึก — เลือกได้หลายคนพร้อมกัน */}
           {doctorOptions.length > 0 && (
@@ -1618,8 +1637,9 @@ export default function MedicationHistoryPage() {
         style={{ top: 24, maxWidth: 1600 }}
         styles={{ body: { maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' } }}
       >
-        <Spin spinning={visitLoading}>
+        <Spin spinning={visitLoading && visit !== null}>
           {visitError && <Alert type="error" showIcon title={visitError} className="mb-3" />}
+          {visitLoading && !visit && <DescriptionsSkeleton rows={9} />}
           {visit && (
             <div className="flex flex-col gap-5">
               <Descriptions
@@ -1721,6 +1741,13 @@ export default function MedicationHistoryPage() {
           )}
         </Spin>
       </Modal>
+
+      <AppointmentsModal
+        open={appointmentsOpen}
+        onClose={() => setAppointmentsOpen(false)}
+        hn={data?.patient?.hn ?? null}
+        patientName={data?.patient?.name}
+      />
 
       <LabCultureModal
         open={labOpen}
@@ -1825,7 +1852,8 @@ export default function MedicationHistoryPage() {
       </Modal>
 
       {/* ───────────── ตารางประวัติยา ───────────── */}
-      <Spin spinning={loading}>
+      {/* วงกลมหมุนไว้เฉพาะตอนค้นใหม่ทับตารางที่แสดงอยู่ — ตารางเดิมยังอยู่ให้เทียบ */}
+      <Spin spinning={loading && data !== null}>
         {data ? (
           data.rows.length > 0 ? (
             <>
@@ -1859,12 +1887,14 @@ export default function MedicationHistoryPage() {
               <Empty description={`ไม่พบประวัติการได้รับยาในช่วง ${data.months} เดือนล่าสุด`} />
             </div>
           )
+        ) : loading ? (
+          /* โหลดครั้งแรกขึ้นโครงร่างตาราง — หน้านี้รวมข้อมูลหลายตารางของ HIS
+             กว่าจะครบใช้เวลา ปล่อยว่างไว้ไม่บอกอะไรว่ากำลังจะได้อะไรมา */
+          <TableRowsSkeleton columns={8} rows={10} />
         ) : (
-          !loading && (
-            <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
-              <Empty description="กรอก HN แล้วกดค้นหา" />
-            </div>
-          )
+          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+            <Empty description="กรอก HN แล้วกดค้นหา" />
+          </div>
         )}
       </Spin>
     </>

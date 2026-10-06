@@ -8,6 +8,7 @@ import { countLabCultures } from './lab-culture'
 import { countPatientNotes } from './patient-notes'
 import { countPhysicalExams } from './physical-exams'
 import { countDentalNotes } from './dental-notes'
+import { countAppointments } from './appointments'
 import { countOpdScans } from './opd-scan'
 import { countXrayReports } from './xray-reports'
 
@@ -127,6 +128,7 @@ export type MedicationHistory = {
     dentalNotes: number
     opdScans: number
     xrayReports: number
+    appointments: number
   }
   columns: MedicationColumn[]
   rows: MedicationRow[]
@@ -422,7 +424,9 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
     return {
       months, patient: null, allergies: [], conditions: [], hlaResults: [],
       hasPhoto: false, labCultureCount: 0,
-      extraCounts: { notes: 0, physicalExams: 0, dentalNotes: 0, opdScans: 0, xrayReports: 0 },
+      extraCounts: {
+        notes: 0, physicalExams: 0, dentalNotes: 0, opdScans: 0, xrayReports: 0, appointments: 0,
+      },
       columns: [], rows: [],
     }
   }
@@ -440,6 +444,7 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
     dentalNotes,
     opdScans,
     xrayReports,
+    appointments,
   ] = await Promise.all([
     loadColumns(hn, months),
     loadDrugRows(hn, months),
@@ -456,6 +461,7 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
     countDentalNotes(hn),
     countOpdScans(hn),
     countXrayReports(hn),
+    countAppointments(hn),
   ])
   const cells = await loadCells(hn, months, columns)
 
@@ -480,7 +486,7 @@ export async function getMedicationHistory(hn: string, months = 6): Promise<Medi
   return {
     months, patient: summary, allergies, conditions, hlaResults,
     hasPhoto, labCultureCount,
-    extraCounts: { notes, physicalExams, dentalNotes, opdScans, xrayReports },
+    extraCounts: { notes, physicalExams, dentalNotes, opdScans, xrayReports, appointments },
     columns, rows,
   }
 }
