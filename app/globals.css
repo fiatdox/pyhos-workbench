@@ -112,6 +112,22 @@
   --ok-ink: #34d399;
   --ok-bg: rgba(52, 211, 153, 0.16);
   --ok-line: rgba(52, 211, 153, 0.4);
+
+  /* ระดับความรุนแรงของค่าไตในใบคำขอ DUE — สามขั้น ไล่จากเหลืองไปแดง
+     ใช้ย้อมพื้นช่อง Cr / CrCl / eGFR ตามระดับ ไม่ใช่แค่แดงหรือไม่แดง เพราะ
+     การตัดสินใจเรื่องขนาดยาต่างกันตามขั้น ไม่ได้ต่างกันแค่ "ผิดปกติ/ปกติ"
+     กล่องค่าไตมีพื้นเหลืองจาง (--lab-bg) อยู่แล้ว ขั้นแรกจึงต้องเข้มพอจะแยกออก
+     ไม่ได้พึ่งสีเดียว — มีป้ายบอกระดับเป็นตัวอักษรกำกับทุกช่องด้วย คนตาบอดสี
+     ต้องอ่านได้เท่ากัน */
+  --renal-1-ink: #fcd34d;
+  --renal-1-bg: rgba(250, 204, 21, 0.22);
+  --renal-1-line: rgba(250, 204, 21, 0.5);
+  --renal-2-ink: #fdba74;
+  --renal-2-bg: rgba(249, 115, 22, 0.26);
+  --renal-2-line: rgba(249, 115, 22, 0.55);
+  --renal-3-ink: #fca5a5;
+  --renal-3-bg: rgba(239, 68, 68, 0.3);
+  --renal-3-line: rgba(239, 68, 68, 0.6);
 }
 
 /* พาสเทลม่วง–ขาว: พื้นขาวนวลอมม่วง ตัวอักษรม่วงเข้ม เส้นขอบเป็นม่วงจาง ๆ
@@ -193,6 +209,17 @@
   --ok-ink: #047857;
   --ok-bg: rgba(5, 150, 105, 0.12);
   --ok-line: rgba(5, 150, 105, 0.32);
+
+  /* ธีมสว่างใช้ตัวอักษรเข้มบนพื้นจาง — สลับบทบาทของ ink กับ bg จากธีมมืด */
+  --renal-1-ink: #92400e;
+  --renal-1-bg: rgba(250, 204, 21, 0.28);
+  --renal-1-line: rgba(217, 119, 6, 0.45);
+  --renal-2-ink: #9a3412;
+  --renal-2-bg: rgba(249, 115, 22, 0.22);
+  --renal-2-line: rgba(234, 88, 12, 0.45);
+  --renal-3-ink: #991b1b;
+  --renal-3-bg: rgba(239, 68, 68, 0.18);
+  --renal-3-line: rgba(220, 38, 38, 0.45);
 }
 
 @theme inline {
@@ -251,6 +278,17 @@
   --color-ok: var(--ok-ink);
   --color-ok-bg: var(--ok-bg);
   --color-ok-line: var(--ok-line);
+
+  /* ระดับความรุนแรงของค่าไต */
+  --color-renal-1: var(--renal-1-ink);
+  --color-renal-1-bg: var(--renal-1-bg);
+  --color-renal-1-line: var(--renal-1-line);
+  --color-renal-2: var(--renal-2-ink);
+  --color-renal-2-bg: var(--renal-2-bg);
+  --color-renal-2-line: var(--renal-2-line);
+  --color-renal-3: var(--renal-3-ink);
+  --color-renal-3-bg: var(--renal-3-bg);
+  --color-renal-3-line: var(--renal-3-line);
 }
 
 body {

@@ -8,7 +8,28 @@ import Highcharts from 'highcharts/esm/highcharts'
 import 'highcharts/esm/modules/accessibility'
 import HighchartsReact from 'highcharts-react-official'
 import { useTheme } from '@/app/theme'
-import type { RenalPoint } from './mock-data'
+
+/**
+ * ค่าไตหนึ่งจุดบนกราฟ
+ *
+ * นิยามอยู่ที่กราฟ ไม่ใช่ที่แหล่งข้อมูล เพราะกราฟถูกป้อนจากสองทางแล้ว — ข้อมูล
+ * สมมติของหน้าเภสัชกรรม และประวัติจริงจาก lab_head/lab_order ในหน้าสร้างคำขอ
+ *
+ * crcl กับ egfr เป็น null ได้ ต่างจาก cr ที่ต้องมีเสมอ — ห้องแล็บไม่ได้ออก CrCl
+ * ให้เลย ต้องคำนวณเองซึ่งทำได้เมื่อรู้น้ำหนัก และใบเก่าบางใบไม่มี eGFR ติดมา
+ * Highcharts วาดค่า null เป็นช่องว่างของเส้น ซึ่งตรงกับความจริงว่า "ไม่รู้ค่า"
+ * มากกว่าการลากเส้นข้ามไปเหมือนไม่มีอะไรขาด
+ */
+export type RenalPoint = {
+  /** 'YYYY-MM-DD' */
+  date: string
+  /** Creatinine (mg/dL) */
+  cr: number
+  /** CrCl (mL/min) — null เมื่อไม่รู้น้ำหนักจึงคำนวณไม่ได้ */
+  crcl: number | null
+  /** eGFR (mL/min/1.73m²) — null เมื่อใบนั้นไม่ได้ออก eGFR มา */
+  egfr: number | null
+}
 
 /**
  * กราฟแนวโน้มค่าไต — Creatinine / CrCl / eGFR พร้อมเส้นอายุไว้เทียบ

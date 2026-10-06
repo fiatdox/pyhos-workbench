@@ -1,6 +1,6 @@
 'use client'
 import { Alert, Button, Tag, Tooltip, Typography } from 'antd'
-import { FileTextOutlined, FormOutlined } from '@ant-design/icons'
+import { FileTextOutlined, FormOutlined, LineChartOutlined } from '@ant-design/icons'
 import { labelOf, sexLabel, toThaiDate } from './display'
 import {
   APPROPRIATE_OPTIONS,
@@ -136,10 +136,13 @@ function EvaluationSummary({ evaluation }: { evaluation: DrugEvaluation }) {
 export default function RequestDetail({
   request,
   onOpenLabCulture,
+  onOpenRenalChart,
   onEvaluate,
 }: {
   request: MockRequest
   onOpenLabCulture: (request: MockRequest) => void
+  /** ไม่ส่งมา = หน้าจอนั้นไม่มีปุ่มกราฟค่าไต (ตัวเลขในช่องยังเห็นครบเหมือนเดิม) */
+  onOpenRenalChart?: (request: MockRequest) => void
   /** ไม่ส่งมา = หน้าจอนั้นไม่มีงานประเมิน (หน้าแพทย์ผู้กำกับมีแค่อนุมัติ/ไม่อนุมัติ) */
   onEvaluate?: (request: MockRequest, drug: MockDrug) => void
 }) {
@@ -210,7 +213,22 @@ export default function RequestDetail({
       </div>
 
       <div>
-        <div className="mb-2 text-xs font-semibold text-ink">ค่าไต</div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-ink">ค่าไต</span>
+          {/* ค่าชุดเดียวบอกได้แค่ว่าตอนนี้ไตเป็นอย่างไร ไม่ได้บอกว่ากำลังแย่ลงหรือ
+              ฟื้นขึ้น ซึ่งเปลี่ยนคำตอบเรื่องขนาดยา — Cr 1.5 ที่ไต่ขึ้นมาสามวัน
+              คนละเรื่องกับ Cr 1.5 ที่กำลังลงจาก 2.4
+              ปุ่มขึ้นเมื่อมีจุดข้อมูลให้พลอตจริงเท่านั้น ไม่งั้นกดไปเจอกราฟเปล่า */}
+          {onOpenRenalChart && request.renalTrend.length > 1 && (
+            <Button
+              size="small"
+              icon={<LineChartOutlined />}
+              onClick={() => onOpenRenalChart(request)}
+            >
+              กราฟแนวโน้ม ({request.renalTrend.length} ครั้ง)
+            </Button>
+          )}
+        </div>
         {request.awaitingCreatinine ? (
           <Text type="secondary" className="text-xs">
             รอผล — ยังไม่มีค่า Creatinine

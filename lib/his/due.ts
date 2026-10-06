@@ -158,6 +158,8 @@ export type DuePatient = {
   departmentName: string | null
   /** ผลค่าไตครั้งล่าสุด — null เมื่อยังไม่เคยเจาะหรือยังไม่รายงานผล */
   creatinine: CreatinineResult | null
+  /** ประวัติค่าไตย้อนหลังหนึ่งปี เรียงจากเก่าไปใหม่ — ใช้พลอตกราฟแนวโน้ม */
+  renalHistory: CreatininePoint[]
   /** น้ำหนักที่ชั่งครั้งล่าสุด — null เมื่อไม่เคยชั่งหรือค่าที่มีอยู่นอกช่วงที่รับได้ */
   weight: ScreenWeight | null
   /** จำนวนใบรายงานผลเพาะเชื้อ — 0 แปลว่าไม่ต้องขึ้นปุ่มให้กด */
@@ -237,6 +239,70 @@ async function getLatestCreatinine(hn: string): Promise<CreatinineResult | null>
     cr,
     egfr: str(row.egfr),
   }
+}
+
+/** ค่าไตหนึ่งครั้งในประวัติ — ไม่มี CrCl เพราะห้องแล็บไม่ได้ออกให้ ต้องคำนวณเอง */
+export type CreatininePoint = {
+  /** วันที่สั่งเจาะ 'YYYY-MM-DD' */
+  date: string
+  /** Creatinine (mg/dL) */
+  cr: number
+  /** eGFR ของใบเดียวกัน (mL/min/1.73m²) — null เมื่อใบนั้นไม่ได้ออก eGFR มา */
+  egfr: number | null
+}
+
+/** ช่วงเวลาและจำนวนครั้งสูงสุดของประวัติค่าไตที่เอามาพลอตกราฟ */
+const RENAL_HISTORY_DAYS = 365
+const RENAL_HISTORY_MAX = 60
+
+/**
+ * ประวัติค่าไตย้อนหลัง ใช้พลอตกราฟแนวโน้ม
+ *
+ * เงื่อนไขชุดเดียวกับ getLatestCreatinine ทั้งหมด ต่างกันแค่ไม่จำกัดเหลือใบเดียว
+ * — จุดขวาสุดของกราฟจึงเป็นค่าเดียวกับที่เติมลงช่องในฟอร์มเสมอ ถ้าสองที่ใช้
+ * เงื่อนไขต่างกันแล้วไม่ตรงกัน คนอ่านจะไม่รู้ว่าควรเชื่อตัวไหน
+ *
+ * จำกัดหนึ่งปีและหกสิบครั้ง เพราะคนไข้ฟอกไตเจาะทุกสัปดาห์ ปีเดียวได้เป็นร้อยจุด
+ * ซึ่งพลอตแล้วอ่านไม่ออกและไม่ได้ช่วยตัดสินใจเรื่องขนาดยาวันนี้
+ *
+ * เรียงจากเก่าไปใหม่ตรงจากคิวรี กราฟจึงเอาไปใช้ได้ตามลำดับที่ได้มา — ตัด LIMIT
+ * ด้วยการเรียงจากใหม่ไปเก่าในคิวรีชั้นใน แล้วกลับลำดับที่ชั้นนอก ไม่ใช่เรียงขึ้น
+ * แล้ว LIMIT ซึ่งจะได้หกสิบครั้งที่ "เก่าที่สุด" แทนที่จะเป็นหกสิบครั้งล่าสุด
+ */
+async function getCreatinineHistory(hn: string): Promise<CreatininePoint[]> {
+  const [result] = await hisDb.execute(sql`
+    SELECT recent.order_date, recent.cr, recent.egfr
+    FROM (
+      SELECT DATE_FORMAT(h.order_date, '%Y-%m-%d') AS order_date,
+             MAX(CASE WHEN o.lab_items_code = ${LAB_ITEM_CREATININE} THEN o.lab_order_result END) AS cr,
+             MAX(CASE WHEN o.lab_items_code = ${LAB_ITEM_EGFR} THEN o.lab_order_result END) AS egfr
+      FROM lab_head h
+      JOIN lab_order o ON o.lab_order_number = h.lab_order_number
+      WHERE h.hn = ${hn}
+        AND o.lab_items_code IN (${LAB_ITEM_CREATININE}, ${LAB_ITEM_EGFR})
+        AND o.lab_order_result IS NOT NULL
+        AND o.lab_order_result <> ''
+        AND h.order_date <= CURDATE()
+        AND h.order_date >= DATE_SUB(CURDATE(), INTERVAL ${sql.raw(String(RENAL_HISTORY_DAYS))} DAY)
+      GROUP BY h.lab_order_number, h.order_date
+      HAVING cr IS NOT NULL
+      ORDER BY h.order_date DESC, h.lab_order_number DESC
+      LIMIT ${RENAL_HISTORY_MAX}
+    ) recent
+    ORDER BY recent.order_date, recent.cr`)
+
+  return rows(result)
+    .map(row => ({
+      date: String(row.order_date),
+      cr: Number(row.cr),
+      egfr: row.egfr == null || row.egfr === '' ? null : Number(row.egfr),
+    }))
+    // ค่าที่แปลงเป็นตัวเลขไม่ได้ต้องหายไปทั้งจุด ไม่ใช่กลายเป็น NaN บนกราฟ
+    .filter(point => Number.isFinite(point.cr) && point.cr > 0)
+    .map(point => ({
+      ...point,
+      egfr: point.egfr != null && Number.isFinite(point.egfr) ? point.egfr : null,
+    }))
 }
 
 /**
@@ -330,6 +396,7 @@ export async function getDuePatient(hn: string): Promise<DuePatient | null> {
     [admissionResult],
     [visitResult],
     creatinine,
+    renalHistory,
     weight,
     labCultureCount,
     allergies,
@@ -354,6 +421,7 @@ export async function getDuePatient(hn: string): Promise<DuePatient | null> {
       ORDER BY o.vstdate DESC, o.vn DESC
       LIMIT 1`),
     getLatestCreatinine(hn),
+    getCreatinineHistory(hn),
     getLatestWeight(hn),
     countLabCultures(hn),
     loadAllergies(hn),
@@ -380,6 +448,7 @@ export async function getDuePatient(hn: string): Promise<DuePatient | null> {
     age: patient.age == null ? null : Number(patient.age),
     sex: str(patient.sex),
     creatinine,
+    renalHistory,
     weight,
     labCultureCount,
     allergies,

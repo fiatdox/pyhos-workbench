@@ -16,6 +16,7 @@
  * ถ้าหน้านั้นเพิ่มช่อง ต้องเพิ่มที่นี่ด้วย ไม่งั้นหน้างานเภสัชกรรมจะแสดงไม่ครบ
  */
 
+import type { RenalPoint } from './renal-chart'
 /** ยาที่ต้องให้แพทย์ผู้กำกับอนุมัติก่อน เภสัชกรจึงจะรับรายการได้ */
 export const SUPERVISOR_ONLY_DRUGS = ['colistin']
 
@@ -189,23 +190,8 @@ export type DrugEvaluation = {
   evaluatedAt: string
 }
 
-/**
- * ค่าไตหนึ่งจุดบนกราฟแนวโน้ม
- *
- * เก็บ cr เป็นค่าดิบจากห้องแล็บ ส่วน crcl กับ egfr คำนวณไว้แล้ว
- * ของจริง egfr ดึงจากห้องแล็บได้ตรง ๆ (lab_items_code 1571) ส่วน crcl
- * ต้องคำนวณเองด้วย Cockcroft-Gault เพราะห้องแล็บไม่ได้ออกให้
- */
-export type RenalPoint = {
-  /** 'YYYY-MM-DD' */
-  date: string
-  /** Creatinine (mg/dL) */
-  cr: number
-  /** CrCl (mL/min) */
-  crcl: number
-  /** eGFR (mL/min/1.73m²) */
-  egfr: number
-}
+/** นิยามของจุดข้อมูลอยู่ที่กราฟ — ข้อมูลสมมติชุดนี้เป็นแค่หนึ่งในผู้ป้อนค่า */
+export type { RenalPoint }
 
 /** ใบรายงานผลเพาะเชื้อหนึ่งใบ */
 export type CultureReport = {

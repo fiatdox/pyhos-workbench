@@ -12,6 +12,7 @@ import {
   Drawer,
   Empty,
   Input,
+  Modal,
   Segmented,
   Select,
   Table,
@@ -29,6 +30,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons'
 import LabCultureModal from '@/app/home/lab-culture-modal'
+import RenalChart from '../renal-chart'
 import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import EvaluationModal from './evaluation-modal'
@@ -81,6 +83,8 @@ export default function DuePharmacyPage() {
   const [note, setNote] = useState('')
   /** คำขอที่กำลังเปิดดูผลเพาะเชื้ออยู่ — เก็บทั้งก้อนเพราะต้องใช้ทั้ง hn และชื่อ */
   const [labCulturePatient, setLabCulturePatient] = useState<MockRequest | null>(null)
+  /** คำขอที่กำลังเปิดกราฟค่าไตอยู่ — เก็บทั้งก้อนเพราะกราฟใช้ทั้งชุดค่าและอายุ */
+  const [renalPatient, setRenalPatient] = useState<MockRequest | null>(null)
   /** ยาที่กำลังกรอกแบบประเมิน — ประเมินทีละตัว ไม่ใช่ทีละใบ */
   const [evalTarget, setEvalTarget] = useState<{ requestId: string; drugId: number } | null>(null)
 
@@ -436,6 +440,7 @@ export default function DuePharmacyPage() {
           <RequestDetail
             request={opened}
             onOpenLabCulture={setLabCulturePatient}
+            onOpenRenalChart={setRenalPatient}
             onEvaluate={(request, drug) =>
               setEvalTarget({ requestId: request.id, drugId: drug.id })
             }
@@ -453,6 +458,34 @@ export default function DuePharmacyPage() {
         onSave={saveEvaluation}
         onOpenCulture={() => evalRequest && setLabCulturePatient(evalRequest)}
       />
+
+      {/* ───────── กราฟแนวโน้มค่าไต ─────────
+          Modal ไม่ใช่ลิ้นชักซ้อนลิ้นชัก เหมือนที่ทำกับแบบประเมิน — เภสัชกรยังเห็น
+          ตัวเลขในลิ้นชักด้านหลังไว้เทียบกับกราฟได้
+
+          destroyOnHidden จำเป็นกับกราฟ ไม่ใช่แค่เรื่องความสะอาด: Highcharts วัด
+          ความกว้างตอน mount ถ้าค้างตัวเดิมไว้ในกล่องที่ซ่อนอยู่ ครั้งต่อไปจะได้
+          ความกว้างศูนย์แล้ววาดออกมาเป็นแถบบาง ๆ */}
+      <Modal
+        title={
+          renalPatient
+            ? `กราฟแนวโน้มค่าไต · HN ${renalPatient.hn} · ${renalPatient.patientName}`
+            : 'กราฟแนวโน้มค่าไต'
+        }
+        open={renalPatient != null}
+        onCancel={() => setRenalPatient(null)}
+        footer={null}
+        width={960}
+        destroyOnHidden
+      >
+        {renalPatient && (
+          <RenalChart
+            points={renalPatient.renalTrend}
+            age={renalPatient.age}
+            height={380}
+          />
+        )}
+      </Modal>
 
       <LabCultureModal
         open={labCulturePatient != null}
