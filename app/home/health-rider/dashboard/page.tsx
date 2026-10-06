@@ -3,7 +3,7 @@
 // (การตรวจสิทธิ์ยังทำที่ app/home/layout.tsx ซึ่งเป็น Server Component)
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Alert, Breadcrumb, DatePicker, Empty, Segmented, Spin, Typography } from 'antd'
+import { Alert, Breadcrumb, DatePicker, Empty, Segmented, Select, Spin, Typography } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { BarChartOutlined } from '@ant-design/icons'
 import { apiFetch } from '@/lib/client/session'
@@ -17,6 +17,17 @@ import {
   UptakeChart,
 } from './charts'
 import PageHint from '../../page-hint'
+import { BlockSkeleton, StatCardsSkeleton } from '@/app/home/skeletons'
+import {
+  clampToToday,
+  currentFiscalYear,
+  fiscalQuarterRange,
+  fiscalYearRange,
+  fiscalYears,
+  QUARTER_MONTHS,
+  quarterHasStarted,
+  type FiscalQuarter,
+} from '@/lib/client/fiscal'
 
 const { RangePicker } = DatePicker
 const { Text, Title } = Typography
@@ -29,6 +40,22 @@ const PRESETS = [
 ]
 
 const rangeOf = (days: number): [Dayjs, Dayjs] => [dayjs().subtract(days - 1, 'day'), dayjs()]
+
+const FISCAL_YEARS = fiscalYears()
+
+/** 0 = ทั้งปีงบ ที่เหลือคือเลขไตรมาส */
+type QuarterChoice = 0 | FiscalQuarter
+
+const QUARTERS: QuarterChoice[] = [0, 1, 2, 3, 4]
+
+/**
+ * ช่วงวันที่ของปีงบ/ไตรมาสที่เลือก
+ *
+ * ตัดปลายไม่ให้เลยวันนี้เสมอ — ปีงบที่ยังไม่จบมีวันในอนาคตอยู่ด้วย ป้ายบอกช่วงที่
+ * เขียนว่าถึง 30 ก.ย. จะให้ความรู้สึกว่าครอบคลุมกว่าที่มีข้อมูลจริง
+ */
+const fiscalRangeOf = (year: number, quarter: QuarterChoice): [Dayjs, Dayjs] =>
+  clampToToday(quarter === 0 ? fiscalYearRange(year) : fiscalQuarterRange(year, quarter))
 
 const thaiDate = (value: Dayjs) => `${value.format('DD/MM')}/${value.year() + 543}`
 
@@ -75,6 +102,15 @@ function Panel({
 export default function HealthRiderDashboardPage() {
   const [range, setRange] = useState<[Dayjs, Dayjs]>(rangeOf(30))
   const [preset, setPreset] = useState<string | null>('30')
+  /**
+   * ปีงบที่เลือกอยู่ — null คือกำลังดูแบบนับวันย้อนหลังหรือเลือกช่วงเอง
+   *
+   * เก็บแยกจาก range เพราะ range เป็นผลลัพธ์ ไม่ใช่ตัวเลือก ถ้าเดาย้อนกลับจาก
+   * range ว่าตรงกับปีงบไหน ช่วงที่ผู้ใช้เลือกเองมาชนขอบปีงบพอดีจะถูกไฮไลต์
+   * เป็นปีงบทั้งที่เขาไม่ได้เลือกแบบนั้น
+   */
+  const [fiscalYear, setFiscalYear] = useState<number | null>(null)
+  const [quarter, setQuarter] = useState<QuarterChoice>(0)
   const [stats, setStats] = useState<DeliveryStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -123,8 +159,30 @@ export default function HealthRiderDashboardPage() {
 
   const pick = (days: string) => {
     setPreset(days)
+    setFiscalYear(null)
+    setQuarter(0)
     setLoading(true)
     setRange(rangeOf(Number(days)))
+  }
+
+  /** เลือกปีงบ — ไตรมาสที่ค้างไว้จากปีก่อนยังใช้ต่อได้ถ้าปีใหม่มีไตรมาสนั้นแล้ว */
+  const pickFiscalYear = (year: number) => {
+    const keep = quarter !== 0 && quarterHasStarted(year, quarter) ? quarter : 0
+    setFiscalYear(year)
+    setQuarter(keep)
+    setPreset(null)
+    setLoading(true)
+    setRange(fiscalRangeOf(year, keep))
+  }
+
+  const pickQuarter = (choice: QuarterChoice) => {
+    // กดไตรมาสตอนที่ยังไม่ได้เลือกปีงบ ให้ถือว่าหมายถึงปีงบปัจจุบัน
+    const year = fiscalYear ?? currentFiscalYear()
+    setFiscalYear(year)
+    setQuarter(choice)
+    setPreset(null)
+    setLoading(true)
+    setRange(fiscalRangeOf(year, choice))
   }
 
   return (
@@ -154,12 +212,35 @@ export default function HealthRiderDashboardPage() {
           options={PRESETS}
           onChange={value => pick(String(value))}
         />
+        <Select<number>
+          placeholder="ปีงบประมาณ"
+          style={{ width: 150 }}
+          value={fiscalYear}
+          options={FISCAL_YEARS.map(year => ({ value: year, label: `ปีงบ ${year}` }))}
+          onChange={pickFiscalYear}
+        />
+        {/* ตัวเลือกไตรมาสขึ้นเฉพาะเมื่อเลือกปีงบแล้ว — ไตรมาสลอย ๆ ไม่มีความหมาย
+            ต้องบอกว่าไตรมาสของปีไหน และไตรมาสที่ยังไม่เริ่มกดไม่ได้เพราะไม่มีข้อมูล */}
+        {fiscalYear !== null && (
+          <Segmented<QuarterChoice>
+            value={quarter}
+            onChange={pickQuarter}
+            options={QUARTERS.map(choice => ({
+              value: choice,
+              label: choice === 0 ? 'ทั้งปี' : `Q${choice}`,
+              title: choice === 0 ? 'ทั้งปีงบประมาณ' : `ไตรมาส ${choice} (${QUARTER_MONTHS[choice]})`,
+              disabled: choice !== 0 && !quarterHasStarted(fiscalYear, choice),
+            }))}
+          />
+        )}
         <RangePicker
           allowClear={false}
           value={range}
           onChange={value => {
             if (!value?.[0] || !value[1]) return
             setPreset(null)
+            setFiscalYear(null)
+            setQuarter(0)
             setLoading(true)
             setRange([value[0], value[1]])
           }}
@@ -167,11 +248,22 @@ export default function HealthRiderDashboardPage() {
           maxDate={dayjs()}
         />
         <Text type="secondary" className="ml-auto text-xs">
+          {/* บอกชื่อปีงบ/ไตรมาสกำกับช่วงวันที่ด้วย — ป้ายวันที่เปล่า ๆ ไม่ได้ยืนยันว่า
+              ที่เห็นคือไตรมาสที่กดไป และปีงบที่ยังไม่จบจะถูกตัดปลายที่วันนี้
+              ซึ่งต้องเห็นว่าไม่ได้ครบไตรมาสตามปฏิทิน */}
+          {fiscalYear !== null && (
+            <span className="mr-2">
+              ปีงบ {fiscalYear}
+              {quarter !== 0 ? ` · ไตรมาส ${quarter}` : ''} ·
+            </span>
+          )}
           {thaiDate(range[0])} – {thaiDate(range[1])}
         </Text>
       </section>
 
-      <Spin spinning={loading}>
+      {/* วงกลมหมุนไว้เฉพาะตอนดึงใหม่ทับของที่แสดงอยู่ — ของเดิมยังอยู่ให้เทียบ
+          โหลดครั้งแรกใช้โครงร่างข้างล่าง ไม่ให้ขึ้นซ้อนกันสองอย่าง */}
+      <Spin spinning={loading && stats !== null}>
         {stats && kpis ? (
           <div className="flex flex-col gap-4">
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
@@ -289,8 +381,17 @@ export default function HealthRiderDashboardPage() {
               </Panel>
             </section>
           </div>
+        ) : loading ? (
+          /* หกการ์ดกับกล่องกราฟเท่าของจริง — หน้านี้รวมหลายคิวรี กว่าจะครบใช้เวลา */
+          <>
+            <StatCardsSkeleton count={6} className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-6" />
+            <div className="grid gap-4 xl:grid-cols-2">
+              <BlockSkeleton height={200} />
+              <BlockSkeleton height={200} />
+            </div>
+          </>
         ) : (
-          !loading && <Empty description="ไม่มีข้อมูลในช่วงที่เลือก" />
+          <Empty description="ไม่มีข้อมูลในช่วงที่เลือก" />
         )}
       </Spin>
     </>

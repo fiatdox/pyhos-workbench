@@ -23,6 +23,8 @@ import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
 import { BreakdownChart, DrugChart, TrendChart, type Bucket } from './charts'
 import PageHint from '../../page-hint'
+import { ReportSkeleton } from '@/app/home/skeletons'
+import { currentFiscalYear, fiscalYearRange, fiscalYears } from '@/lib/client/fiscal'
 
 // เปิด token BBBB (ปี พ.ศ.) ให้ dayjs — ถ้าไม่ extend ปฏิทินจะพิมพ์คำว่า BBBB ออกมาตรง ๆ
 dayjs.extend(buddhistEra)
@@ -111,25 +113,8 @@ type Facts = {
   truncated: boolean
 }
 
-/**
- * ปีงบประมาณไทย — 1 ต.ค. ปีก่อนหน้า ถึง 30 ก.ย. ของปีนั้น
- *
- * ปีงบ 2569 = 1 ต.ค. 2568 ถึง 30 ก.ย. 2569 (ค.ศ. 2025-10-01 ถึง 2026-09-30)
- * ความยาว 365 วัน จึงยังอยู่ในเพดาน 366 วันของ API
- */
-function fiscalYearRange(buddhistYear: number): [Dayjs, Dayjs] {
-  const endYear = buddhistYear - 543
-  return [dayjs(`${endYear - 1}-10-01`), dayjs(`${endYear}-09-30`)]
-}
-
-/** ปีงบประมาณที่วันนี้อยู่ — ตั้งแต่ 1 ต.ค. ถือว่าเข้าปีงบถัดไปแล้ว */
-function currentFiscalYear(): number {
-  const now = dayjs()
-  return now.year() + 543 + (now.month() >= 9 ? 1 : 0)
-}
-
-/** ตัวเลือกปีงบประมาณย้อนหลัง 5 ปี */
-const FISCAL_YEARS = Array.from({ length: 5 }, (_, index) => currentFiscalYear() - index)
+/** ตัวเลือกปีงบประมาณย้อนหลัง 5 ปี — นิยามปีงบอยู่ที่ lib/client/fiscal.ts ที่เดียว */
+const FISCAL_YEARS = fiscalYears()
 
 const THAI_MONTHS = [
   'ม.ค.',
@@ -440,7 +425,9 @@ export default function RduDashboardPage() {
         />
       )}
 
-      <Spin spinning={loading}>
+      {/* วงกลมหมุนไว้เฉพาะตอนดึงใหม่ทับของที่แสดงอยู่ — ของเดิมยังอยู่ให้เทียบ
+          โหลดครั้งแรกใช้โครงร่างข้างล่าง ไม่ให้ขึ้นซ้อนกันสองอย่าง */}
+      <Spin spinning={loading && facts !== null}>
         {facts ? (
           <>
             {/* ───────────── ตัวกรองสี่มุม ───────────── */}
@@ -610,12 +597,13 @@ export default function RduDashboardPage() {
               </Link>
             </div>
           </>
+        ) : loading ? (
+          /* โหลดครั้งแรกขึ้นโครงร่าง ไม่ใช่ที่ว่างเปล่า — คิวรีชุดนี้ใช้เวลาหลายวินาที */
+          <ReportSkeleton cards={6} cardsClassName="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" />
         ) : (
-          !loading && (
-            <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
-              <Empty description="เลือกตัวชี้วัดกับช่วงเวลาแล้วกดดึงข้อมูล" />
-            </div>
-          )
+          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+            <Empty description="เลือกตัวชี้วัดกับช่วงเวลาแล้วกดดึงข้อมูล" />
+          </div>
         )}
       </Spin>
     </>
