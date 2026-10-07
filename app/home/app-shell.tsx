@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Avatar, Button, Descriptions, Divider, Drawer, Layout, Menu, Tag, Typography } from 'antd'
 import {
+  ApartmentOutlined,
   AuditOutlined,  DashboardOutlined,
   ExperimentOutlined,
   LogoutOutlined,
@@ -91,6 +92,7 @@ export const MENU_ITEMS: {
     feature: 'rdu',
   },
   { key: '/home/health-rider', icon: <MotorcycleOutlined />, label: 'Health Rider' },
+  { key: '/home/service-plan', icon: <ApartmentOutlined />, label: 'Service Plan' },
   { key: '/home/diagram', icon: <PartitionOutlined />, label: 'ผังระบบ' },
   {
     key: '/home/admin/activity',
