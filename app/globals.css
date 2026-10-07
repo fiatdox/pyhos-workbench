@@ -30,6 +30,10 @@
   --surface-elevated: #1b1033;
   --surface-bar: rgba(12, 7, 22, 0.8);
 
+  /* ผังระบบ — ต้องเป็นสีทึบจริง เพราะแผ่นรองใต้ป้ายบนเส้นใช้ค่าเดียวกันนี้
+     สีโปร่งจะทำให้เห็นเส้นลอดผ่านป้าย */
+  --diagram-paper: #0f0920;
+  --diagram-node: #1b1033;
   --line-soft: rgba(255, 255, 255, 0.1);
   --line-faint: rgba(255, 255, 255, 0.05);
 
@@ -142,6 +146,8 @@
   --surface-elevated: #ffffff;
   --surface-bar: rgba(255, 255, 255, 0.82);
 
+  --diagram-paper: #f7f5fb;
+  --diagram-node: #ffffff;
   --line-soft: rgba(124, 58, 237, 0.16);
   --line-faint: rgba(124, 58, 237, 0.08);
 

@@ -9,6 +9,7 @@ import {
   LogoutOutlined,
   MedicineBoxOutlined,
   MenuOutlined,
+  PartitionOutlined,
   ProfileOutlined,
   SafetyCertificateOutlined,
   UserOutlined,
@@ -90,6 +91,7 @@ export const MENU_ITEMS: {
     feature: 'rdu',
   },
   { key: '/home/health-rider', icon: <MotorcycleOutlined />, label: 'Health Rider' },
+  { key: '/home/diagram', icon: <PartitionOutlined />, label: 'ผังระบบ' },
   {
     key: '/home/admin/activity',
     icon: <SafetyCertificateOutlined />,
