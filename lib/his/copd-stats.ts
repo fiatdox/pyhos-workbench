@@ -12,9 +12,16 @@ import {
 } from '@/lib/his/fiscal-period'
 import {
   COPD_AGE_BANDS,
+  COPD_DISEASES,
+  COPD_DRUG_TIERS,
   PNEUMONIA_SCOPES,
   type CopdAgeBand,
   type CopdCount,
+  type CopdDisease,
+  type CopdDiseaseStats,
+  type CopdDrugs,
+  type CopdDrugTier,
+  type CopdDrugTierCount,
   type CopdPeriod,
   type PneumoniaScope,
 } from '@/lib/his/copd-groups'
@@ -26,11 +33,18 @@ export type CopdQuery = PeriodQuery
 
 export {
   COPD_AGE_BANDS,
+  COPD_DISEASES,
+  COPD_DRUG_TIERS,
   PNEUMONIA_SCOPES,
 } from '@/lib/his/copd-groups'
 export type {
   CopdAgeBand,
   CopdCount,
+  CopdDisease,
+  CopdDiseaseStats,
+  CopdDrugs,
+  CopdDrugTier,
+  CopdDrugTierCount,
   CopdPeriod,
   PneumoniaScope,
 } from '@/lib/his/copd-groups'
@@ -38,11 +52,14 @@ export type {
 /**
  * Service Plan สาขาโรคปอดอุดกั้นเรื้อรัง — ปอดบวมและ COPD
  *
- * สองตัวชี้วัดที่ได้รับมา:
+ * สี่ตัวชี้วัดที่ได้รับมา:
  *
  *   1  ร้อยละการเสียชีวิตในโรงพยาบาลของผู้ป่วยปอดบวม
  *      ตัวหาร: การนอนที่มีรหัสปอดบวมอยู่ · ตัวตั้ง: ที่จำหน่ายด้วยสถานะเสียชีวิต
  *   2  ผู้ป่วยในโรคปอดอุดกั้นเรื้อรัง (J44 เป็นโรคหลัก) แยกตามช่วงอายุ
+ *   3  ผู้ป่วยในโรคหืด (J45-J46 เป็นโรคหลัก) แยกตามช่วงอายุ — คิวรีรูปเดียวกับ
+ *      ข้อ 2 ต่างแค่ช่วงรหัส จึงรวมมาเป็นคิวรีเดียวที่ติดชื่อโรคให้แต่ละแถว
+ *   4  การใช้ยาสูดพ่นของผู้ป่วยนอก COPD จำแนกตามขั้นของยา
  *
  * **แก้สามเรื่องจากคิวรีที่ได้รับมา ทุกเรื่องวัดผลต่างไว้แล้ว**
  *
@@ -100,8 +117,108 @@ const PNEUMONIA_AS_WRITTEN = `(
   OR LEFT(dx.icd10, 3) = 'J17'
 )`
 
-/** โรคปอดอุดกั้นเรื้อรังที่เป็นโรคหลัก */
-const COPD_CODES = `(a.icd10 LIKE 'J44%')`
+/**
+ * ช่วงรหัสของโรคที่รายงานผู้ป่วยในแยกตามช่วงอายุ
+ *
+ * ตรวจกับฐานแล้วทั้งสองช่วง — J44 มีรหัสลูกจึงใช้ LIKE · ส่วนหืดใช้ BETWEEN
+ * 'J45' AND 'J46' ตามคิวรีที่ได้รับมา ซึ่งวัดแล้วจับได้ครบ 3,915 แถวเท่ากับ
+ * LEFT(icd10,3) IN ('J45','J46') พอดี เพราะ J46 (status asthmaticus) ไม่มีรหัสลูก
+ * ในฐานนี้ ถ้าวันหนึ่งมี J46x โผล่มา BETWEEN จะจับไม่ได้ แต่ ณ วันนี้ไม่มีปัญหา
+ * (ต่างจากรายการรหัสปอดบวมที่พลาดเพราะเขียนจุดทศนิยม)
+ *
+ * กติกาที่ตกลงกันไว้คือ**ช่วงรหัสในตัวชี้วัดหมายถึงรหัสย่อยทุกตัว** ที่นี่จึงยัง
+ * ถูกเพราะวัดแล้วจับครบพอดี ไม่ใช่เพราะ BETWEEN เป็นวิธีที่ถูก — J46 ไม่มีรหัสลูก
+ * จึงรอดไปโดยบังเอิญ
+ */
+const DISEASE_CODES: Record<CopdDisease, string> = {
+  copd: `a.icd10 LIKE 'J44%'`,
+  asthma: `a.icd10 BETWEEN 'J45' AND 'J46'`,
+}
+
+/** เงื่อนไขรวมของทั้งสองโรค — ใช้กรองชุด AN ในคิวรีเดียว */
+const ANY_DISEASE = COPD_DISEASES.map(disease => `(${DISEASE_CODES[disease]})`).join(' OR ')
+
+/**
+ * นิพจน์ติดชื่อโรคให้แต่ละแถว
+ *
+ * ปลอดภัยที่จะไล่ CASE ตามลำดับ เพราะหนึ่งการนอนมีโรคหลักได้รหัสเดียว สองโรค
+ * จึงไม่ซ้อนกันเลย — ไม่เหมือนธงของหน้า Sepsis ที่ซ้อนกันได้
+ */
+const DISEASE_TAG = `CASE ${COPD_DISEASES.map(
+  disease => `WHEN ${DISEASE_CODES[disease]} THEN '${disease}'`,
+).join(' ')} END`
+
+/**
+ * รหัสยาสูดพ่นของแต่ละขั้น ตามที่ได้รับมา
+ *
+ * ตรวจชื่อยาในทะเบียน drugitems แล้วทุกรหัส — 1000235 SYMBICORT Turbuhaler
+ * (budesonide + formoterol) · 1001156 SERETIDE Accuhaler, 1580006 และ 1670134
+ * SERETIDE-250 Evohaler (salmeterol + fluticasone 250) · 1670106 และ 1000938
+ * EVOFLO-125 Evohaler (salmeterol + fluticasone 125 คนละผู้ผลิต) · 1001112
+ * SPIRIVA Powder Inh. Capsule (tiotropium)
+ *
+ * ลำดับขั้น D > C > B > A มาจากคิวรีที่ได้รับมา ไม่ได้จัดเอง — และสังเกตว่า
+ * EVOFLO-125 มี fluticasone น้อยกว่า SERETIDE-250 แต่อยู่ขั้นต่ำกว่า ส่วน
+ * SYMBICORT เป็นยาคนละโมเลกุล การเรียงนี้จึงเป็นข้อตกลงของบัญชียาโรงพยาบาล
+ * ไม่ใช่ลำดับความแรงทางเภสัชวิทยา เป็นเรื่องที่คณะกรรมการต้องยืนยัน
+ */
+const DRUG_TIER_CODES: Record<CopdDrugTier, string> = {
+  symbicort: `'1000235'`,
+  seretide: `'1001156','1580006','1670134'`,
+  evoflo: `'1670106','1000938'`,
+  spiriva: `'1001112'`,
+}
+
+/** รหัสของ Spiriva เอง — ใช้ตรวจว่าชื่อขั้นที่อ่านว่า "Spiriva_X" เป็นจริงไหม */
+const SPIRIVA_CODE = `'1001112'`
+
+/**
+ * ยาสูดพ่นที่ผู้ป่วย COPD ได้รับจริงแต่ไม่อยู่ในรายการเจ็ดรหัส
+ *
+ * 1610055 Spiolto Respimat (tiotropium + olodaterol) — วัดแล้วมีผู้ป่วย COPD
+ * ได้รับเพิ่มขึ้นทุกปี (8 → 17 → 66 → 104 ราย) และบางรายไม่ได้ยาในรายการเลย
+ * จึงหายไปจากรายงานทั้งหมดถ้านับตามรายการเดิม นับแยกไว้ให้เห็น ไม่จัดขั้นให้เอง
+ * เพราะเป็น LAMA + LABA ที่ไม่มีในลำดับขั้นที่ได้รับมา
+ *
+ * รหัสที่อยู่ในทะเบียนแต่ไม่มีการจ่ายให้ผู้ป่วย COPD เลยในห้าปี (1550119 และ
+ * 1001177 SPIRIVA รหัสเก่า · 1550198 SE-RE-TIDE · 1630147 RELVAR Ellipta)
+ * ไม่ได้ใส่ไว้ เพราะใส่แล้วก็ได้ศูนย์
+ */
+const OUTSIDE_DRUG_CODES = `'1610055'`
+
+/** รหัสยาทั้งหมดที่คิวรีต้องดึงมา — ในรายการบวกที่อยู่นอกรายการ */
+const ALL_DRUG_CODES = [...Object.values(DRUG_TIER_CODES), OUTSIDE_DRUG_CODES].join(',')
+
+/**
+ * เงื่อนไขไล่ขั้นของยา — เรียงตาม COPD_DRUG_TIERS ซึ่งเรียงจากขั้นสูงสุดลงไป
+ *
+ * ลำดับของ WHEN คือลำดับความสำคัญ ตัวแรกที่เข้าเงื่อนไขชนะ จึงได้ "ขั้นสูงสุดที่
+ * ผู้ป่วยได้รับในช่วงนั้น" ตามที่คิวรีต้นฉบับทำ — ถ้าสลับลำดับในรายการ ความหมาย
+ * ของตัวเลขจะเปลี่ยนทันที
+ */
+const tierCase = COPD_DRUG_TIERS.map(
+  tier =>
+    `WHEN MAX(CASE WHEN o.icode IN (${DRUG_TIER_CODES[tier]}) THEN 1 ELSE 0 END) = 1 THEN '${tier}'`,
+).join(' ')
+
+/**
+ * กลุ่มผู้ป่วย COPD ของตัวชี้วัดการใช้ยา — คนที่**เคย**มีรหัส J44 เป็นโรคหลัก
+ * ของผู้ป่วยนอก ไม่จำกัดปี ตามคิวรีที่ได้รับมา
+ *
+ * อ่าน hn จาก ovstdiag ตรง ๆ ไม่ต้องต่อ vn_stat เข้ามาเหมือนคิวรีต้นฉบับ —
+ * ตารางนั้นมีคอลัมน์ hn อยู่แล้ว การต่อเพิ่มได้ผลเท่ากันแต่ทำให้ช้าลง และวัดแล้ว
+ * ทำให้ผู้ป่วยตกหายไปหนึ่งรายด้วย (6,227 เทียบ 6,228 คน) เพราะมี visit ที่ไม่มี
+ * แถวใน vn_stat
+ *
+ * ขอบเขตนี้นับแต่การวินิจฉัยฝั่งผู้ป่วยนอก ถ้ารวมโรคหลักของผู้ป่วยในด้วยกลุ่มจะ
+ * ใหญ่ขึ้นเป็น 7,200 คน และตัวเลขสุดท้ายเพิ่มราว 5% (ปีงบ 2569: 987 เป็น 1,036)
+ * โค้ดนี้คงขอบเขตที่ได้รับมาไว้ เป็นอีกข้อที่คณะกรรมการตัดสินได้
+ */
+const COPD_COHORT = `
+  SELECT DISTINCT od.hn
+  FROM ovstdiag od
+  WHERE od.icd10 LIKE 'J44%' AND od.diagtype = '1'
+`
 
 /** ขอบล่างของช่วงอายุแต่ละช่วง — ใช้สร้างทั้งนิพจน์ SQL และป้ายที่หน้าจอ */
 const AGE_BREAKS: Record<CopdAgeBand, number> = {
@@ -206,8 +323,9 @@ export async function getCopdStats(
    * อายุอ่านจาก an_stat.age_y ซึ่งเป็นอายุ ณ วันรับเข้านอนที่ HIS คำนวณไว้แล้ว
    * ไม่ได้คิดจากวันเกิดเอง เพื่อให้ตรงกับคิวรีที่ได้รับมาและกับรายงานอื่นของ HIS
    */
-  const copd = `
+  const inpatient = `
     SELECT bucket,
+           disease,
            COALESCE(band, '') AS band,
            COUNT(*) AS total,
            SUM(is_dead) AS dead
@@ -215,19 +333,57 @@ export async function getCopdStats(
       SELECT ${bucket} AS bucket,
              i.an,
              ${dead} AS is_dead,
+             ${DISEASE_TAG} AS disease,
              ${AGE_BAND} AS band
       FROM ipt i
-      JOIN iptdiag a ON a.an = i.an AND a.diagtype = '1' AND ${COPD_CODES}
+      JOIN iptdiag a ON a.an = i.an AND a.diagtype = '1' AND (${ANY_DISEASE})
       LEFT JOIN an_stat s ON s.an = i.an
       WHERE i.dchdate BETWEEN '${plan.from}' AND '${plan.to}'
-      GROUP BY bucket, i.an, band
+      GROUP BY bucket, i.an, disease, band
     ) AS x
-    GROUP BY bucket, band
+    GROUP BY bucket, disease, band
   `
 
-  const [pneumoniaResult, copdResult, coding] = await Promise.all([
+  /**
+   * การใช้ยาสูดพ่นของผู้ป่วย COPD จำแนกตามขั้นของยา
+   *
+   * ชั้นในยุบเป็นหนึ่งแถวต่อ (ช่วงเวลา × ผู้ป่วย) แล้วตัดสินขั้นสูงสุดที่ได้รับ
+   * ในช่วงนั้น ชั้นนอกรวมเป็นจำนวนผู้ป่วยต่อขั้น — หน่วยนับจึงเป็นคน ไม่ใช่ใบสั่งยา
+   *
+   * ดึงยานอกรายการมาในคิวรีเดียวกันด้วย แถวที่ tier เป็น NULL คือผู้ป่วยที่ได้
+   * ยานอกรายการอย่างเดียว ซึ่งคิวรีต้นฉบับตัดออกด้วย HAVING จนมองไม่เห็นว่ามีอยู่
+   *
+   * ไม่ต้องมี HAVING กันค่า NULL เหมือนคิวรีต้นฉบับ เพราะ WHERE จำกัด icode ไว้
+   * ในรายการอยู่แล้ว ทุกกลุ่มจึงเข้าเงื่อนไขใดเงื่อนไขหนึ่งแน่นอน ยกเว้นกลุ่มที่
+   * ได้ยานอกรายการอย่างเดียวซึ่งที่นี่ตั้งใจเก็บไว้
+   *
+   * วัดจากฐานจริง 0.84 วินาทีสำหรับห้าปีงบ
+   */
+  const drugs = `
+    SELECT bucket,
+           COALESCE(tier, '') AS tier,
+           COUNT(*) AS patients,
+           SUM(has_spiriva) AS with_spiriva,
+           SUM(has_outside) AS with_outside
+    FROM (
+      SELECT ${bucketExpression(plan.by, 'o.vstdate')} AS bucket,
+             o.hn,
+             MAX(CASE WHEN o.icode IN (${SPIRIVA_CODE}) THEN 1 ELSE 0 END) AS has_spiriva,
+             MAX(CASE WHEN o.icode IN (${OUTSIDE_DRUG_CODES}) THEN 1 ELSE 0 END) AS has_outside,
+             CASE ${tierCase} ELSE NULL END AS tier
+      FROM opitemrece o
+      JOIN (${COPD_COHORT}) AS cohort ON cohort.hn = o.hn
+      WHERE o.vstdate BETWEEN '${plan.from}' AND '${plan.to}'
+        AND o.icode IN (${ALL_DRUG_CODES})
+      GROUP BY bucket, o.hn
+    ) AS x
+    GROUP BY bucket, tier
+  `
+
+  const [pneumoniaResult, inpatientResult, drugResult, coding] = await Promise.all([
     hisDb.execute(sql.raw(pneumonia)),
-    hisDb.execute(sql.raw(copd)),
+    hisDb.execute(sql.raw(inpatient)),
+    hisDb.execute(sql.raw(drugs)),
     codingCompleteness(thisMonth(now)),
   ])
 
@@ -236,35 +392,74 @@ export async function getCopdStats(
     pneumoniaOf.set(String(row.bucket), row)
   }
 
-  /** ยอด COPD รายช่วง และยอดแยกช่วงอายุ — มาจากแถวเดียวกัน ไล่รวมทีเดียว */
-  const copdOf = new Map<
-    string,
-    { copd: CopdCount; ages: Record<CopdAgeBand, CopdCount>; ageUnknown: CopdCount }
-  >()
-  for (const row of (copdResult as unknown as Row[][])[0]) {
+  const zeroDisease = (): CopdDiseaseStats => ({
+    total: zeroCount(),
+    ages: Object.fromEntries(COPD_AGE_BANDS.map(band => [band, zeroCount()])) as Record<
+      CopdAgeBand,
+      CopdCount
+    >,
+    ageUnknown: zeroCount(),
+  })
+
+  const zeroInpatient = (): Record<CopdDisease, CopdDiseaseStats> =>
+    Object.fromEntries(COPD_DISEASES.map(disease => [disease, zeroDisease()])) as Record<
+      CopdDisease,
+      CopdDiseaseStats
+    >
+
+  /** ยอดรายโรครายช่วง และยอดแยกช่วงอายุ — มาจากแถวเดียวกัน ไล่รวมทีเดียว */
+  const inpatientOf = new Map<string, Record<CopdDisease, CopdDiseaseStats>>()
+  for (const row of (inpatientResult as unknown as Row[][])[0]) {
     const key = String(row.bucket)
-    let entry = copdOf.get(key)
+    let entry = inpatientOf.get(key)
     if (entry == null) {
-      entry = {
-        copd: zeroCount(),
-        ages: Object.fromEntries(COPD_AGE_BANDS.map(band => [band, zeroCount()])) as Record<
-          CopdAgeBand,
-          CopdCount
-        >,
-        ageUnknown: zeroCount(),
-      }
-      copdOf.set(key, entry)
+      entry = zeroInpatient()
+      inpatientOf.set(key, entry)
     }
+    const disease = String(row.disease ?? '')
+    if (!(COPD_DISEASES as readonly string[]).includes(disease)) continue
+    const stats = entry[disease as CopdDisease]
     const count = { total: Number(row.total), dead: Number(row.dead) }
-    entry.copd.total += count.total
-    entry.copd.dead += count.dead
-    // band ว่างคือไม่มีอายุในทะเบียน — ต้องยังบวกเข้ายอด COPD แล้วแยกถังไว้
+    stats.total.total += count.total
+    stats.total.dead += count.dead
+    // band ว่างคือไม่มีอายุในทะเบียน — ต้องยังบวกเข้ายอดรวม แล้วแยกถังไว้
     const band = String(row.band ?? '')
     const target = (COPD_AGE_BANDS as readonly string[]).includes(band)
-      ? entry.ages[band as CopdAgeBand]
-      : entry.ageUnknown
+      ? stats.ages[band as CopdAgeBand]
+      : stats.ageUnknown
     target.total += count.total
     target.dead += count.dead
+  }
+
+  const zeroDrugs = (): CopdDrugs => ({
+    tiers: Object.fromEntries(
+      COPD_DRUG_TIERS.map(tier => [tier, { patients: 0, withSpiriva: 0, withOutside: 0 }]),
+    ) as Record<CopdDrugTier, CopdDrugTierCount>,
+    outside: 0,
+    outsideOnly: 0,
+  })
+
+  const drugsOf = new Map<string, CopdDrugs>()
+  for (const row of (drugResult as unknown as Row[][])[0]) {
+    const key = String(row.bucket)
+    let entry = drugsOf.get(key)
+    if (entry == null) {
+      entry = zeroDrugs()
+      drugsOf.set(key, entry)
+    }
+    const patients = Number(row.patients)
+    const withOutside = Number(row.with_outside)
+    entry.outside += withOutside
+    const tier = String(row.tier ?? '')
+    // tier ว่างคือได้ยานอกรายการอย่างเดียว — ไม่เข้าขั้นไหน แต่ต้องรายงานไว้
+    if (!(COPD_DRUG_TIERS as readonly string[]).includes(tier)) {
+      entry.outsideOnly += patients
+      continue
+    }
+    const target = entry.tiers[tier as CopdDrugTier]
+    target.patients += patients
+    target.withSpiriva += Number(row.with_spiriva)
+    target.withOutside += withOutside
   }
 
   return {
@@ -278,7 +473,6 @@ export async function getCopdStats(
     // ต้องยังขึ้นบนกราฟเป็นศูนย์ ไม่ใช่หายไปเงียบ ๆ จนคนนับแท่งผิด
     periods: plan.periods.map(({ key, partial }) => {
       const row = pneumoniaOf.get(key)
-      const entry = copdOf.get(key)
       return {
         key,
         partial,
@@ -286,15 +480,9 @@ export async function getCopdStats(
           PNEUMONIA_SCOPES.map(scope => [scope, countOf(row, scope)]),
         ) as Record<PneumoniaScope, CopdCount>,
         pneumoniaAsWritten: countOf(row, 'written'),
-        copd: entry?.copd ?? zeroCount(),
-        ages:
-          entry?.ages ??
-          (Object.fromEntries(COPD_AGE_BANDS.map(band => [band, zeroCount()])) as Record<
-            CopdAgeBand,
-            CopdCount
-          >),
-        ageUnknown: entry?.ageUnknown ?? zeroCount(),
+        inpatient: inpatientOf.get(key) ?? zeroInpatient(),
         admissions: Number(row?.admissions ?? 0),
+        drugs: drugsOf.get(key) ?? zeroDrugs(),
       }
     }),
     coding,
