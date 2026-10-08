@@ -304,7 +304,15 @@ export function Delta({
   digits?: number
   /** หน่วยที่ต่อท้ายส่วนต่าง เช่น ' จุด' สำหรับร้อยละ */
   suffix?: string
-  goal?: 'low' | 'none'
+  /**
+   * ทิศที่ถือว่าดีขึ้น — 'low' ยิ่งน้อยยิ่งดี · 'high' ยิ่งมากยิ่งดี ·
+   * 'none' ไม่ตัดสิน แสดงเป็นสีกลาง
+   *
+   * ต้องเลือกได้ เพราะหน้านี้มีทั้งตัวชี้วัดที่ยิ่งน้อยยิ่งดี (อัตราตาย) และที่
+   * ยิ่งมากยิ่งดี (การเข้าถึง ICU ทันเวลา) ถ้าใช้ทิศเดียวกันหมด ลูกศรเขียว/แดง
+   * จะบอกกลับทางในครึ่งหนึ่งของหน้า
+   */
+  goal?: 'low' | 'high' | 'none'
 }) {
   if (current == null || previous == null) return null
   const diff = current - previous
@@ -317,7 +325,8 @@ export function Delta({
     )
   }
   const up = shown > 0
-  const tone = goal === 'none' ? 'text-ink-3' : up ? 'text-rose-500' : 'text-emerald-500'
+  const better = goal === 'high' ? up : !up
+  const tone = goal === 'none' ? 'text-ink-3' : better ? 'text-emerald-500' : 'text-rose-500'
   const size = Math.abs(shown).toLocaleString('th-TH', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -364,15 +373,18 @@ export function RateCell({
   count,
   target,
   previous,
+  goal = 'low',
 }: {
   count: Counted
   target: number | null
   /** ค่าของช่วงก่อนหน้า — ไม่ส่งมาก็ได้ ตารางที่ไม่ได้เรียงตามเวลาจะไม่มีความหมาย */
   previous?: Counted | null
+  /** ทิศที่ถือว่าดีขึ้น — มีผลทั้งการตัดสินเกณฑ์และสีของลูกศรเทียบช่วงก่อน */
+  goal?: 'low' | 'high' | 'none'
 }) {
   const rate = rateOf(count)
   if (rate == null) return <Text type="secondary">—</Text>
-  const pass = target == null ? null : rate <= target
+  const pass = target == null ? null : goal === 'high' ? rate >= target : rate <= target
   return (
     <div>
       <span
@@ -398,6 +410,7 @@ export function RateCell({
             previous={previous == null ? null : rateOf(previous)}
             digits={2}
             suffix=" จุด"
+            goal={goal}
           />
         </div>
       )}

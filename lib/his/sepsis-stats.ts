@@ -12,12 +12,22 @@ import {
 } from '@/lib/his/fiscal-period'
 import {
   SEPSIS_GROUPS,
+  SEPSIS_ICU_BINS,
+  SEPSIS_ICU_WARDS,
   type SepsisAreas,
   type SepsisAreaTotals,
   type SepsisCount,
   type SepsisDistrict,
   type SepsisGroup,
+  type SepsisIcuBin,
+  type SepsisIcuCounts,
+  type SepsisIcuScope,
+  type SepsisIcuWard,
   type SepsisPeriod,
+  type SepsisReferral,
+  type SepsisReferrals,
+  type SepsisSplit,
+  SEPSIS_SPLITS,
 } from '@/lib/his/sepsis-groups'
 
 /* ช่วงเวลา ปีงบ ไตรมาส ใช้ของกลางร่วมกับหน้า Stroke — ดู lib/his/fiscal-period.ts */
@@ -148,7 +158,23 @@ export type {
   SepsisCount,
   SepsisDistrict,
   SepsisGroup,
+  SepsisIcuBin,
+  SepsisIcuCounts,
+  SepsisIcuScope,
+  SepsisIcuThreshold,
+  SepsisIcuWard,
   SepsisPeriod,
+  SepsisReferral,
+  SepsisReferrals,
+  SepsisSplit,
+} from '@/lib/his/sepsis-groups'
+export {
+  SEPSIS_ICU_BINS,
+  SEPSIS_ICU_SCOPES,
+  SEPSIS_ICU_THRESHOLDS,
+  SEPSIS_ICU_WARDS,
+  SEPSIS_ICU_WITHIN,
+  SEPSIS_SPLITS,
 } from '@/lib/his/sepsis-groups'
 
 export type SepsisStats = {
@@ -160,6 +186,14 @@ export type SepsisStats = {
   quarter: 1 | 2 | 3 | 4 | null
   periods: SepsisPeriod[]
   areas: SepsisAreas
+  referrals: SepsisReferrals
+  /**
+   * หอ ICU แห่งแรกที่ผู้ป่วยเข้า รวมทั้งช่วงที่ขอ (ไม่ได้แยกตามช่วงย่อย)
+   *
+   * แยกตามตัวหารสองแบบเหมือนตัวนับรายช่วง เพื่อให้กราฟรายหอเปลี่ยนตามปุ่ม
+   * ตัวหารที่หน้าจอเลือกไว้ ไม่ใช่ค้างอยู่ที่ "ทั้งหมด" ตัวเดียว
+   */
+  icuWards: Record<SepsisIcuScope, SepsisIcuWard[]>
   coding: CodingCompleteness
 }
 
@@ -234,6 +268,26 @@ type AreaRow = {
 
 type NameRow = { amppart: string; tmbpart: string; name: string }
 
+/** แถวของคิวรี ICU — หนึ่งแถวต่อ (ช่วงเวลา × CI × ถังเวลา × หอ ICU) */
+type IcuRow = {
+  bucket: string
+  ci: string | number
+  bin: string
+  /** รหัสหอ ICU แห่งแรกที่เข้า — สตริงว่างเมื่อไม่เคยเข้า ICU */
+  ward: string | null
+  n: string | number
+}
+
+/** แถวของคิวรีสถานพยาบาลต้นทาง */
+type ReferralRow = {
+  code: string | null
+  name: string | null
+  ci_total: string | number
+  ci_dead: string | number
+  shock_total: string | number
+  shock_dead: string | number
+}
+
 /** แปลงแถวดิบของคิวรีพื้นที่เป็นตัวนับที่หน้าจอใช้ — SUM ของ MariaDB คืนมาเป็นสตริง */
 const countsOf = (row: AreaRow) => ({
   ci: { total: Number(row.ci_total), dead: Number(row.ci_dead) },
@@ -251,6 +305,9 @@ const add = (into: SepsisCount, from: SepsisCount) => {
 /** จังหวัดและอำเภอที่โรงพยาบาลตั้งอยู่ — รหัสตามทะเบียนราษฎร */
 const HOSPITAL_PROVINCE = '56'
 const HOSPITAL_DISTRICT = '01'
+
+/** รหัสหอผู้ป่วยหนักสำหรับใส่ใน IN (...) — รายชื่ออยู่ที่ sepsis-groups.ts */
+const ICU_WARDS = SEPSIS_ICU_WARDS.map(({ ward }) => `'${ward}'`).join(',')
 
 /**
  * สถิติ Sepsis ตามช่วงที่ขอ — ไม่มีข้อมูลรายบุคคลออกจากฟังก์ชันนี้เลย
@@ -290,8 +347,17 @@ export async function getSepsisStats(
    * เสียชีวิตตามตัวชี้วัด = จำหน่ายด้วยสถานะตาย และไม่ได้ลงรหัสประคับประคองไว้
    * เป็นการวินิจฉัยร่วม — Z515 อ่านได้จากแถวที่ชั้นกลางไล่อยู่แล้ว ไม่ต้อง
    * NOT EXISTS แยกต่อ AN
+   *
+   * รับนิพจน์สถานะจำหน่ายเข้ามา เพราะบางคิวรีอ่านจากชั้นที่ยุบมาแล้ว
+   * (s.dead_discharge) บางคิวรีคิดสดจาก ipt ในชั้นเดียวกัน
    */
-  const isDead = `s.dead_discharge * (1 - MAX(CASE WHEN a.icd10 = '${PALLIATIVE_CODE}' AND a.diagtype IN ('2','3') THEN 1 ELSE 0 END))`
+  const isDeadWith = (discharged: string) =>
+    `${discharged} * (1 - MAX(CASE WHEN a.icd10 = '${PALLIATIVE_CODE}' AND a.diagtype IN ('2','3') THEN 1 ELSE 0 END))`
+
+  /** จำหน่ายด้วยสถานะตาย คิดสดจาก ipt */
+  const deadDischarge = `MAX(CASE WHEN i.dchtype IN (${DEAD_DISCHARGE_TYPES}) THEN 1 ELSE 0 END)`
+
+  const isDead = isDeadWith('s.dead_discharge')
 
   const main = `
     SELECT bucket,
@@ -364,6 +430,217 @@ export async function getSepsisStats(
       CASE WHEN p.chwpart = '${HOSPITAL_PROVINCE}' THEN p.tmbpart END
   `
 
+  /**
+   * ผู้ป่วย CI Sepsis ที่รับส่งต่อมา แยกตามสถานพยาบาลต้นทาง
+   *
+   * ธงต่อ AN เหมือนคิวรีอื่น: CI คือ A40-A419 หรือ R572 เป็นโรคหลัก/โรคร่วมแรกรับ
+   * ส่วน shock คือ R572 ที่ลงเป็น **โรคร่วมแรกรับ (diagtype 2) เท่านั้น** ตามนิยาม
+   * ที่ได้รับมา — แคบกว่ากลุ่ม ciShock ของกราฟตามเวลาที่นับ diagtype 1 ด้วย
+   * วัดแล้วต่างกัน 83 AN จาก 2,434 ในห้าปีงบ
+   *
+   * MIN(refer_hospcode) ไม่ได้เลือกอะไรทิ้ง — วัดแล้วไม่มี AN ไหนในขอบเขตนี้ที่มี
+   * สถานพยาบาลต้นทางมากกว่าหนึ่งแห่ง ใส่ MIN ไว้ให้ค่าแน่นอนถ้าวันหนึ่งมี
+   */
+  const referralFlags = (discharged: string) => `
+             MIN(r.refer_hospcode) AS source,
+             ${isDeadWith(discharged)} AS is_dead,
+             ${flag(CODES.sepsis, COMMUNITY_DIAGTYPES)} AS ci,
+             MAX(CASE WHEN ${CODES.shockOnly} AND a.diagtype = '2' THEN 1 ELSE 0 END) AS shock`
+
+  /**
+   * ขอบเขตของรายงานนี้ — ทะเบียนบ้านอยู่ในจังหวัดแต่นอกอำเภอที่โรงพยาบาลตั้งอยู่
+   * และการนอนครั้งนั้นมีรหัส CI sepsis อยู่
+   *
+   * EXISTS จำกัด**ชุด AN** แต่ไม่จำกัดแถว iptdiag ที่ชั้นในเห็น ต่างจากการใส่
+   * เงื่อนไขรหัสไว้ใน WHERE ตรง ๆ — ต้องเห็นรหัสทั้งหมดของ AN เพื่ออ่าน Z515
+   * ด้วย MAX แทนที่จะยิง NOT EXISTS ต่อแถวอย่างคิวรีตั้งต้น
+   */
+  const referralWhere = `
+        AND p.chwpart = '${HOSPITAL_PROVINCE}'
+        AND p.amppart <> '${HOSPITAL_DISTRICT}'
+        AND EXISTS (
+          SELECT 1 FROM iptdiag d
+          WHERE d.an = i.an AND ${SCOPE_CODES} AND d.diagtype IN ${COMMUNITY_DIAGTYPES}
+        )`
+
+  /**
+   * สองสำนวนของชั้นใน เลือกตามความกว้างของช่วงที่ขอ
+   *
+   * ไม่ได้ทำเพราะอยากมีสองทาง แต่เพราะแผนที่ MariaDB เลือกพลิกตามช่วงวันที่ แล้ว
+   * พลิกไปผิดทางทั้งสองฝั่ง วัดจากฐานจริง ตัวเลขของทั้งสองสำนวนตรงกันทุกช่อง:
+   *
+   *                 ห้าปีงบ   ไตรมาส
+   *   ปล่อยอิสระ     1.06 s   2.88 s
+   *   บังคับลำดับ    5.47 s   0.13 s
+   *
+   * สำนวน "ปล่อยอิสระ" ให้ตัวเพิ่มประสิทธิภาพเลือกเอง ซึ่งในช่วงห้าปีมันไล่จาก
+   * iptdiag แล้วใช้ FirstMatch — ถูกทาง แต่ในช่วงแคบมันไปไล่ดัชนีของ referin
+   * 242,572 แถวโดยไม่แตะดัชนีวันจำหน่ายเลย
+   *
+   * สำนวน "บังคับลำดับ" ใส่ GROUP BY ในตารางซ้อนชั้นในสุด บังคับให้ materialize
+   * ชุด AN ที่กรองด้วยวันจำหน่ายและพื้นที่ก่อน ตัวขับจึงเป็น ipt เสมอ — ดีมากใน
+   * ช่วงแคบ (ไตรมาสเหลือราว 9,000 แถว) แต่ในช่วงห้าปีกลายเป็นยิง EXISTS ทีละแถว
+   * ให้ ipt ราว 180,000 แถว ซึ่งแพงกว่าสแกน iptdiag รอบเดียว
+   */
+  const referralSource =
+    plan.by === 'fiscalYear'
+      ? `
+      SELECT i.an,${referralFlags(deadDischarge)}
+      FROM ipt i
+      JOIN patient p ON p.hn = i.hn
+      JOIN iptdiag a ON a.an = i.an
+      JOIN ovst v ON v.an = i.an
+      JOIN referin r ON r.vn = v.vn
+      WHERE i.dchdate BETWEEN '${plan.from}' AND '${plan.to}'${referralWhere}
+      GROUP BY i.an`
+      : `
+      SELECT s.an,${referralFlags('s.dead_discharge')}
+      FROM (
+        SELECT i.an, ${deadDischarge} AS dead_discharge
+        FROM ipt i
+        JOIN patient p ON p.hn = i.hn
+        WHERE i.dchdate BETWEEN '${plan.from}' AND '${plan.to}'${referralWhere}
+        GROUP BY i.an
+      ) s
+      JOIN iptdiag a ON a.an = s.an
+      JOIN ovst v ON v.an = s.an
+      JOIN referin r ON r.vn = v.vn
+      GROUP BY s.an, s.dead_discharge`
+
+  const referrals = `
+    SELECT x.source AS code,
+           h.name AS name,
+           SUM(x.ci) AS ci_total,
+           SUM(x.ci * x.is_dead) AS ci_dead,
+           SUM(x.shock) AS shock_total,
+           SUM(x.shock * x.is_dead) AS shock_dead
+    FROM (${referralSource}
+    ) AS x
+    LEFT JOIN hospcode h ON h.hospcode = x.source
+    WHERE x.ci = 1
+    GROUP BY x.source, h.name
+  `
+
+  /**
+   * CI/HI คูณกับการรับส่งต่อ รายช่วงเวลา พร้อมจำนวนที่เสียชีวิตของทุกชุด
+   *
+   * คิวรีพื้นที่อีกตัวตอบคำถามนี้ไม่ได้ เพราะมันรวมทั้งช่วงเป็นก้อนเดียวเพื่อให้
+   * ตำบลเล็กมีตัวเลขพออ่าน ส่วนชุดนี้ต้องการแนวโน้มตามเวลา จึงต้องแยกคิวรี
+   *
+   * own + referred ของแต่ละฝั่งบวกกันได้เท่ากับยอดของฝั่งนั้นพอดี เพราะทุก AN
+   * ตอบได้แน่นอนว่ารับส่งต่อมาหรือไม่ ต่างจาก ci กับ hi ที่ซ้อนกันได้
+   *
+   * ตัวนับของอำเภอที่โรงพยาบาลตั้งอยู่ (home) อยู่ในคิวรีเดียวกัน ไม่ต้องยิงแยก —
+   * ใช้ชุด AN ชุดเดียวกัน ต่างแค่เงื่อนไขที่เอามาคูณ
+   *
+   * วัดจากฐานจริง: 2.56 วินาทีสำหรับห้าปี · 0.52 สำหรับหนึ่งปีงบรายเดือน ·
+   * 0.12 สำหรับไตรมาส ยิงขนานกับคิวรีอื่น เวลารวมของหน้าจึงไม่ขยับ
+   *
+   * ตรวจแล้ว ci กับ hi ของคิวรีนี้เท่ากับกลุ่ม communityInfection และ
+   * hospitalInfection ของคิวรีหลักทุกช่อง ทั้งที่คนละคิวรีและคนละเส้นทาง
+   */
+  const splits = `
+    SELECT bucket,
+           SUM(ci) AS ci_total,
+           SUM(ci * is_dead) AS ci_dead,
+           SUM(ci * (1 - referred)) AS ciOwn_total,
+           SUM(ci * (1 - referred) * is_dead) AS ciOwn_dead,
+           SUM(ci * referred) AS ciReferred_total,
+           SUM(ci * referred * is_dead) AS ciReferred_dead,
+           SUM(hi) AS hi_total,
+           SUM(hi * is_dead) AS hi_dead,
+           SUM(hi * (1 - referred)) AS hiOwn_total,
+           SUM(hi * (1 - referred) * is_dead) AS hiOwn_dead,
+           SUM(hi * referred) AS hiReferred_total,
+           SUM(hi * referred * is_dead) AS hiReferred_dead,
+           SUM(ci * home) AS home_ci,
+           SUM(ci * home * referred) AS home_referred
+    FROM (
+      SELECT s.bucket,
+             s.an,
+             ${isDead} AS is_dead,
+             ${flag(CODES.sepsis, COMMUNITY_DIAGTYPES)} AS ci,
+             ${flag(CODES.sepsis, "('3')")} AS hi,
+             MAX(CASE WHEN r.vn IS NULL THEN 0 ELSE 1 END) AS referred,
+             MAX(CASE WHEN p.chwpart = '${HOSPITAL_PROVINCE}' AND p.amppart = '${HOSPITAL_DISTRICT}' THEN 1 ELSE 0 END) AS home
+      FROM (${scope(ALL_DIAGTYPES)}) s
+      JOIN iptdiag a ON a.an = s.an
+      LEFT JOIN patient p ON p.hn = s.hn
+      LEFT JOIN ovst v ON v.an = s.an
+      LEFT JOIN referin r ON r.vn = v.vn
+      GROUP BY s.bucket, s.an, s.dead_discharge
+    ) AS x
+    GROUP BY bucket
+  `
+
+  /**
+   * การเข้าถึง ICU — ระยะเวลาจากแรกรับถึงการเข้าหอผู้ป่วยหนักครั้งแรก
+   *
+   * หอ ICU แห่งแรกของการนอนครั้งนั้นหาจากสามทางตามลำดับ: หอแรกรับ
+   * (ipt.first_ward) ถ้าเป็น ICU อยู่แล้ว · ถ้าไม่ใช่ก็หาแถวย้ายเตียงเข้า ICU
+   * ที่เร็วที่สุดใน iptbedmove · ถ้าไม่มีทั้งสองแต่จำหน่ายจากหอ ICU ก็นับว่า
+   * เข้า ICU แต่ไม่รู้เวลา (ถัง unknownTime)
+   *
+   * วัดแล้ว ipt.first_ward มีค่าทุกแถวในขอบเขตนี้ (7,983 AN ห้าปีงบ ไม่มีว่าง
+   * สักแถว) และในกลุ่มที่มีแถวย้ายเตียง หอต้นทางของแถวแรกตรงกับ first_ward
+   * 4,393 จาก 4,884 AN — ใช้เป็นหอแรกรับได้
+   *
+   * เวลารับเข้านอนอ่านจาก ipt.regdate + regtime ไม่ใช่เวลาที่วินิจฉัย sepsis
+   * ซึ่ง HIS ไม่ได้บันทึกไว้เลย นี่เป็นข้อจำกัดของนิยาม ไม่ใช่ของคิวรี — หน้าจอ
+   * ต้องบอกคนอ่านไว้ว่านาฬิกาเริ่มที่แรกรับ
+   *
+   * คืนมาเป็นถังดิบที่ระดับ (ช่วงเวลา × CI × ถัง × หอ) แล้วให้ TypeScript ไล่รวม
+   * เอง ทั้งอัตราทุกเกณฑ์เวลา ตัวหารสองแบบ และการแยกตามหอ ICU จึงมาจากคิวรี
+   * เดียว ไม่ต้องยิงใหม่เมื่อคนอ่านเปลี่ยนเกณฑ์
+   *
+   * วัดจากฐานจริง 1.64 วินาทีสำหรับห้าปีงบ ยิงขนานกับคิวรีอื่น
+   */
+  const icu = `
+    SELECT bucket, ci, bin, COALESCE(icu_ward, '') AS ward, COUNT(*) AS n
+    FROM (
+      SELECT y.bucket,
+             y.ci,
+             y.icu_ward,
+             CASE
+               WHEN y.adm_icu = 1 THEN 'atAdmission'
+               WHEN y.icu_at IS NULL
+                 THEN CASE WHEN y.dch_icu = 1 THEN 'unknownTime' ELSE 'never' END
+               /* GREATEST กันเวลาย้ายที่บันทึกไว้ก่อนเวลารับเข้านอน — มีจริงหนึ่ง
+                  รายในห้าปี นับเป็นทันเวลาแทนที่จะทำให้ถังติดลบ */
+               WHEN GREATEST(TIMESTAMPDIFF(MINUTE, y.adm, y.icu_at), 0) <= 180 THEN 'h3'
+               WHEN TIMESTAMPDIFF(MINUTE, y.adm, y.icu_at) <= 360 THEN 'h6'
+               WHEN TIMESTAMPDIFF(MINUTE, y.adm, y.icu_at) <= 720 THEN 'h12'
+               WHEN TIMESTAMPDIFF(MINUTE, y.adm, y.icu_at) <= 1440 THEN 'h24'
+               ELSE 'later'
+             END AS bin
+      FROM (
+        SELECT c.bucket,
+               c.ci,
+               CASE WHEN i.first_ward IN (${ICU_WARDS}) THEN 1 ELSE 0 END AS adm_icu,
+               CASE WHEN i.ward IN (${ICU_WARDS}) THEN 1 ELSE 0 END AS dch_icu,
+               TIMESTAMP(i.regdate, i.regtime) AS adm,
+               (SELECT MIN(TIMESTAMP(b.movedate, b.movetime)) FROM iptbedmove b
+                 WHERE b.an = i.an AND b.nward IN (${ICU_WARDS})) AS icu_at,
+               CASE
+                 WHEN i.first_ward IN (${ICU_WARDS}) THEN i.first_ward
+                 ELSE COALESCE(
+                   (SELECT b.nward FROM iptbedmove b
+                     WHERE b.an = i.an AND b.nward IN (${ICU_WARDS})
+                     ORDER BY b.movedate, b.movetime LIMIT 1),
+                   CASE WHEN i.ward IN (${ICU_WARDS}) THEN i.ward END)
+               END AS icu_ward
+        FROM (
+          SELECT s.bucket, s.an, ${flag(CODES.sepsis, COMMUNITY_DIAGTYPES)} AS ci
+          FROM (${scope(ALL_DIAGTYPES)}) s
+          JOIN iptdiag a ON a.an = s.an
+          GROUP BY s.bucket, s.an
+        ) c
+        JOIN ipt i ON i.an = c.an
+      ) y
+    ) z
+    GROUP BY bucket, ci, bin, ward
+  `
+
   /** ชื่ออำเภอ (tmbpart = '00') และชื่อตำบลของจังหวัดนี้ — 86 แถว ใช้เวลา 3 ms */
   const areaNames = sql`
     SELECT amppart, tmbpart, name
@@ -371,15 +648,22 @@ export async function getSepsisStats(
     WHERE chwpart = ${HOSPITAL_PROVINCE} AND codetype IN ('2', '3')
   `
 
-  const [result, areaResult, nameResult, coding] = await Promise.all([
-    hisDb.execute(sql.raw(main)),
-    hisDb.execute(sql.raw(areas)),
-    hisDb.execute(areaNames),
-    codingCompleteness(thisMonth(now)),
-  ])
+  const [result, areaResult, referralResult, homeResult, icuResult, nameResult, coding] =
+    await Promise.all([
+      hisDb.execute(sql.raw(main)),
+      hisDb.execute(sql.raw(areas)),
+      hisDb.execute(sql.raw(referrals)),
+      hisDb.execute(sql.raw(splits)),
+      hisDb.execute(sql.raw(icu)),
+      hisDb.execute(areaNames),
+      codingCompleteness(thisMonth(now)),
+    ])
 
   const found = new Map<string, Row>()
   for (const row of (result as unknown as Row[][])[0]) found.set(String(row.bucket), row)
+
+  const splitOf = new Map<string, Row>()
+  for (const row of (homeResult as unknown as Row[][])[0]) splitOf.set(String(row.bucket), row)
 
   const nameOf = new Map<string, string>()
   for (const row of (nameResult as unknown as NameRow[][])[0]) {
@@ -432,6 +716,65 @@ export async function getSepsisStats(
   const districts = [...districtOf.values()].sort((a, b) => b.ci.total - a.ci.total)
   for (const district of districts) district.tambons.sort((a, b) => b.ci.total - a.ci.total)
 
+  const hospitals: SepsisReferral[] = []
+  const referralTotals = { ci: { total: 0, dead: 0 }, shock: { total: 0, dead: 0 } }
+  for (const row of (referralResult as unknown as ReferralRow[][])[0]) {
+    const ci = { total: Number(row.ci_total), dead: Number(row.ci_dead) }
+    const shock = { total: Number(row.shock_total), dead: Number(row.shock_dead) }
+    add(referralTotals.ci, ci)
+    add(referralTotals.shock, shock)
+    const code = String(row.code ?? '').trim()
+    hospitals.push({
+      code,
+      // ทะเบียนส่งต่อมีแถวที่รหัสต้นทางว่างอยู่จริง (วัดแล้วหนึ่ง AN ในห้าปี)
+      // ต้องขึ้นตารางในฐานะ "ไม่ระบุ" ไม่ใช่หายไปจนผลรวมไม่ตรง
+      name: row.name == null || row.name === '' ? (code === '' ? 'ไม่ระบุต้นทาง' : `รหัส ${code}`) : String(row.name).trim(),
+      ci,
+      shock,
+    })
+  }
+  hospitals.sort((a, b) => b.ci.total - a.ci.total)
+
+  const zeroBins = (): Record<SepsisIcuBin, number> =>
+    Object.fromEntries(SEPSIS_ICU_BINS.map(bin => [bin, 0])) as Record<SepsisIcuBin, number>
+
+  const zeroIcu = (): Record<SepsisIcuScope, SepsisIcuCounts> => ({
+    all: { admissions: 0, bins: zeroBins() },
+    ci: { admissions: 0, bins: zeroBins() },
+  })
+
+  // หอ ICU ทั้งห้าตั้งไว้ล่วงหน้าแม้ไม่มีผู้ป่วย — หอที่ว่างในช่วงนั้นต้องยังขึ้น
+  // กราฟเป็นแท่งศูนย์ ไม่ใช่หายไป เพราะตำแหน่งแท่งที่ขยับทำให้เทียบช่วงกันผิด
+  const icuWardOf: Record<SepsisIcuScope, Map<string, SepsisIcuWard>> = {
+    all: new Map(SEPSIS_ICU_WARDS.map(w => [w.ward, { ...w, patients: 0, bins: zeroBins() }])),
+    ci: new Map(SEPSIS_ICU_WARDS.map(w => [w.ward, { ...w, patients: 0, bins: zeroBins() }])),
+  }
+
+  const icuOf = new Map<string, Record<SepsisIcuScope, SepsisIcuCounts>>()
+  for (const row of (icuResult as unknown as IcuRow[][])[0]) {
+    const bin = String(row.bin) as SepsisIcuBin
+    const count = Number(row.n)
+    const key = String(row.bucket)
+    let period = icuOf.get(key)
+    if (period == null) {
+      period = zeroIcu()
+      icuOf.set(key, period)
+    }
+    // AN ที่เป็น CI นับเข้าทั้งสองตัวหาร — 'all' คือทุกราย ไม่ใช่ "ที่ไม่ใช่ CI"
+    const which: SepsisIcuScope[] = Number(row.ci) === 1 ? ['all', 'ci'] : ['all']
+    const ward = String(row.ward ?? '')
+    for (const name of which) {
+      period[name].admissions += count
+      period[name].bins[bin] += count
+      // ward ว่างคือไม่เคยเข้า ICU — ไม่เข้ากราฟรายหอ แต่ยังอยู่ในตัวหาร
+      if (ward === '') continue
+      const entry = icuWardOf[name].get(ward)
+      if (entry == null) continue
+      entry.patients += count
+      entry.bins[bin] += count
+    }
+  }
+
   const zero = (): Record<SepsisGroup, SepsisCount> =>
     Object.fromEntries(SEPSIS_GROUPS.map(group => [group, { total: 0, dead: 0 }])) as Record<
       SepsisGroup,
@@ -458,9 +801,33 @@ export async function getSepsisStats(
           }
         }
       }
-      return { key, partial, groups }
+      const split = splitOf.get(key)
+      return {
+        key,
+        partial,
+        groups,
+        splits: Object.fromEntries(
+          SEPSIS_SPLITS.map(name => [
+            name,
+            {
+              total: Number(split?.[`${name}_total`] ?? 0),
+              dead: Number(split?.[`${name}_dead`] ?? 0),
+            },
+          ]),
+        ) as Record<SepsisSplit, SepsisCount>,
+        homeReferral: {
+          ci: Number(split?.home_ci ?? 0),
+          referredIn: Number(split?.home_referred ?? 0),
+        },
+        icu: icuOf.get(key) ?? zeroIcu(),
+      }
     }),
     areas: { districts, outside, inProvince, homeDistrict: HOSPITAL_DISTRICT },
+    referrals: { hospitals, ci: referralTotals.ci, shock: referralTotals.shock },
+    icuWards: {
+      all: [...icuWardOf.all.values()],
+      ci: [...icuWardOf.ci.values()],
+    },
     coding,
   }
 }

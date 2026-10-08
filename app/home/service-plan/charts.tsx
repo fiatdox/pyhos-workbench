@@ -55,6 +55,19 @@ function palette(dark: boolean) {
         rampLow: '#2f5c87',
         rampMid: '#5fa8e8',
         rampHigh: '#c7e9ff',
+        /* เส้นของกราฟหลายชุด — ไล่ให้ติดกันแล้วยังแยกออกจากกันได้ ไม่ใช้แดงล้วน
+           เพราะแดงสงวนไว้ให้ "เสียชีวิต" ทั้งหน้า */
+        lines: [
+          '#93c5fd',
+          '#6ee7c7',
+          '#fdba74',
+          '#c4b5fd',
+          '#fcd34d',
+          '#f0abfc',
+          '#5eead4',
+          '#fda4af',
+          '#a5b4fc',
+        ],
       }
     : {
         ink: '#4b4165',
@@ -75,6 +88,18 @@ function palette(dark: boolean) {
         rampLow: '#d6e9f9',
         rampMid: '#5bb0ef',
         rampHigh: '#1d6aa8',
+        /* ชุดสว่างต้องเข้มขึ้นอีกขั้น เพราะเส้นหนา 2px มีพื้นที่ให้ตาจับน้อยกว่าแท่ง */
+        lines: [
+          '#2b7fd4',
+          '#1f9e86',
+          '#e08239',
+          '#7c5cf0',
+          '#b8860b',
+          '#b23fb8',
+          '#0f9b8e',
+          '#dc5f72',
+          '#5b5fd0',
+        ],
       }
 }
 
@@ -107,11 +132,54 @@ const axisLabel = (point: PeriodPoint) => (point.partial ? `${point.label}*` : p
 
 /** ผลหนึ่งช่วงเวลาของกลุ่มรหัสหนึ่งกลุ่ม */
 export type MortalityPoint = PeriodPoint & {
-  /** ร้อยละการเสียชีวิต — null เมื่อไม่มีผู้ป่วยเลยในช่วงนั้น */
+  /** ร้อยละของส่วนที่แยกสี — null เมื่อไม่มีผู้ป่วยเลยในช่วงนั้น */
   percent: number | null
+  /** ส่วนที่แยกสี — ปกติคือจำนวนที่เสียชีวิต แต่เปลี่ยนความหมายได้ด้วย labels */
   dead: number
   total: number
 }
+
+/**
+ * ชื่อของสองส่วนในแท่งซ้อนและของเส้นร้อยละ
+ *
+ * ต้องตั้งได้ เพราะบางกราฟใช้โครงเดียวกันนี้นับอย่างอื่นที่ไม่ใช่การเสียชีวิต
+ * (เช่นสัดส่วนผู้ป่วยที่รับส่งต่อมา) ถ้าปล่อยให้ป้ายเป็น "เสียชีวิต" ค้างไว้
+ * คำอธิบายกราฟกับกล่อง tooltip จะบอกผิดเรื่อง
+ */
+export type MortalityLabels = {
+  /** ส่วนล่างของแท่ง — ส่วนที่เหลือจากการหัก part ออกจาก total */
+  rest: string
+  /** ส่วนบนของแท่งที่แยกสี */
+  part: string
+  /** เส้นร้อยละบนแกนขวา */
+  rate: string
+  /** คำที่ใช้เรียกตัวหาร เช่น 'ผู้ป่วย' */
+  total: string
+}
+
+const DEFAULT_MORTALITY_LABELS: MortalityLabels = {
+  rest: 'รอดชีวิต',
+  part: 'เสียชีวิต',
+  rate: 'อัตราตาย',
+  total: 'ผู้ป่วย',
+}
+
+/**
+ * ส่วนที่แยกสีเป็นเรื่องร้ายหรือเรื่องดี
+ *
+ * ต้องเลือกได้ เพราะกราฟโครงนี้ใช้นับทั้งสองแบบ — แดงบนหน้านี้สงวนไว้ให้ "เสียชีวิต"
+ * ตลอดทั้งหน้า ถ้าเอาไปใช้กับตัวชี้วัดที่ยิ่งมากยิ่งดี (เช่นจำนวนที่เข้า ICU ทันเวลา)
+ * คนอ่านจะอ่านสีผิดเรื่องทันที — tone 'good' จึงเปลี่ยนเป็นฟ้าบนพื้นเทา
+ */
+export type MortalityTone = 'bad' | 'good'
+
+/**
+ * ทิศของเกณฑ์ — 'atMost' คือยิ่งน้อยยิ่งดี 'atLeast' คือยิ่งมากยิ่งดี
+ *
+ * มีผลทั้งข้อความกำกับเส้นเกณฑ์และการตัดสินผ่าน/ไม่ผ่านในกล่องคำอธิบาย ถ้าไม่มี
+ * ตัวเลือกนี้ กราฟของตัวชี้วัดที่ยิ่งมากยิ่งดีจะบอกว่า "ไม่ผ่าน" ตอนที่ทำได้ดี
+ */
+export type MortalityGoal = 'atMost' | 'atLeast'
 
 function baseOptions(dark: boolean, height: number): Highcharts.Options {
   const color = palette(dark)
@@ -188,20 +256,25 @@ const nf = new Intl.NumberFormat('th-TH')
 export function MortalityChart({
   points,
   target,
+  labels = DEFAULT_MORTALITY_LABELS,
+  tone = 'bad',
+  goal = 'atMost',
 }: {
   points: MortalityPoint[]
-  /** เกณฑ์ร้อยละ "ไม่เกิน" — null = ยังไม่ได้ตั้งเกณฑ์ไว้ ไม่ลากเส้นเกณฑ์ */
+  /** เกณฑ์ร้อยละ — null = ยังไม่ได้ตั้งเกณฑ์ไว้ ไม่ลากเส้นเกณฑ์และไม่ตัดสินผ่าน */
   target: number | null
+  labels?: MortalityLabels
+  tone?: MortalityTone
+  goal?: MortalityGoal
 }) {
   return (
     <Chart
       height={260}
-      data={{ points, target }}
+      data={{ points, target, labels, tone, goal }}
       build={color => ({
         chart: { type: 'column' },
         accessibility: {
-          description:
-            'จำนวนผู้ป่วยในโรคหลอดเลือดสมองแยกตามช่วงเวลา แท่งซ้อนแยกผู้ที่รอดชีวิตกับผู้ที่เสียชีวิต และเส้นร้อยละการเสียชีวิตเทียบกับเกณฑ์',
+          description: `จำนวน${labels.total}แยกตามช่วงเวลา แท่งซ้อนแยก${labels.rest}กับ${labels.part} และเส้น${labels.rate}`,
         },
         xAxis: { categories: points.map(axisLabel), crosshair: true },
         yAxis: [
@@ -225,7 +298,7 @@ export function MortalityChart({
                       dashStyle: 'Dash',
                       zIndex: 5,
                       label: {
-                        text: `เกณฑ์ไม่เกิน ${target}%`,
+                        text: `เกณฑ์${goal === 'atMost' ? 'ไม่เกิน' : 'ไม่น้อยกว่า'} ${target}%`,
                         align: 'right',
                         x: -4,
                         y: -4,
@@ -249,14 +322,15 @@ export function MortalityChart({
               )
             }
             // ปีที่ยังไม่จบไม่ตัดสินผ่าน/ไม่ผ่าน ตัวเลขยังขยับได้อีกมาก
-            const verdict =
-              target == null || point.partial
-                ? ''
-                : `<br/>${point.percent <= target ? '✓ ผ่านเกณฑ์' : '✗ ไม่ผ่านเกณฑ์'}`
+            let verdict = ''
+            if (target != null && !point.partial) {
+              const met = goal === 'atMost' ? point.percent <= target : point.percent >= target
+              verdict = `<br/>${met ? '✓ ผ่านเกณฑ์' : '✗ ไม่ผ่านเกณฑ์'}`
+            }
             return (
               `<b>${point.title}${partial}</b><br/>` +
-              `ผู้ป่วย ${nf.format(point.total)} ราย<br/>` +
-              `เสียชีวิต ${nf.format(point.dead)} ราย = ${point.percent.toFixed(2)}%${verdict}`
+              `${labels.total} ${nf.format(point.total)} ราย<br/>` +
+              `${labels.part} ${nf.format(point.dead)} ราย = ${point.percent.toFixed(2)}%${verdict}`
             )
           },
         },
@@ -264,8 +338,8 @@ export function MortalityChart({
         series: [
           {
             type: 'column',
-            name: 'รอดชีวิต',
-            color: color.alive,
+            name: labels.rest,
+            color: tone === 'good' ? color.neutral : color.alive,
             yAxis: 0,
             // ลำดับในกองวางผู้เสียชีวิตไว้บน ให้ทุกปีวัดส่วนแดงจากยอดแท่งเท่ากัน
             data: points.map(point => ({
@@ -275,8 +349,8 @@ export function MortalityChart({
           },
           {
             type: 'column',
-            name: 'เสียชีวิต',
-            color: color.bad,
+            name: labels.part,
+            color: tone === 'good' ? color.isch : color.bad,
             yAxis: 0,
             data: points.map(point => ({
               y: point.dead,
@@ -285,7 +359,7 @@ export function MortalityChart({
           },
           {
             type: 'line',
-            name: 'อัตราตาย',
+            name: labels.rate,
             color: color.accent,
             yAxis: 1,
             lineWidth: 2,
@@ -654,8 +728,18 @@ export type GroupPoint = {
   /** ชื่อที่ขึ้นบนแกน */
   name: string
   total: number
+  /** แท่งที่สอง — ปกติคือจำนวนที่เสียชีวิต แต่เปลี่ยนความหมายได้ด้วย labels */
   dead: number
 }
+
+/**
+ * ชื่อของสองแท่ง — ต้องตั้งได้ เพราะบางหน้าใช้แท่งที่สองนับอย่างอื่นที่ไม่ใช่
+ * การเสียชีวิต (เช่นจำนวนที่มาถึงในสภาพช็อก) ถ้าปล่อยให้ป้ายเป็น "เสียชีวิต"
+ * ค้างไว้ คำอธิบายกราฟจะบอกผิดเรื่อง
+ */
+export type GroupLabels = { total: string; part: string }
+
+const DEFAULT_GROUP_LABELS: GroupLabels = { total: 'ผู้ป่วย', part: 'เสียชีวิต' }
 
 /**
  * เทียบหลายกลุ่มในช่วงเดียว — แท่งนอนคู่ จำนวนผู้ป่วยกับจำนวนที่เสียชีวิต
@@ -667,15 +751,21 @@ export type GroupPoint = {
  * เรียงลำดับมาจากผู้เรียก ไม่ได้เรียงเอง — บางหน้าต้องการลำดับคงที่เพื่อให้ตา
  * จำตำแหน่งได้ระหว่างสลับช่วงเวลา บางหน้าต้องการเรียงตามจำนวน
  */
-export function GroupChart({ points }: { points: GroupPoint[] }) {
+export function GroupChart({
+  points,
+  labels = DEFAULT_GROUP_LABELS,
+}: {
+  points: GroupPoint[]
+  labels?: GroupLabels
+}) {
   return (
     <Chart
       height={Math.max(240, points.length * 30 + 70)}
-      data={points}
+      data={{ points, labels }}
       build={color => ({
         chart: { type: 'bar' },
         accessibility: {
-          description: 'จำนวนผู้ป่วยและจำนวนที่เสียชีวิตของแต่ละกลุ่ม เทียบกันเป็นแท่งคู่',
+          description: `จำนวน${labels.total}และจำนวน${labels.part}ของแต่ละกลุ่ม เทียบกันเป็นแท่งคู่`,
         },
         xAxis: { categories: points.map(point => point.name) },
         yAxis: { min: 0, title: { text: undefined } },
@@ -688,8 +778,8 @@ export function GroupChart({ points }: { points: GroupPoint[] }) {
             const rate = point.total > 0 ? ((point.dead / point.total) * 100).toFixed(1) : null
             return (
               `<b>${point.name}</b><br/>` +
-              `ผู้ป่วย ${nf.format(point.total)} ราย<br/>` +
-              `เสียชีวิต ${nf.format(point.dead)} ราย` +
+              `${labels.total} ${nf.format(point.total)} ราย<br/>` +
+              `${labels.part} ${nf.format(point.dead)} ราย` +
               (rate == null ? '' : ` = ${rate}%`)
             )
           },
@@ -698,17 +788,166 @@ export function GroupChart({ points }: { points: GroupPoint[] }) {
         series: [
           {
             type: 'bar',
-            name: 'ผู้ป่วย',
+            name: labels.total,
             color: color.alive,
             data: points.map(point => point.total),
           },
           {
             type: 'bar',
-            name: 'เสียชีวิต',
+            name: labels.part,
             color: color.bad,
             data: points.map(point => point.dead),
           },
         ],
+      })}
+    />
+  )
+}
+
+/** หนึ่งเส้นในกราฟหลายชุด — ค่าเรียงตามลำดับเดียวกับ points */
+export type TrendSeries = {
+  name: string
+  /** null = ไม่มีข้อมูลในช่วงนั้น เส้นจะขาด ไม่ใช่ลากผ่านเป็นศูนย์ */
+  values: (number | null)[]
+}
+
+/**
+ * หลายกลุ่มเทียบกันตามเวลา — เส้นหนึ่งเส้นต่อกลุ่ม
+ *
+ * ใช้กับกลุ่มที่ **ซ้อนกันได้** เช่นตำแหน่งการติดเชื้อของผู้ป่วย sepsis ซึ่งผู้ป่วย
+ * คนเดียวติดได้หลายตำแหน่ง — จึงต้องเป็นเส้นแยก ไม่ใช่พื้นที่ซ้อนหรือแท่งซ้อน
+ * เพราะการซ้อนสื่อว่าผลรวมมีความหมาย ซึ่งไม่จริงเมื่อกลุ่มทับกัน
+ *
+ * คำอธิบายกราฟกดได้ตามปกติของ Highcharts — เก้าเส้นพร้อมกันแน่นเกินกว่าจะไล่ตา
+ * ได้ทั้งหมด การปิดเส้นที่ไม่สนใจจึงเป็นวิธีอ่านจริงของกราฟแบบนี้
+ *
+ * ช่วงที่ยังไม่จบไม่ได้ทำให้เส้นจาง เพราะเส้นบางอยู่แล้วการลดความทึบจะหายไปเลย
+ * ป้ายแกนยังมีดอกจันกำกับเหมือนกราฟอื่นในหน้า
+ */
+export function TrendChart({
+  points,
+  series,
+  valueSuffix = ' ราย',
+}: {
+  points: PeriodPoint[]
+  series: TrendSeries[]
+  valueSuffix?: string
+}) {
+  return (
+    <Chart
+      height={300}
+      data={{ points, series, valueSuffix }}
+      build={color => ({
+        chart: { type: 'line' },
+        accessibility: {
+          description: 'จำนวนผู้ป่วยของแต่ละกลุ่มแยกตามช่วงเวลา เส้นหนึ่งเส้นต่อหนึ่งกลุ่ม',
+        },
+        xAxis: { categories: points.map(axisLabel), crosshair: true },
+        yAxis: { min: 0, title: { text: undefined } },
+        legend: { enabled: true, itemStyle: { color: color.faint, fontSize: '11px' } },
+        tooltip: {
+          shared: true,
+          useHTML: true,
+          headerFormat: '',
+          // หัวกล่องเขียนเองเพื่อใส่ชื่อช่วงแบบเต็มกับคำกำกับช่วงที่ยังไม่จบ
+          formatter() {
+            const index = this.points?.[0]?.index ?? 0
+            const point = points[index]
+            const rows = (this.points ?? [])
+              .filter(item => item.y != null && item.y !== 0)
+              .sort((a, b) => Number(b.y) - Number(a.y))
+              .map(
+                item =>
+                  `<span style="color:${item.color}">●</span> ${item.series.name} ` +
+                  `<b>${nf.format(Number(item.y))}</b>${valueSuffix}`,
+              )
+            return (
+              `<b>${point?.title ?? ''}${point?.partial ? ' (ยังไม่จบช่วง)' : ''}</b><br/>` +
+              (rows.length === 0 ? 'ไม่มีผู้ป่วยในช่วงนี้' : rows.join('<br/>'))
+            )
+          },
+        },
+        plotOptions: { line: { lineWidth: 2, marker: { radius: 3 } } },
+        series: series.map((item, index) => ({
+          type: 'line',
+          name: item.name,
+          color: color.lines[index % color.lines.length],
+          data: item.values,
+        })),
+      })}
+    />
+  )
+}
+
+/**
+ * หลายกลุ่มเทียบกันตามเวลา — แท่งซ้อน
+ *
+ * ใช้ได้เฉพาะกับกลุ่มที่ **แบ่งผู้ป่วยออกจากกันหมด ไม่ซ้อนกัน** เช่นช่วงอายุ ซึ่ง
+ * ผู้ป่วยหนึ่งรายอยู่ได้ช่วงเดียว — ความสูงรวมของแท่งจึงมีความหมายจริง เท่ากับ
+ * ผู้ป่วยทั้งหมดในช่วงนั้น
+ *
+ * ต่างจาก TrendChart ที่ใช้กับกลุ่มซ้อนกันได้ (ตำแหน่งการติดเชื้อของ sepsis) —
+ * ถ้าเอากลุ่มซ้อนกันมาวางซ้อนที่นี่ ความสูงรวมจะมากกว่าจำนวนผู้ป่วยจริงโดยที่
+ * คนอ่านไม่มีทางรู้ เลือกคอมโพเนนต์ให้ตรงกับธรรมชาติของกลุ่มจึงสำคัญกว่าความสวย
+ */
+export function StackChart({
+  points,
+  series,
+  valueSuffix = ' ราย',
+}: {
+  points: PeriodPoint[]
+  series: TrendSeries[]
+  valueSuffix?: string
+}) {
+  return (
+    <Chart
+      height={300}
+      data={{ points, series, valueSuffix }}
+      build={color => ({
+        chart: { type: 'column' },
+        accessibility: {
+          description:
+            'จำนวนผู้ป่วยแยกตามช่วงเวลา วางซ้อนกันตามกลุ่ม ความสูงรวมของแท่งคือผู้ป่วยทั้งหมดในช่วงนั้น',
+        },
+        xAxis: { categories: points.map(axisLabel), crosshair: true },
+        yAxis: { min: 0, title: { text: undefined } },
+        legend: { enabled: true, itemStyle: { color: color.faint, fontSize: '11px' } },
+        tooltip: {
+          shared: true,
+          useHTML: true,
+          headerFormat: '',
+          // หัวกล่องเขียนเองเพื่อใส่ชื่อช่วงเต็ม และต่อท้ายด้วยผลรวมของแท่ง ซึ่ง
+          // เป็นตัวเลขที่แท่งซ้อนสื่อแต่ Highcharts ไม่ได้บอกเองในโหมด shared
+          formatter() {
+            const index = this.points?.[0]?.index ?? 0
+            const point = points[index]
+            const shown = this.points ?? []
+            const sum = shown.reduce((n, item) => n + Number(item.y ?? 0), 0)
+            const rows = shown
+              .filter(item => item.y != null && item.y !== 0)
+              .map(
+                item =>
+                  `<span style="color:${item.color}">●</span> ${item.series.name} ` +
+                  `<b>${nf.format(Number(item.y))}</b>${valueSuffix}`,
+              )
+            return (
+              `<b>${point?.title ?? ''}${point?.partial ? ' (ยังไม่จบช่วง)' : ''}</b><br/>` +
+              (rows.length === 0
+                ? 'ไม่มีผู้ป่วยในช่วงนี้'
+                : `${rows.join('<br/>')}<br/>รวม <b>${nf.format(sum)}</b>${valueSuffix}`)
+            )
+          },
+        },
+        plotOptions: { column: { stacking: 'normal', borderWidth: 0, groupPadding: 0.12 } },
+        series: series.map((item, index) => ({
+          type: 'column',
+          name: item.name,
+          color: color.lines[index % color.lines.length],
+          data: item.values.map((value, at) => ({
+            y: value,
+            opacity: points[at]?.partial ? PARTIAL_OPACITY : 1,
+          })),
+        })),
       })}
     />
   )
