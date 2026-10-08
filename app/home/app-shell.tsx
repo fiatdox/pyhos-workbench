@@ -75,30 +75,83 @@ export function usePermissions(): ShellPermissions {
 
 /** เมนูของระบบ — key คือ path จริง กดแล้วพาไปหน้านั้นเลย
  *  feature = งานที่จำกัดตามตำแหน่ง ไม่ใส่ = ทุกคนที่เข้าระบบได้เห็น */
+/**
+ * รายการหน้าจอของระบบ — ใช้ทั้งเมนูในลิ้นชักซ้ายและการ์ดบนหน้าแรก
+ *
+ * เดิมหน้าแรกถือรายการของตัวเองแยกไว้ โดยมีคอมเมนต์กำกับว่าให้เพิ่มทั้งสองที่
+ * พร้อมกัน — ซึ่งถูกมองข้ามมาสามรอบ (ร่องรอยการใช้งาน · ผังระบบ · Service Plan
+ * ขึ้นเมนูแล้วแต่ไม่มีการ์ด) รายการจึงมาอยู่ที่เดียว และ desc เป็นฟิลด์บังคับ
+ * เมนูใหม่ที่ลืมใส่คำอธิบายจะคอมไพล์ไม่ผ่าน ไม่ใช่หลุดจากหน้าแรกไปเงียบ ๆ
+ */
 export const MENU_ITEMS: {
   key: string
   icon: ReactNode
   label: string
+  /** คำอธิบายใต้ชื่อเมนูบนการ์ดหน้าแรก — บังคับให้มีทุกเมนู ดูเหตุผลด้านบน */
+  desc: string
   feature?: RestrictedFeature
 }[] = [
-  { key: '/home', icon: <DashboardOutlined />, label: 'หน้าแรก' },
-  { key: '/home/medication-history', icon: <MedicineBoxOutlined />, label: 'ประวัติการได้รับยา' },
-  { key: '/home/hla-b5801', icon: <ExperimentOutlined />, label: 'ผลตรวจ HLA-B*5801' },
-  { key: '/home/drug-profile', icon: <ProfileOutlined />, label: 'Drug Profile ผู้ป่วยใน' },
-  { key: '/home/due', icon: <AuditOutlined />, label: 'DUE ขออนุมัติใช้ยา', feature: 'due' },
+  {
+    key: '/home',
+    icon: <DashboardOutlined />,
+    label: 'หน้าแรก',
+    desc: 'รวมทุกเมนูที่ท่านมีสิทธิ์ใช้งานไว้เป็นการ์ดให้เลือก',
+  },
+  {
+    key: '/home/medication-history',
+    icon: <MedicineBoxOutlined />,
+    label: 'ประวัติการได้รับยา',
+    desc: 'ดูรายการยาที่ผู้ป่วยเคยได้รับ ย้อนหลังตามช่วงเวลา พร้อมชื่อยาและวันที่จ่าย',
+  },
+  {
+    key: '/home/hla-b5801',
+    icon: <ExperimentOutlined />,
+    label: 'ผลตรวจ HLA-B*5801',
+    desc: 'ผู้ป่วยที่รายงานผล HLA-B*5801 แล้ว ค้นตามช่วงวันที่และเปิดดูรูปใบรายงาน',
+  },
+  {
+    key: '/home/drug-profile',
+    icon: <ProfileOutlined />,
+    label: 'Drug Profile ผู้ป่วยใน',
+    desc: 'ตรวจสอบการให้ยาของผู้ป่วยใน รายบุคคลตลอดการนอนโรงพยาบาล',
+  },
+  {
+    key: '/home/due',
+    icon: <AuditOutlined />,
+    label: 'DUE ขออนุมัติใช้ยา',
+    desc: 'แพทย์สั่งยากลุ่ม DUE เภสัชกรวิเคราะห์ความสมเหตุสมผล แพทย์กำกับอนุมัติ',
+    feature: 'due',
+  },
   {
     key: '/home/rdu',
     icon: <SafetyCertificateOutlined />,
     label: 'RDU ตัวชี้วัดการใช้ยา',
+    desc: 'ติดตามตัวชี้วัดการใช้ยาอย่างสมเหตุผล และตั้งค่าทะเบียนรายการยาของแต่ละตัวชี้วัด',
     feature: 'rdu',
   },
-  { key: '/home/health-rider', icon: <MotorcycleOutlined />, label: 'Health Rider' },
-  { key: '/home/service-plan', icon: <ApartmentOutlined />, label: 'Service Plan' },
-  { key: '/home/diagram', icon: <PartitionOutlined />, label: 'ผังระบบ' },
+  {
+    key: '/home/health-rider',
+    icon: <MotorcycleOutlined />,
+    label: 'Health Rider',
+    desc: 'ยังไม่ระบุขอบเขตงาน — เปิดหน้าไว้รอออกแบบ',
+  },
+  {
+    key: '/home/service-plan',
+    icon: <ApartmentOutlined />,
+    label: 'Service Plan',
+    desc: 'ตัวชี้วัดตามแผนพัฒนาระบบบริการสุขภาพ — Stroke, Sepsis, COPD และสาขาโรคหัวใจ ย้อนหลังห้าปีงบ',
+  },
+  {
+    key: '/home/diagram',
+    icon: <PartitionOutlined />,
+    label: 'ผังระบบ',
+    desc: 'ผังสี่ใบที่อธิบายว่าระบบต่อกับอะไร ข้อมูลผู้ป่วยถูกกันไว้ที่ไหน และงานแต่ละอย่างเดินอย่างไร',
+  },
   {
     key: '/home/admin/activity',
     icon: <SafetyCertificateOutlined />,
     label: 'ร่องรอยการใช้งาน',
+    desc: 'ร่องรอยว่าใครเปิดดูข้อมูลอะไรเมื่อไร สำหรับผู้ที่ต้องรับผิดชอบการใช้ข้อมูลผู้ป่วย',
     feature: 'audit',
   },
 ]

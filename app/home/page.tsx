@@ -1,71 +1,21 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
 // (การตรวจสิทธิ์ยังทำที่ app/home/layout.tsx ซึ่งเป็น Server Component)
-import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { Card, Typography } from 'antd'
-import {
-  AuditOutlined,
-  ExperimentOutlined,
-  MedicineBoxOutlined,
-  ProfileOutlined,
-  RightOutlined,
-  SafetyCertificateOutlined,
-} from '@ant-design/icons'
-import { usePermissions, type RestrictedFeature } from './app-shell'
-import { MotorcycleOutlined } from './icons'
+import { RightOutlined } from '@ant-design/icons'
+import { MENU_ITEMS, usePermissions } from './app-shell'
 import PageHint from './page-hint'
 
 const { Title } = Typography
 
-// การ์ดต้องตรงกับเมนูใน drawer ซ้าย (MENU_ITEMS) — เพิ่มเมนูใหม่ที่ไหน เพิ่มที่นี่ด้วย
-const FEATURES: {
-  href: string
-  icon: ReactNode
-  title: string
-  desc: string
-  /** งานที่จำกัดตามตำแหน่ง ไม่ใส่ = ทุกคนที่เข้าระบบได้เห็น */
-  feature?: RestrictedFeature
-}[] = [
-  {
-    href: '/home/medication-history',
-    icon: <MedicineBoxOutlined />,
-    title: 'ประวัติการได้รับยา',
-    desc: 'ดูรายการยาที่ผู้ป่วยเคยได้รับ ย้อนหลังตามช่วงเวลา พร้อมชื่อยาและวันที่จ่าย',
-  },
-  {
-    href: '/home/hla-b5801',
-    icon: <ExperimentOutlined />,
-    title: 'ผลตรวจ HLA-B*5801',
-    desc: 'ผู้ป่วยที่รายงานผล HLA-B*5801 แล้ว ค้นตามช่วงวันที่และเปิดดูรูปใบรายงาน',
-  },
-  {
-    href: '/home/drug-profile',
-    icon: <ProfileOutlined />,
-    title: 'Drug Profile ผู้ป่วยใน',
-    desc: 'ตรวจสอบการให้ยาของผู้ป่วยใน รายบุคคลตลอดการนอนโรงพยาบาล',
-  },
-  {
-    href: '/home/due',
-    icon: <AuditOutlined />,
-    title: 'DUE ขออนุมัติใช้ยา',
-    desc: 'แพทย์สั่งยากลุ่ม DUE เภสัชกรวิเคราะห์ความสมเหตุสมผล แพทย์กำกับอนุมัติ',
-    feature: 'due',
-  },
-  {
-    href: '/home/rdu',
-    icon: <SafetyCertificateOutlined />,
-    title: 'RDU ตัวชี้วัดการใช้ยา',
-    desc: 'ติดตามตัวชี้วัดการใช้ยาอย่างสมเหตุผล และตั้งค่าทะเบียนรายการยาของแต่ละตัวชี้วัด',
-    feature: 'rdu',
-  },
-  {
-    href: '/home/health-rider',
-    icon: <MotorcycleOutlined />,
-    title: 'Health Rider',
-    desc: 'ยังไม่ระบุขอบเขตงาน — เปิดหน้าไว้รอออกแบบ',
-  },
-]
+/**
+ * การ์ดบนหน้าแรกอ่านจาก MENU_ITEMS ชุดเดียวกับเมนูในลิ้นชักซ้าย
+ *
+ * ไม่ถือรายการของตัวเองอีกแล้ว — ตอนที่แยกกันอยู่ มีสามเมนูที่ขึ้นในลิ้นชักแต่ไม่มี
+ * การ์ดบนหน้าแรกโดยไม่มีใครรู้ ตัดออกแค่ '/home' เพราะเป็นหน้านี้เอง
+ */
+const FEATURES = MENU_ITEMS.filter(item => item.key !== '/home')
 
 export default function HomePage() {
   // การ์ดต้องหายไปพร้อมเมนูของงานที่ผู้ใช้ไม่มีสิทธิ์ ไม่งั้นหน้าแรกจะยังชวนให้กด
@@ -91,7 +41,7 @@ export default function HomePage() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {features.map(feature => (
-          <Link key={feature.href} href={feature.href}>
+          <Link key={feature.key} href={feature.key}>
             <Card hoverable variant="borderless" className="h-full border! border-line!">
               {/* ไอคอนกับชื่อเมนูอยู่แถวเดียวกัน ส่วนคำอธิบายลงมาเต็มความกว้างข้างล่าง
                   ถ้าให้คำอธิบายไปอยู่ข้างไอคอนด้วย พอเหลือความกว้าง 1 ใน 4
@@ -101,7 +51,7 @@ export default function HomePage() {
                   {feature.icon}
                 </div>
                 <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
-                  {feature.title}
+                  {feature.label}
                   <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
                 </div>
               </div>
