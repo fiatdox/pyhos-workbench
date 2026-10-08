@@ -49,8 +49,8 @@ const { Title } = Typography
  * ระหว่างนอนเกิดอะไรขึ้นบ้าง (ภาวะแทรกซ้อน) · ใช้ทรัพยากรไปเท่าไร (วันนอนและ
  * ค่าบริการ) เรียงจากผลลัพธ์ไปหาต้นทุน ไม่ใช่เรียงตามว่าคิวรีไหนเขียนก่อน
  *
- * สามตัวชี้วัดที่มีเกณฑ์: ทั้งกลุ่ม I60-I69 ไม่เกิน 7% · ชนิดเลือดออก
- * I60-I62 ไม่เกิน 25% · ชนิดตีบ/อุดตัน I63-I69 ไม่เกิน 5%
+ * สามตัวชี้วัดที่มีเกณฑ์: ทั้งกลุ่ม I60-I68 ไม่เกิน 7% · ชนิดเลือดออก
+ * I60-I62 ไม่เกิน 25% · ชนิดตีบ/อุดตัน I63-I68 ไม่เกิน 5%
  *
  * เกณฑ์อยู่ที่ไฟล์นี้ ไม่ได้อยู่ในโมดูลคิวรี เพราะโมดูลนั้นเป็น server-only และ
  * เกณฑ์ไม่มีผลต่อการนับเลย มีผลแต่กับการระบายสีผ่าน/ไม่ผ่าน ถ้าวันหนึ่งเกณฑ์
@@ -168,7 +168,10 @@ export default function ServicePlanStrokePage() {
       partial: year.partial,
       hemorrhagic: year.hemorrhagic.total,
       ischemic: year.ischemic.total,
-      // ที่เหลือคือ I62x ที่ตกช่องว่างระหว่างสองกลุ่มย่อย — ไม่ลบให้ต่ำกว่าศูนย์
+      // ตกลงแล้วว่า I62x นับเข้ากลุ่มเลือดออก สองกลุ่มย่อยจึงแบ่งทั้งกลุ่มได้หมด
+      // และค่านี้ต้องเป็นศูนย์เสมอ — เก็บไว้เป็นตัวจับความผิดปกติ ถ้าวันหนึ่งมีรหัส
+      // ใหม่โผล่มาในขอบเขตแต่ไม่เข้ากลุ่มย่อยไหน จะเห็นเป็นแถบขึ้นมาทันที
+      // ไม่ใช่หายไปเงียบ ๆ จนสองกลุ่มย่อยบวกกันไม่เท่าทั้งกลุ่มโดยไม่มีใครรู้
       other: Math.max(year.all.total - year.hemorrhagic.total - year.ischemic.total, 0),
     }))
     /**
@@ -277,7 +280,7 @@ export default function ServicePlanStrokePage() {
           <AlertOutlined /> สาขาโรคหลอดเลือดสมอง (Stroke)
           <PageHint>
             สถิติผู้ป่วยในโรคหลอดเลือดสมองย้อนหลังห้าปีงบประมาณ นับจากการวินิจฉัยหลักรหัส
-            I60-I69 ของผู้ป่วยที่จำหน่ายในปีงบนั้น — อัตราตายเทียบเกณฑ์ ภาวะแทรกซ้อน
+            I60-I68 ของผู้ป่วยที่จำหน่ายในปีงบนั้น — อัตราตายเทียบเกณฑ์ ภาวะแทรกซ้อน
             Pneumonia และ UTI ระหว่างนอน วันนอนเฉลี่ย และค่าบริการเฉลี่ยต่อราย
             ไม่มีข้อมูลรายบุคคลในหน้านี้
           </PageHint>
@@ -347,9 +350,9 @@ export default function ServicePlanStrokePage() {
                   <div className="text-xs leading-relaxed">
                       <div>
                         ตัวหาร = ผู้ป่วยใน (AN ไม่ซ้ำ) ที่จำหน่ายในปีงบนั้น และมีการวินิจฉัยหลัก
-                        (diagtype = 1) รหัส I60-I69 · ตัวตั้ง = ในกลุ่มนั้นที่ประเภทการจำหน่ายเป็น
+                        (diagtype = 1) รหัส I60-I68 · ตัวตั้ง = ในกลุ่มนั้นที่ประเภทการจำหน่ายเป็น
                         08 หรือ 09 · ปีงบประมาณนับตามวันจำหน่าย 1 ต.ค. ถึง 30 ก.ย. · กลุ่มย่อย
-                        เลือดออก I60-I62 และตีบ/อุดตัน I63-I69
+                        เลือดออก I60-I62 และตีบ/อุดตัน I63-I68
                       </div>
                       <div className="mt-1.5">
                         รหัส I690-I699 (อาการหลงเหลือจากโรคหลอดเลือดสมอง) ไม่ถูกนับ เพราะไม่ใช่
@@ -380,7 +383,7 @@ export default function ServicePlanStrokePage() {
 
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Kpi
-                label={`ทั้งกลุ่ม I60-I69 · ${view.latestLabel}`}
+                label={`ทั้งกลุ่ม I60-I68 · ${view.latestLabel}`}
                 value={pctText(view.latest.all)}
                 hint={`เสียชีวิต ${nf.format(view.latest.all.dead)} จาก ${nf.format(view.latest.all.total)} ราย · เกณฑ์ไม่เกิน ${TARGET_ALL}%`}
                 verdict={verdictOf(view.latest.all, TARGET_ALL)}
@@ -392,7 +395,7 @@ export default function ServicePlanStrokePage() {
                 verdict={verdictOf(view.latest.hemorrhagic, TARGET_HEMORRHAGIC)}
               />
               <Kpi
-                label={`ตีบ/อุดตัน I63-I69 · ${view.latestLabel}`}
+                label={`ตีบ/อุดตัน I63-I68 · ${view.latestLabel}`}
                 value={pctText(view.latest.ischemic)}
                 hint={`เสียชีวิต ${nf.format(view.latest.ischemic.dead)} จาก ${nf.format(view.latest.ischemic.total)} ราย · เกณฑ์ไม่เกิน ${TARGET_ISCHEMIC}%`}
                 verdict={verdictOf(view.latest.ischemic, TARGET_ISCHEMIC)}
@@ -406,7 +409,7 @@ export default function ServicePlanStrokePage() {
 
             <div className="grid gap-4 xl:grid-cols-2">
               <Panel
-                title={`อัตราตายทั้งกลุ่ม I60-I69 · เกณฑ์ไม่เกิน ${TARGET_ALL}%`}
+                title={`อัตราตายทั้งกลุ่ม I60-I68 · เกณฑ์ไม่เกิน ${TARGET_ALL}%`}
                 desc="ร้อยละของผู้ป่วยในที่จำหน่ายด้วยสถานะเสียชีวิต ต่อผู้ป่วยในทั้งหมดของกลุ่มโรคในปีงบนั้น"
               >
                 <MortalityChart points={view.all} target={TARGET_ALL} />
@@ -418,7 +421,7 @@ export default function ServicePlanStrokePage() {
                 <MortalityChart points={view.hemorrhagic} target={TARGET_HEMORRHAGIC} />
               </Panel>
               <Panel
-                title={`อัตราตายชนิดตีบ/อุดตัน I63-I69 · เกณฑ์ไม่เกิน ${TARGET_ISCHEMIC}%`}
+                title={`อัตราตายชนิดตีบ/อุดตัน I63-I68 · เกณฑ์ไม่เกิน ${TARGET_ISCHEMIC}%`}
                 desc="กลุ่มสมองขาดเลือด หลอดเลือดตีบหรืออุดตัน และโรคหลอดเลือดสมองอื่นที่ไม่ใช่ชนิดเลือดออก"
               >
                 <MortalityChart points={view.ischemic} target={TARGET_ISCHEMIC} />
@@ -427,22 +430,30 @@ export default function ServicePlanStrokePage() {
                 title="จำนวนผู้ป่วยในรายช่วง"
                 hint={
                   <div className="text-xs leading-relaxed">
-                      ช่วงรหัสที่ใช้อยู่เทียบแบบตัวอักษร กลุ่มเลือดออกจึงกิน I60 กับ I61 แต่ไม่กิน
-                      I620-I629 (เลือดออกในกะโหลกศีรษะแบบอื่นที่ไม่ได้เกิดจากอุบัติเหตุ) ส่วนกลุ่ม
-                      ตีบ/อุดตันเริ่มที่ I63 พอดี — ผู้ป่วยกลุ่มนี้
-                      {view.volume.length > 0 && (
-                        <>
-                          {' '}
-                          ปีละ {Math.min(...view.volume.map(point => point.other))}-
-                          {Math.max(...view.volume.map(point => point.other))} ราย
-                        </>
-                      )}{' '}
-                      จึงถูกนับในอัตราตายทั้งกลุ่ม (เกณฑ์ {TARGET_ALL}%) แต่ไม่ถูกนับในกลุ่มย่อยทั้งสอง
-                      หน้านี้แสดงไว้เป็นแถบสีเทาในกราฟจำนวนผู้ป่วย ถ้าคณะกรรมการตัดสินว่าควรรวม
-                      I62x เข้ากลุ่มเลือดออก แจ้งได้ จะแก้ช่วงรหัสให้
+                    <div>
+                      <b>สองกลุ่มย่อยบวกกันได้เท่าทั้งกลุ่มพอดี</b> — I620-I629 (เลือดออกใน
+                      กะโหลกศีรษะแบบที่ไม่ได้เกิดจากอุบัติเหตุ) นับเข้ากลุ่มเลือดออกแล้วตามที่
+                      ตกลงกันไว้ ห้าปีเพิ่มกลุ่มเลือดออกขึ้น 226 ราย (+14%) ก่อนหน้านี้ช่วงรหัส
+                      เขียนด้วย BETWEEN ซึ่งเทียบแบบตัวอักษร รหัสลูกของขอบบนจึงตกหายไปอยู่
+                      กลุ่ม &ldquo;อื่น ๆ&rdquo; ตอนนี้กลุ่มนั้นเป็นศูนย์โดยโครงสร้าง
+                      {view.volume.length > 0 &&
+                        Math.max(...view.volume.map(point => point.other)) > 0 && (
+                          <>
+                            {' '}
+                            — <b>แต่ช่วงนี้ยังเหลืออยู่ถึง{' '}
+                            {Math.max(...view.volume.map(point => point.other))} ราย</b> ซึ่ง
+                            หมายความว่ามีรหัสใหม่ในขอบเขตที่ยังไม่เข้ากลุ่มย่อยไหน ควรแจ้งให้ตรวจ
+                          </>
+                        )}
                     </div>
+                    <div className="mt-1.5">
+                      รหัส I690-I699 (อาการหลงเหลือจากโรคหลอดเลือดสมอง) อยู่นอกขอบเขตของหน้านี้
+                      โดยเจตนา ห้าปีมี 53 การนอน — ไม่ใช่การเกิดโรคครั้งใหม่ ถ้านับเข้ามาจะ
+                      เจือจางอัตราตายของ stroke เฉียบพลัน
+                    </div>
+                  </div>
                 }
-                desc="ความสูงรวมคือผู้ป่วยในทั้งกลุ่มโรค แยกสีตามชนิด — อัตราที่ทรงตัวบนฐานผู้ป่วยที่โตขึ้นไม่ใช่เรื่องเดียวกับฐานเท่าเดิม แถบสีเทาคือ I62x ที่ไม่อยู่ในกลุ่มย่อยไหน"
+                desc="ความสูงรวมคือผู้ป่วยในทั้งกลุ่มโรค แยกสีตามชนิด — อัตราที่ทรงตัวบนฐานผู้ป่วยที่โตขึ้นไม่ใช่เรื่องเดียวกับฐานเท่าเดิม"
               >
                 <VolumeChart points={view.volume} />
               </Panel>
@@ -495,7 +506,7 @@ export default function ServicePlanStrokePage() {
                   },
                   {
                     key: 'rate-ischemic',
-                    title: `ตีบ/อุดตัน I63-I69 (เกณฑ์ ≤ ${TARGET_ISCHEMIC}%)`,
+                    title: `ตีบ/อุดตัน I63-I68 (เกณฑ์ ≤ ${TARGET_ISCHEMIC}%)`,
                     align: 'right',
                     render: (_, row) => <RateCell count={row.ischemic} target={TARGET_ISCHEMIC} />,
                   },
@@ -513,10 +524,10 @@ export default function ServicePlanStrokePage() {
                   <div className="text-xs leading-relaxed">
                       <div>
                         J69x คือปอดอักเสบจากการสำลักเท่านั้น ส่วนผู้ป่วย stroke ที่ลงรหัสปอดอักเสบ
-                        แบบอื่น (J12-J19) ไม่ถูกนับ — ห้าปีที่ผ่านมามี{' '}
+                        แบบอื่น (J12-J18) ไม่ถูกนับ — ห้าปีที่ผ่านมามี{' '}
                         {nf.format(view.pneumoniaFive)} ราย กับ {nf.format(view.pneumoniaOtherFive)} ราย
                         ตามลำดับ ตัวเลขจึงต่างกันราวสามเท่าแล้วแต่เลือกนิยามไหน หน้านี้แสดงกลุ่ม
-                        J12-J19 ไว้เป็นการ์ดและคอลัมน์แยก ถ้าคณะกรรมการตัดสินว่าตัวชี้วัดควรรวม
+                        J12-J18 ไว้เป็นการ์ดและคอลัมน์แยก ถ้าคณะกรรมการตัดสินว่าตัวชี้วัดควรรวม
                         ทั้งสองกลุ่ม แจ้งได้ จะรวมให้เป็นตัวเดียว
                       </div>
                       <div className="mt-1.5">
@@ -558,7 +569,7 @@ export default function ServicePlanStrokePage() {
                   hint="ไว้เทียบว่าภาวะแทรกซ้อนทำให้อัตราตายต่างจากภาพรวมแค่ไหน"
                 />
                 <Kpi
-                  label="ปอดอักเสบรหัสอื่น J12-J19"
+                  label="ปอดอักเสบรหัสอื่น J12-J18"
                   value={pctText(view.latest.pneumoniaOther)}
                   hint={`เสียชีวิต ${nf.format(view.latest.pneumoniaOther.dead)} จาก ${nf.format(view.latest.pneumoniaOther.total)} ราย · ไม่ได้อยู่ในตัวชี้วัด Pneumonia ข้างซ้าย`}
                 />
@@ -634,7 +645,7 @@ export default function ServicePlanStrokePage() {
                     },
                     {
                       key: 'pneumonia-other',
-                      title: 'ปอดอักเสบรหัสอื่น (J12-J19)',
+                      title: 'ปอดอักเสบรหัสอื่น (J12-J18)',
                       align: 'right',
                       render: (_, row) => (
                         <RateCell
