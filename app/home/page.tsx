@@ -5,7 +5,8 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { Card, Typography } from 'antd'
 import {
-  AuditOutlined,  ExperimentOutlined,
+  AuditOutlined,
+  ExperimentOutlined,
   MedicineBoxOutlined,
   ProfileOutlined,
   RightOutlined,

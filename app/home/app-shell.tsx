@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Avatar, Button, Descriptions, Divider, Drawer, Layout, Menu, Tag, Typography } from 'antd'
 import {
   ApartmentOutlined,
-  AuditOutlined,  DashboardOutlined,
+  AuditOutlined,
+  DashboardOutlined,
   ExperimentOutlined,
   LogoutOutlined,
   MedicineBoxOutlined,
