@@ -9,6 +9,7 @@ import {
   ExperimentOutlined,
   FileSearchOutlined,
   HeartOutlined,
+  InteractionOutlined,
   MedicineBoxOutlined,
   MonitorOutlined,
   NumberOutlined,
@@ -31,6 +32,11 @@ const { Text, Title } = Typography
  * คนละฐานของการนับ จึงแยกส่วนกันบนหน้าจอด้วย
  *
  * กลุ่มที่สี่เพิ่มมาทีหลังและไม่เกี่ยงโรคเลย นับทุกบรรทัดยาที่จ่ายออกไป
+ *
+ * ท้ายหน้ามี**เครื่องมือค้น** ซึ่งไม่ใช่ตัวชี้วัด แยกส่วนไว้ชัดเจน — ตัวชี้วัดทุกข้อ
+ * ผูกกับทะเบียนยาที่คณะกรรมการตกลงไว้และมีเกณฑ์กำกับ ส่วนเครื่องมือค้นให้เภสัชกร
+ * ประกอบชุดยาขึ้นเองตอนนั้น ไม่มีเกณฑ์และไม่ตัดสินผ่าน/ไม่ผ่าน ถ้าวางปนกับการ์ด
+ * ตัวชี้วัด คนอ่านจะเข้าใจว่าเป็นตัวชี้วัดอีกข้อที่ยังไม่มีเกณฑ์
  *
  * สองข้อที่ฐานของการนับไม่เหมือนกลุ่มที่ตัวเองอยู่ มีคำอธิบายกำกับไว้บนการ์ด —
  * ข้อ NL นับจากการคลอดซึ่งเป็นเหตุการณ์ของผู้ป่วยใน ส่วนข้อสตรีตั้งครรภ์นับยา
@@ -345,6 +351,39 @@ export default function RduPage() {
           {PRESCRIBING_KPIS.map(kpi => (
             <KpiCard key={kpi.title} {...kpi} />
           ))}
+        </div>
+      </section>
+
+      {/* ไม่ใช่ตัวชี้วัด — มีหัวข้อของตัวเองเพื่อไม่ให้ถูกอ่านว่าเป็นตัวชี้วัดข้อที่
+          ยังไม่มีเกณฑ์ ชุดยาที่ค้นประกอบขึ้นเองตอนนั้น ไม่ได้มาจากทะเบียน */}
+      <section className="mb-6">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
+          <InteractionOutlined className="text-accent" /> เครื่องมือค้นหา
+          <Text type="secondary" className="text-xs font-normal">
+            เลือกยาเองตอนนั้น ไม่ใช่ตัวชี้วัด จึงไม่มีเกณฑ์
+          </Text>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Link href="/home/rdu/reports/duplicate">
+            <Card hoverable variant="borderless" className="h-full border! border-line!">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-accent-soft text-base text-accent">
+                  <InteractionOutlined />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                    ค้นหาการใช้ยาซ้ำซ้อน
+                    <RightOutlined className="shrink-0 text-[10px] text-accent/60" />
+                  </div>
+                  <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
+                    เลือกชุดยาที่ต้องการตรวจเอง แล้วหาผู้ป่วยนอกที่ได้รับซ้ำซ้อน — ภายในครั้ง
+                    เดียวกันหรือข้ามครั้งภายในจำนวนวันที่กำหนดเอง เลือกนับที่ระดับชื่อสามัญ
+                    หรือรายการยาได้
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </Link>
         </div>
       </section>
 

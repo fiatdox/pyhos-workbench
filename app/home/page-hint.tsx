@@ -2,7 +2,7 @@
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
 import type { ReactNode } from 'react'
 import { Popover } from 'antd'
-import { QuestionCircleOutlined } from '@ant-design/icons'
+import { ExclamationCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 
 /**
  * คำอธิบายหัวข้อที่พับเก็บไว้หลังไอคอน
@@ -16,24 +16,41 @@ import { QuestionCircleOutlined } from '@ant-design/icons'
  *
  * เปิดด้วยทั้งชี้และกด เพราะบนแท็บเล็ตไม่มีการชี้ค้าง ถ้าผูกกับ hover อย่างเดียว
  * คำอธิบายจะเปิดไม่ได้เลยบนเครื่องที่ใช้นิ้ว
+ *
+ * tone="warning": ข้อควรระวังที่มีผลต่อความถูกต้องของผล — ไอคอนสีเหลือง
+ * และ title เป็นหัวข้อตัวหนาบนสุดของคำอธิบาย (ใช้เป็นชื่อปุ่มให้โปรแกรมอ่านหน้าจอด้วย)
  */
-export default function PageHint({ children }: { children: ReactNode }) {
+export default function PageHint({
+  children,
+  tone = 'info',
+  title,
+}: {
+  children: ReactNode
+  tone?: 'info' | 'warning'
+  title?: string
+}) {
+  const warning = tone === 'warning'
   return (
     <Popover
       trigger={['hover', 'click']}
       placement="bottomLeft"
       content={
         <div style={{ maxWidth: 440 }} className="text-xs leading-relaxed text-ink-2">
+          {title && <div className="mb-1.5 text-sm font-semibold text-ink">{title}</div>}
           {children}
         </div>
       }
     >
       <button
         type="button"
-        aria-label="คำอธิบายหน้านี้"
-        className="ml-2 cursor-help align-middle text-base text-ink-3 transition-colors hover:text-accent"
+        aria-label={title ?? 'คำอธิบายหน้านี้'}
+        className={
+          warning
+            ? 'ml-2 cursor-help align-middle text-base text-amber-500 transition-colors hover:text-amber-600'
+            : 'ml-2 cursor-help align-middle text-base text-ink-3 transition-colors hover:text-accent'
+        }
       >
-        <QuestionCircleOutlined />
+        {warning ? <ExclamationCircleOutlined /> : <QuestionCircleOutlined />}
       </button>
     </Popover>
   )
