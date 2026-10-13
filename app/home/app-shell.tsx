@@ -8,6 +8,7 @@ import {
   AuditOutlined,
   DashboardOutlined,
   ExperimentOutlined,
+  HeartOutlined,
   LogoutOutlined,
   MedicineBoxOutlined,
   MenuOutlined,
@@ -128,6 +129,12 @@ export const MENU_ITEMS: {
     label: 'RDU ตัวชี้วัดการใช้ยา',
     desc: 'ติดตามตัวชี้วัดการใช้ยาอย่างสมเหตุผล และตั้งค่าทะเบียนรายการยาของแต่ละตัวชี้วัด',
     feature: 'rdu',
+  },
+  {
+    key: '/home/checkup',
+    icon: <HeartOutlined />,
+    label: 'ตรวจสุขภาพ',
+    desc: 'เลือกสิทธิการรักษากับช่วงวันที่ แล้วได้รายชื่อผู้ที่มารับบริการด้วยสิทธินั้น พร้อมยอดสรุปแยกตามสิทธิ',
   },
   {
     key: '/home/health-rider',
