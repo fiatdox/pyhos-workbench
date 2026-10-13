@@ -228,7 +228,7 @@ export default function AgeCriteriaSettingsPage() {
                         step={1}
                         precision={0}
                         value={value}
-                        addonAfter="ปี"
+                        suffix="ปี"
                         style={{ width: 130 }}
                         onChange={next => {
                           if (typeof next === 'number') {
@@ -323,7 +323,7 @@ export default function AgeCriteriaSettingsPage() {
                           max={100}
                           step={1}
                           value={value}
-                          addonAfter="%"
+                          suffix="%"
                           placeholder="ยังไม่ตั้ง"
                           style={{ width: 140 }}
                           onChange={next =>
