@@ -1,5 +1,6 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
+import { withBase } from '@/lib/base-path'
 import { useState } from 'react'
 import {
   Alert,
@@ -9,6 +10,7 @@ import {
   Image,
   Input,
   Modal,
+  Segmented,
   Space,
   Spin,
   Table,
@@ -20,7 +22,7 @@ import { ExperimentOutlined, FileImageOutlined, SearchOutlined } from '@ant-desi
 import dayjs, { type Dayjs } from 'dayjs'
 import buddhistEra from 'dayjs/plugin/buddhistEra'
 import { apiFetch } from '@/lib/client/session'
-import type { HlaResult } from '@/lib/his/hla-b5801'
+import type { HlaResult, HlaTest } from '@/lib/his/hla-b5801'
 import PageHint from '../page-hint'
 import { TableRowsSkeleton } from '@/app/home/skeletons'
 
@@ -42,7 +44,16 @@ function toThaiDate(value: string | null): string | null {
 /** ค่าเริ่มต้น: ย้อนหลัง 30 วันถึงวันนี้ */
 const DEFAULT_RANGE: [Dayjs, Dayjs] = [dayjs().subtract(30, 'day'), dayjs()]
 
+/** ชื่อที่แสดงของแต่ละชนิดการตรวจ */
+const TEST_LABEL: Record<HlaTest, string> = {
+  b5801: 'HLA-B*5801',
+  b1502: 'HLA-B*1502',
+}
+
 export default function HlaB5801Page() {
+  const [test, setTest] = useState<HlaTest>('b5801')
+  /** ชนิดการตรวจของผลลัพธ์ที่แสดงอยู่ — หัว Modal ต้องตรงกับผลในตาราง ไม่ใช่ตัวเลือกปัจจุบัน */
+  const [shownTest, setShownTest] = useState<HlaTest>('b5801')
   const [range, setRange] = useState<[Dayjs, Dayjs]>(DEFAULT_RANGE)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -57,15 +68,18 @@ export default function HlaB5801Page() {
    * - ไม่ส่งคำค้น = ตามช่วงวันที่ที่เลือก
    * - ส่งคำค้น (HN/ชื่อ-สกุล) = ค้นทั้งหมดไม่จำกัดช่วงวันที่
    */
-  const search = async (options: { keyword?: string } = {}) => {
+  const search = async (options: { keyword?: string; test?: HlaTest } = {}) => {
     const term = options.keyword?.trim() ?? ''
+    const testToSearch = options.test ?? test
     if (options.keyword != null && term.length > 0 && term.length < 2) {
       setError('พิมพ์อย่างน้อย 2 ตัวอักษร')
       return
     }
-    const query = term
-      ? `q=${encodeURIComponent(term)}`
-      : `from=${range[0].format('YYYY-MM-DD')}&to=${range[1].format('YYYY-MM-DD')}`
+    const query =
+      `test=${testToSearch}&` +
+      (term
+        ? `q=${encodeURIComponent(term)}`
+        : `from=${range[0].format('YYYY-MM-DD')}&to=${range[1].format('YYYY-MM-DD')}`)
 
     setLoading(true)
     setError('')
@@ -79,6 +93,7 @@ export default function HlaB5801Page() {
       }
       setResults(json.results as HlaResult[])
       setSearchedKeyword(term)
+      setShownTest(testToSearch)
     } catch {
       setResults(null)
       setError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่อีกครั้ง')
@@ -173,23 +188,34 @@ export default function HlaB5801Page() {
 
   return (
     <>
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg text-accent">
-          <ExperimentOutlined />
-        </div>
-        <div>
-          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>
-            ผลตรวจ HLA-B*5801
-            <PageHint>
-              ผู้ป่วยที่มีการรายงานผลแล้วในช่วงวันที่ที่เลือก คลิกเพื่อดูรูปใบรายงาน
-            </PageHint>
-          </Title>
-        </div>
-      </div>
+      <section className="mb-6">
+        <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
+          <ExperimentOutlined /> ผลตรวจ {TEST_LABEL[test]}
+          <PageHint>
+            ผู้ป่วยที่มีการรายงานผลแล้วในช่วงวันที่ที่เลือก คลิกเพื่อดูรูปใบรายงาน
+          </PageHint>
+        </Title>
+        <div className="title-rule" />
+      </section>
 
       {/* ───────────── ช่วงวันที่ + ช่องกรอง ───────────── */}
       <div className="mb-5">
         <div className="flex flex-wrap items-center gap-3">
+          {/* เปลี่ยนชนิดการตรวจ — ถ้ามีผลแสดงอยู่ ค้นใหม่ด้วยเงื่อนไขเดิมทันที */}
+          <Segmented<HlaTest>
+            size="large"
+            value={test}
+            options={[
+              { value: 'b5801', label: TEST_LABEL.b5801 },
+              { value: 'b1502', label: TEST_LABEL.b1502 },
+            ]}
+            onChange={value => {
+              setTest(value)
+              setSelected(null)
+              if (results !== null) void search({ keyword: searchedKeyword, test: value })
+            }}
+          />
+
         <Space.Compact>
           <RangePicker
             size="large"
@@ -271,7 +297,7 @@ export default function HlaB5801Page() {
           /* โหลดครั้งแรกขึ้นโครงร่าง ไม่ใช่ที่ว่างเปล่า — คิวรีชุดนี้ใช้เวลาหลายวินาที */
           <TableRowsSkeleton columns={6} rows={8} />
         ) : (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="เลือกช่วงวันที่แล้วกดค้นหา" />
           </div>
         )}
@@ -281,8 +307,8 @@ export default function HlaB5801Page() {
       <Modal
         title={
           selected
-            ? `ผลตรวจ HLA-B*5801 · HN ${selected.hn} · ${selected.patientName ?? ''}`
-            : 'ผลตรวจ HLA-B*5801'
+            ? `ผลตรวจ ${TEST_LABEL[shownTest]} · HN ${selected.hn} · ${selected.patientName ?? ''}`
+            : `ผลตรวจ ${TEST_LABEL[shownTest]}`
         }
         open={selected != null}
         onCancel={() => setSelected(null)}
@@ -303,8 +329,8 @@ export default function HlaB5801Page() {
                 {selected.images.map(index => (
                   <Image
                     key={index}
-                    src={`/api/his/hla-b5801/image?lab_order_number=${selected.labOrderNumber}&index=${index}`}
-                    alt={`ใบรายงานผล HLA-B*5801 แผ่นที่ ${index}`}
+                    src={withBase(`/api/his/hla-b5801/image?lab_order_number=${selected.labOrderNumber}&index=${index}`)}
+                    alt={`ใบรายงานผล ${TEST_LABEL[shownTest]} แผ่นที่ ${index}`}
                     width={260}
                     loading="lazy"
                     style={{ borderRadius: 8 }}

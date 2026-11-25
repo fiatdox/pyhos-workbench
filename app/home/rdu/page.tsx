@@ -234,7 +234,7 @@ export default function RduPage() {
             ทั้งกลุ่มยาปฏิชีวนะ กลุ่มโรคเรื้อรัง และกลุ่มผู้ป่วยพิเศษ เพื่อใช้ในการประชุมคณะกรรมการและรายงานตามรอบ
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {/* ตัวชี้วัดเปิดครบแล้ว สิ่งที่ยังกั้นอยู่คือทะเบียน จึงเตือนเรื่องนั้นแทน —

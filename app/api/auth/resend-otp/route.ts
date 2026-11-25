@@ -4,6 +4,7 @@ import { authOtpChallenges, users } from '@/lib/db/schema/core-kon'
 import { issueNewOtp } from '@/lib/auth/mfa'
 import { getAuthSettings } from '@/lib/auth/settings'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
+import { readMfaChallengeCookie } from '@/lib/auth/session'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,17 +16,9 @@ const MAX_RESEND_PER_CHALLENGE = 3
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-type ResendBody = { challenge_token?: unknown }
-
 export async function POST(request: Request) {
-  let body: ResendBody
-  try {
-    body = await request.json()
-  } catch {
-    return Response.json({ success: false, message: 'รูปแบบคำขอไม่ถูกต้อง' }, { status: 400 })
-  }
-
-  const token = typeof body.challenge_token === 'string' ? body.challenge_token : ''
+  // รหัสรอบอ่านจากคุกกี้ httpOnly ที่ /api/auth/login ตั้งไว้ — ไม่มี body แล้ว
+  const token = await readMfaChallengeCookie()
   const ip = clientIp(request)
 
   const byIp = rateLimit(`resend-otp:ip:${ip}`, PER_IP.limit, PER_IP.windowSeconds)

@@ -194,7 +194,7 @@ export function Kpi({
   verdict?: boolean | null
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+    <div className="rounded-2xl border border-line bg-panel p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="text-xs text-ink-3">{label}</div>
         {verdict != null && (
@@ -228,7 +228,7 @@ export function Panel({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+    <section className="rounded-2xl border border-line bg-panel p-4">
       <div className="mb-1 text-sm font-semibold text-ink">
         {title}
         {hint && <PageHint>{hint}</PageHint>}

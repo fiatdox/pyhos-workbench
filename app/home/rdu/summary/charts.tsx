@@ -22,10 +22,10 @@ import { useTheme } from '@/app/theme'
 function palette(dark: boolean) {
   return dark
     ? {
-        ink: '#cbd5e1',
+        ink: '#c8c3d5',
         faint: '#94a3b8',
-        grid: 'rgba(255,255,255,0.08)',
-        tooltipBg: '#1b1033',
+        grid: '#2c2938',
+        tooltipBg: '#201d2a',
         good: '#34d399',
         bad: '#fb7185',
         accent: '#a78bfa',
@@ -33,13 +33,13 @@ function palette(dark: boolean) {
         target: '#fbbf24',
       }
     : {
-        ink: '#4b4165',
-        faint: '#78708f',
-        grid: 'rgba(124,58,237,0.12)',
+        ink: '#463f5a',
+        faint: '#6a6480',
+        grid: '#ebe8f0',
         tooltipBg: '#ffffff',
         good: '#047857',
         bad: '#be123c',
-        accent: '#7c3aed',
+        accent: '#6d28d9',
         neutral: '#94a3b8',
         target: '#b45309',
       }

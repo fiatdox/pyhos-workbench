@@ -1,32 +1,36 @@
 'use client'
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { withBase } from '@/lib/base-path'
+import { createContext, useContext, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Avatar, Button, Descriptions, Divider, Drawer, Layout, Menu, Tag, Typography } from 'antd'
+import { Avatar, Button, Descriptions, Divider, Drawer, Menu, Tag, Tooltip, Typography } from 'antd'
 import {
   ApartmentOutlined,
-  AuditOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   HeartOutlined,
   LogoutOutlined,
   MedicineBoxOutlined,
+  MenuFoldOutlined,
   MenuOutlined,
+  MenuUnfoldOutlined,
   PartitionOutlined,
   ProfileOutlined,
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { MotorcycleOutlined } from './icons'
+import { BrandMark } from '@/app/brand-mark'
 import { ThemeSegmented, ThemeToggleButton, useTheme } from '@/app/theme'
 
-const { Header, Content } = Layout
 const { Text, Title } = Typography
+
+/** สีพื้นของรูปโปรไฟล์ — ม่วงเข้มเดียวกันทั้งสองธีม ตัวอักษรขาวบนนี้ได้ 7.1:1 */
+const AVATAR_BG = '#6d28d9'
 
 /** สิทธิ์รายงานที่เซิร์ฟเวอร์คำนวณให้ ใช้ซ่อนเมนูของงานที่ผู้ใช้ไม่มีสิทธิ์
  *  การกันจริงอยู่ที่ layout และ API ฝั่งเซิร์ฟเวอร์ ตรงนี้แค่ไม่โชว์ทางเข้า */
 export type ShellPermissions = {
-  due: boolean
   rdu: boolean
   audit: boolean
   /** ตั้งค่า Health Rider ได้ไหม — เฉพาะหัวหน้ากลุ่มงานเภสัชกรรม */
@@ -55,11 +59,10 @@ export type ShellUser = {
  * ข้อมูลผู้ใช้ค้างอยู่ในเบราว์เซอร์
  */
 const SessionUserContext = createContext<ShellUser | null>(null)
-// ค่าตั้งต้นของ audit เป็น false ต่างจากอีกสองงาน — ถ้า Provider หลุดไปด้วย
+// ค่าตั้งต้นของ audit เป็น false ต่างจาก RDU — ถ้า Provider หลุดไปด้วย
 // เหตุใดก็ตาม เมนูของงานทั่วไปหายไปยังแค่กวนใจ แต่เมนูดูร่องรอยโผล่ให้ทุกคน
 // เห็นคือการรั่วของข้อมูลที่บอกว่าใครเปิดดูคนไข้คนไหน
 const PermissionsContext = createContext<ShellPermissions>({
-  due: true,
   rdu: true,
   audit: false,
   riderAdmin: false,
@@ -107,21 +110,14 @@ export const MENU_ITEMS: {
   {
     key: '/home/hla-b5801',
     icon: <ExperimentOutlined />,
-    label: 'ผลตรวจ HLA-B*5801',
-    desc: 'ผู้ป่วยที่รายงานผล HLA-B*5801 แล้ว ค้นตามช่วงวันที่และเปิดดูรูปใบรายงาน',
+    label: 'ผลตรวจ HLA-B*5801 / 1502',
+    desc: 'ผู้ป่วยที่รายงานผล HLA-B*5801 หรือ HLA-B*1502 แล้ว ค้นตามช่วงวันที่และเปิดดูรูปใบรายงาน',
   },
   {
     key: '/home/drug-profile',
     icon: <ProfileOutlined />,
     label: 'Drug Profile ผู้ป่วยใน',
     desc: 'ตรวจสอบการให้ยาของผู้ป่วยใน รายบุคคลตลอดการนอนโรงพยาบาล',
-  },
-  {
-    key: '/home/due',
-    icon: <AuditOutlined />,
-    label: 'DUE ขออนุมัติใช้ยา',
-    desc: 'แพทย์สั่งยากลุ่ม DUE เภสัชกรวิเคราะห์ความสมเหตุสมผล แพทย์กำกับอนุมัติ',
-    feature: 'due',
   },
   {
     key: '/home/rdu',
@@ -163,6 +159,51 @@ export const MENU_ITEMS: {
   },
 ]
 
+/**
+ * เมนูที่ตรงกับหน้าปัจจุบัน — เลือก key ที่ยาวที่สุดที่เป็นต้นทางของ path
+ * หน้าลูกอย่าง /home/rdu/reports/ed จึงยังไฮไลต์เมนู RDU ไว้ (เดิมเทียบตรงตัว
+ * หน้าลูกทุกหน้าเลยไม่มีเมนูไหนถูกเลือก) ส่วน /home ต้องตรงตัวเท่านั้น
+ */
+function activeMenuItem(pathname: string) {
+  let best: (typeof MENU_ITEMS)[number] | undefined
+  for (const item of MENU_ITEMS) {
+    const hit =
+      item.key === '/home' ? pathname === '/home' : pathname === item.key || pathname.startsWith(`${item.key}/`)
+    if (hit && (!best || item.key.length > best.key.length)) best = item
+  }
+  return best
+}
+
+/* ── สถานะย่อเมนูข้าง — จำไว้ในเบราว์เซอร์ ──
+   อ่านผ่าน useSyncExternalStore: ฝั่งเซิร์ฟเวอร์ถือว่าไม่ย่อเสมอ แล้ว React สลับ
+   เป็นค่าจริงหลัง hydrate เอง ไม่ต้อง setState ใน effect และไม่ hydrate ไม่ตรง */
+const SIDEBAR_KEY = 'pyhos-sidebar-collapsed'
+const sidebarListeners = new Set<() => void>()
+
+function subscribeSidebar(onChange: () => void) {
+  sidebarListeners.add(onChange)
+  return () => {
+    sidebarListeners.delete(onChange)
+  }
+}
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeSidebarCollapsed(next: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0')
+  } catch {
+    // โหมดส่วนตัว/ปิดการเก็บข้อมูลเว็บ — ย่อได้ตามปกติ แค่ไม่จำข้ามรอบ
+  }
+  sidebarListeners.forEach(listener => listener())
+}
+
 export default function AppShell({
   user,
   permissions,
@@ -178,6 +219,16 @@ export default function AppShell({
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const collapsed = useSyncExternalStore(subscribeSidebar, readSidebarCollapsed, () => false)
+
+  const current = activeMenuItem(pathname)
+  // งานที่จำกัดสิทธิ์ (RDU ตามตำแหน่งใน .env, ร่องรอยตาม role) — เอาออกจากเมนูไปเลย
+  // ดีกว่าโชว์แล้วกดไปเจอเด้งกลับ
+  const menuItems = MENU_ITEMS.filter(item => !item.feature || permissions[item.feature]).map(item => ({
+    key: item.key,
+    icon: item.icon,
+    label: <Link href={item.key}>{item.label}</Link>,
+  }))
 
   const logout = async () => {
     if (leaving) return
@@ -186,7 +237,7 @@ export default function AppShell({
       // เซิร์ฟเวอร์เป็นผู้ล้าง cookie ให้ — auth_token เป็น httpOnly แล้ว
       // JS ลบเองไม่ได้ ถ้า request นี้ไม่ถึงปลายทาง เซสชันจะยังไม่ถูกล้าง
       // keepalive: ให้ request รอดแม้เบราว์เซอร์เริ่มเปลี่ยนหน้าไปแล้ว
-      await fetch('/api/auth/logout', {
+      await fetch(withBase('/api/auth/logout'), {
         method: 'POST',
         credentials: 'same-origin',
         cache: 'no-store',
@@ -196,7 +247,7 @@ export default function AppShell({
       // ถึงตรงนี้แปลว่า cookie อาจยังอยู่ — ใช้ replace ทั้งหน้าแทน router
       // เพื่อบังคับให้เซิร์ฟเวอร์ตรวจ cookie ใหม่ ไม่ใช่แค่เปลี่ยนหน้าฝั่ง client
       console.error('[logout] แจ้งเซิร์ฟเวอร์ไม่สำเร็จ:', error)
-      window.location.replace('/')
+      window.location.replace(withBase('/'))
       return
     }
     router.replace('/')
@@ -204,63 +255,99 @@ export default function AppShell({
   }
 
   return (
-    // ห้ามใส่ overflow-hidden ที่ตัวนี้ — จะทำให้ Header ที่เป็น sticky ไม่ติดขอบบน
-    // (ancestor ที่ overflow ไม่ใช่ visible จะกลายเป็น scroll container ของ sticky
-    //  แต่ตัวมันเองไม่ได้เลื่อน หัวข้อจึงเลื่อนหายไปกับหน้า) การตัดขอบแสงพื้นหลัง
-    // ทำที่ชั้น absolute ข้างล่างซึ่ง overflow-hidden ของมันเองอยู่แล้ว
-    <div className="relative min-h-screen w-full bg-background text-foreground selection:bg-accent-soft">
-      {/* พื้นหลังโทนม่วงชุดเดียวกับหน้าเข้าสู่ระบบ — สีมาจาก token ตามธีม */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 h-120 w-120 rounded-full bg-(--glow-1) blur-[150px]" />
-        <div className="absolute top-1/4 -right-40 h-130 w-130 rounded-full bg-(--glow-2) blur-[170px]" />
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: 'var(--grid-opacity)',
-            backgroundImage:
-              'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
-            backgroundSize: '56px 56px',
-          }}
-        />
-      </div>
+    // ห้ามใส่ overflow-hidden ที่ชั้นนอก — จะทำให้แถบบนและเมนูข้างที่เป็น sticky
+    // ไม่ติดขอบ (ancestor ที่ overflow ไม่ใช่ visible จะกลายเป็น scroll container
+    // ของ sticky แต่ตัวมันเองไม่ได้เลื่อน ทั้งสองจึงเลื่อนหายไปกับหน้า)
+    <div className="flex min-h-screen w-full bg-background text-foreground selection:bg-accent-soft">
+      {/* ───────────── เมนูข้าง (จอกว้างตั้งแต่ lg) ─────────────
+          เดิมเมนูซ่อนอยู่ในลิ้นชักทุกขนาดจอ ต้องกดสองครั้งทุกครั้งที่ย้ายหน้า
+          บนจอทำงานจึงวางไว้ถาวร และย่อเหลือแถบไอคอนได้เมื่อต้องการความกว้างให้ตาราง */}
+      <aside
+        className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-bar transition-[width] duration-200 motion-reduce:transition-none lg:flex ${
+          collapsed ? 'w-16' : 'w-60'
+        }`}
+      >
+        <Link
+          href="/home"
+          className={`flex h-14 shrink-0 items-center gap-2.5 border-b border-line ${collapsed ? 'justify-center' : 'px-4'}`}
+          aria-label="PYHOS Workbench หน้าแรก"
+        >
+          <BrandMark size={28} />
+          {!collapsed && (
+            <span className="truncate text-sm font-semibold tracking-[0.14em] text-ink">PYHOS WORKBENCH</span>
+          )}
+        </Link>
 
-      <Layout className="relative z-10 min-h-screen bg-transparent">
-        {/* ───────────── Navbar ───────────── */}
-        <Header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-line bg-bar px-4 backdrop-blur-xl sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2" aria-label="เมนูระบบ">
+          <Menu
+            mode="inline"
+            theme={mode}
+            inlineCollapsed={collapsed}
+            selectedKeys={current ? [current.key] : []}
+            style={{ background: 'transparent', borderInlineEnd: 'none' }}
+            items={menuItems}
+          />
+        </nav>
+
+        <div className={`shrink-0 border-t border-line p-2 ${collapsed ? 'flex justify-center' : ''}`}>
+          <Tooltip title={collapsed ? 'ขยายเมนู' : undefined} placement="right">
+            <Button
+              type="text"
+              block={!collapsed}
+              aria-label={collapsed ? 'ขยายเมนู' : 'ย่อเมนู'}
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => writeSidebarCollapsed(!collapsed)}
+              className="justify-start! text-ink-3! hover:text-ink!"
+            >
+              {!collapsed && 'ย่อเมนู'}
+            </Button>
+          </Tooltip>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* ───────────── แถบบน ───────────── */}
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-bar px-3 sm:px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            {/* จอเล็กไม่มีเมนูข้าง — เปิดลิ้นชักแทน */}
             <Button
               type="text"
               aria-label="เปิดเมนูระบบ"
               icon={<MenuOutlined />}
               onClick={() => setMenuOpen(true)}
-              className="text-ink-2! hover:text-ink!"
+              className="text-ink-2! hover:text-ink! lg:hidden!"
             />
-            <Link href="/home" className="flex items-center gap-2.5">
-              <span className="hidden text-base font-semibold tracking-[0.16em] text-ink sm:inline">
-                PYHOS WORKBENCH
-              </span>
-              <span className="text-base font-semibold tracking-[0.16em] text-ink sm:hidden">PYHOS</span>
+            <Link href="/home" className="flex items-center gap-2 lg:hidden" aria-label="PYHOS Workbench หน้าแรก">
+              <BrandMark size={26} />
+              <span className="hidden text-sm font-semibold tracking-[0.14em] text-ink sm:inline">PYHOS WORKBENCH</span>
             </Link>
+            {/* จอกว้างมีชื่อระบบอยู่บนเมนูข้างแล้ว แถบบนจึงบอกว่าอยู่หน้าไหนแทน */}
+            {current && (
+              <div className="hidden min-w-0 items-center gap-2 text-sm text-ink-2 lg:flex">
+                <span className="text-accent">{current.icon}</span>
+                <span className="truncate font-medium">{current.label}</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             {/* สลับธีมได้จากทุกหน้า ไม่ต้องเปิดเมนูก่อน */}
             <ThemeToggleButton />
             <button
               type="button"
               onClick={() => setProfileOpen(true)}
               aria-label="ข้อมูลผู้ใช้งาน"
-              className="flex items-center gap-2.5 rounded-full border border-line py-1 pl-3 pr-1 transition hover:border-accent"
+              className="flex cursor-pointer items-center gap-2 rounded-full border border-line py-0.5 pl-3 pr-0.5 transition-colors hover:border-accent-line hover:bg-accent-soft"
             >
-              <span className="hidden text-xs text-ink-2 sm:inline">{user.fullName}</span>
-              <Avatar style={{ backgroundColor: '#6d28d9' }} size={32}>
+              <span className="hidden max-w-48 truncate text-xs text-ink-2 sm:inline">{user.fullName}</span>
+              <Avatar style={{ backgroundColor: AVATAR_BG }} size={30}>
                 {user.initials || <UserOutlined />}
               </Avatar>
             </button>
           </div>
-        </Header>
+        </header>
 
-        {/* ───────────── Drawer ซ้าย: เมนูระบบ ───────────── */}
+        {/* ───────────── Drawer ซ้าย: เมนูระบบ (จอเล็ก) ───────────── */}
         <Drawer
           title="เมนูระบบ"
           placement="left"
@@ -272,24 +359,16 @@ export default function AppShell({
           <Menu
             mode="inline"
             theme={mode}
-            selectedKeys={[pathname]}
+            selectedKeys={current ? [current.key] : []}
             onClick={() => setMenuOpen(false)}
-            style={{ background: 'transparent', borderInlineEnd: 'none' }}
-            // DUE กับ RDU เห็นเฉพาะตำแหน่งที่กำหนดไว้ใน .env และเป็นคนละรายการกัน
-            // — เอาออกจากเมนูไปเลย ดีกว่าโชว์แล้วกดไปเจอเด้งกลับ
-            items={MENU_ITEMS.filter(item => !item.feature || permissions[item.feature]).map(item => ({
-              key: item.key,
-              icon: item.icon,
-              label: <Link href={item.key}>{item.label}</Link>,
-            }))}
+            style={{ background: 'transparent', borderInlineEnd: 'none', paddingBlock: 8 }}
+            items={menuItems}
           />
 
           {/* ตัวเลือกโทนสี — วางท้ายเมนู ไม่ปะปนกับรายการหน้าจอ
               ไม่ปิดลิ้นชักตอนกด จะได้เห็นผลทันทีแล้วเลือกซ้ำได้ */}
           <div className="border-t border-line px-4 py-4">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
-              โทนสี
-            </div>
+            <div className="mb-2 text-xs font-semibold text-ink-3">โทนสี</div>
             <ThemeSegmented />
           </div>
         </Drawer>
@@ -303,7 +382,7 @@ export default function AppShell({
           onClose={() => setProfileOpen(false)}
         >
           <div className="flex flex-col items-center gap-2 pb-2 text-center">
-            <Avatar style={{ backgroundColor: '#6d28d9' }} size={64}>
+            <Avatar style={{ backgroundColor: AVATAR_BG }} size={64}>
               {user.initials || <UserOutlined />}
             </Avatar>
             <Title level={5} style={{ margin: 0 }}>{user.fullName}</Title>
@@ -336,13 +415,13 @@ export default function AppShell({
           </Button>
         </Drawer>
 
-        {/* เต็มความกว้างจอ — ตารางประวัติยามีคอลัมน์เยอะ ยิ่งกว้างยิ่งเห็นหลายครั้งที่รับยาพร้อมกัน */}
-        <Content className="w-full px-4 py-8 sm:px-6 lg:px-8">
+        {/* เต็มความกว้างที่เหลือ — ตารางประวัติยามีคอลัมน์เยอะ ยิ่งกว้างยิ่งเห็นหลายครั้งที่รับยาพร้อมกัน */}
+        <main className="w-full min-w-0 flex-1 px-3 py-5 sm:px-4 lg:px-6 lg:py-6">
           <SessionUserContext.Provider value={user}>
             <PermissionsContext.Provider value={permissions}>{children}</PermissionsContext.Provider>
           </SessionUserContext.Provider>
-        </Content>
-      </Layout>
+        </main>
+      </div>
     </div>
   )
 }

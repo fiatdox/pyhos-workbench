@@ -64,7 +64,7 @@ const nf = new Intl.NumberFormat('th-TH')
 /** การ์ดตัวเลขหนึ่งใบ — หัวข้อ ตัวเลขใหญ่ และคำขยายบรรทัดเดียว */
 function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+    <div className="rounded-2xl border border-line bg-panel p-4">
       <div className="text-xs text-ink-3">{label}</div>
       <div className="mt-1 text-2xl font-semibold text-ink">{value}</div>
       {hint && <div className="mt-1 text-xs text-ink-3">{hint}</div>}
@@ -83,7 +83,7 @@ function Panel({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+    <section className="rounded-2xl border border-line bg-panel p-4">
       <div className="mb-1 text-sm font-semibold text-ink">{title}</div>
       <div className="mb-3 text-xs text-ink-3">{desc}</div>
       {children}
@@ -201,7 +201,7 @@ export default function HealthRiderDashboardPage() {
             สรุปปริมาณงาน การจ่ายงาน พื้นที่ และภาระของเจ้าหน้าที่ — ไม่มีข้อมูลรายบุคคลของผู้ป่วย
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}

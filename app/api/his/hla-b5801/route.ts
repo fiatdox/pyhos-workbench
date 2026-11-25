@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { verifyAuthToken } from '@/lib/auth/jwt'
-import { listHlaResults, MAX_RESULTS } from '@/lib/his/hla-b5801'
+import { isHlaTest, listHlaResults, MAX_RESULTS } from '@/lib/his/hla-b5801'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -28,6 +28,12 @@ export async function GET(request: Request) {
 
   const params = new URL(request.url).searchParams
 
+  // ชนิดการตรวจ — ไม่ส่งมาคือ HLA-B*5801 ตามเดิม
+  const test = params.get('test') ?? 'b5801'
+  if (!isHlaTest(test)) {
+    return Response.json({ success: false, message: 'ชนิดการตรวจไม่ถูกต้อง' }, { status: 400 })
+  }
+
   // ค้นด้วย HN หรือชื่อ-สกุล — ข้ามช่วงวันที่ไปเลย เพราะไม่รู้ว่าผลออกวันไหน
   const keyword = (params.get('q') ?? '').trim().slice(0, MAX_KEYWORD)
   if (keyword) {
@@ -38,8 +44,8 @@ export async function GET(request: Request) {
       )
     }
     try {
-      const results = await listHlaResults({ keyword })
-      return Response.json({ success: true, keyword, limit: MAX_RESULTS, results })
+      const results = await listHlaResults({ test, keyword })
+      return Response.json({ success: true, test, keyword, limit: MAX_RESULTS, results })
     } catch (error) {
       console.error('[his/hla-b5801] ค้นด้วยคำค้นล้มเหลว:', error)
       return Response.json(
@@ -64,8 +70,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await listHlaResults({ from, to })
-    return Response.json({ success: true, from, to, limit: MAX_RESULTS, results })
+    const results = await listHlaResults({ test, from, to })
+    return Response.json({ success: true, test, from, to, limit: MAX_RESULTS, results })
   } catch (error) {
     console.error('[his/hla-b5801] ล้มเหลว:', error)
     return Response.json(

@@ -15,45 +15,43 @@
 }
 
 /* ───────────────────── ชุดสีตามธีม ─────────────────────
-   ธีมถูกเลือกด้วย data-theme บน <html> โดยสคริปต์ใน <head> (ดู app/theme.tsx)
-   ค่าเริ่มต้นบน :root คือธีมมืด เผื่อกรณีที่สคริปต์ไม่ทำงาน (JS ปิด)
-   ทุกคอมโพเนนต์อ้างชื่อ token เหล่านี้แทนสีตรง ๆ จะได้สลับได้ทั้งแอปพร้อมกัน */
+   ธีมถูกเลือกด้วย data-theme บน <html> ที่ root layout ตั้งจากคุกกี้ (ดู app/theme.tsx)
+   ทุกคอมโพเนนต์อ้างชื่อ token เหล่านี้แทนสีตรง ๆ จะได้สลับได้ทั้งแอปพร้อมกัน
+
+   แนวทาง (ปรับใหม่ พ.ย. 2569): ม่วงเป็นสีเน้นอย่างเดียว พื้นผิวทุกชั้นเป็นสีทึบ
+   ไม่มีดวงแสงเบลอ เส้นตารางพื้นหลัง หรือพื้นกระจกโปร่งแล้ว — หน้าส่วนใหญ่เป็นตาราง
+   ข้อมูลแน่น พื้นโปร่งทำให้ตัวอักษรบนการ์ดมีพื้นหลังไม่คงที่และอ่านยากขึ้น
+   คู่สีตัวอักษร/พื้นทุกคู่ผ่าน 4.5:1 (ink-3 บนพื้นจางสุดยังได้ ≥ 4.7) */
 :root,
 :root[data-theme='dark'] {
-  --background: #0c0716;
-  --foreground: #e7e3f2;
+  --background: #111019;
+  --foreground: #f1eff6;
 
-  --surface-panel: rgba(255, 255, 255, 0.03);
-  --surface-card: rgba(18, 10, 34, 0.7);
-  --surface-raised: rgba(12, 7, 22, 0.7);
-  /* ยกให้สว่างกว่าพื้นหน้า (#0c0716) พอสมควร ไม่งั้นลิ้นชักจะจมไปกับหน้าหลัง */
-  --surface-elevated: #1b1033;
-  --surface-bar: rgba(12, 7, 22, 0.8);
+  --surface-panel: #18161f;
+  --surface-card: #18161f;
+  --surface-raised: #1e1b27;
+  /* ลิ้นชัก/ป๊อปอัป ต้องสว่างกว่าการ์ดหนึ่งขั้น ไม่งั้นจะจมไปกับหน้าหลัง */
+  --surface-elevated: #201d2a;
+  --surface-bar: #15131c;
 
   /* ผังระบบ — ต้องเป็นสีทึบจริง เพราะแผ่นรองใต้ป้ายบนเส้นใช้ค่าเดียวกันนี้
      สีโปร่งจะทำให้เห็นเส้นลอดผ่านป้าย */
-  --diagram-paper: #0f0920;
-  --diagram-node: #1b1033;
-  --line-soft: rgba(255, 255, 255, 0.1);
-  --line-faint: rgba(255, 255, 255, 0.05);
+  --diagram-paper: #15131c;
+  --diagram-node: #201d2a;
+  --line-soft: #2c2938;
+  --line-faint: #221f2c;
 
-  --ink: #ffffff;
-  --ink-2: #cbd5e1;
-  --ink-3: #94a3b8;
+  --ink: #f1eff6;
+  --ink-2: #c8c3d5;
+  --ink-3: #9c97ad;
 
   --accent: #a78bfa;
   --accent-strong: #c4b5fd;
-  --accent-soft: rgba(139, 92, 246, 0.15);
-  --accent-line: rgba(167, 139, 250, 0.25);
-
-  /* ดวงแสงเบลอและเส้นตารางของพื้นหลัง */
-  --glow-1: rgba(124, 58, 237, 0.2);
-  --glow-2: rgba(168, 85, 247, 0.15);
-  --grid-line: rgba(255, 255, 255, 0.6);
-  --grid-opacity: 0.04;
+  --accent-soft: #261f3b;
+  --accent-line: #43366b;
 
   /* แถวที่ชี้อยู่ในตารางข้อมูล */
-  --row-hover: #2a1c4d;
+  --row-hover: #221c33;
   --row-marker: #a78bfa;
 
   /* กล่องแจ้งข้อผิดพลาด — แดงอ่อนบนพื้นมืด */
@@ -61,19 +59,11 @@
   --danger-bg: rgba(239, 68, 68, 0.1);
   --danger-line: rgba(239, 68, 68, 0.3);
 
-  /* หัวข้อไล่สีบนหน้าเข้าสู่ระบบ และเงาของการ์ดกระจก/ลิ้นชัก */
-  --headline-grad: linear-gradient(to right, #ddd6fe, #e9d5ff, #c4b5fd);
-  --card-shadow: rgba(0, 0, 0, 0.6);
-  --drawer-shadow: rgba(0, 0, 0, 0.75);
-  --drawer-mask: rgba(2, 0, 8, 0.72);
-
-  /* หน้าเข้าสู่ระบบ — ความเข้มของภาพพื้นหลังและชั้นย้อมสี */
-  --hero-image-opacity: 0.45;
-  --hero-tint: #1a0f33;
-  --hero-tint-opacity: 0.7;
-  --hero-wash: linear-gradient(to bottom right, rgba(12, 7, 22, 0.95), rgba(22, 12, 43, 0.85), rgba(42, 17, 82, 0.7));
-  --hero-fade: linear-gradient(to top, #0c0716, transparent, rgba(12, 7, 22, 0.6));
-  --hero-vignette: inset 0 0 220px 80px #0c0716;
+  /* เงาของการ์ดที่ลอย (หน้าเข้าสู่ระบบ) และลิ้นชัก — บนพื้นมืดเงามองแทบไม่เห็น
+     ขอบเส้น --line-soft เป็นตัวแบ่งหลัก เงาเป็นแค่ส่วนเสริม */
+  --card-shadow: rgba(0, 0, 0, 0.45);
+  --drawer-shadow: rgba(0, 0, 0, 0.6);
+  --drawer-mask: rgba(4, 3, 8, 0.6);
 
   /* ช่องรายวันในตาราง Drug Profile — ม่วง = Continue, ส้ม = STAT
      ต้องเป็น token ตามธีม ไม่ใช่ dark: ของ Tailwind เพราะ dark: ผูกกับ
@@ -83,107 +73,49 @@
   --plan-stat-bg: rgba(245, 158, 11, 0.28);
   --plan-stat-ink: #fef3c7;
 
-  /* ช่องค่าแล็บในใบคำขอ DUE — ป้ายเป็นชิปเหลืองทึบ ตัวอักษรน้ำตาลเข้ม
-     ใช้ตัวอักษรเข้มบนพื้นเหลืองทั้งสองธีม เพราะเหลืองสว่างเกินกว่าจะรองรับ
-     ตัวอักษรขาวได้ (ขาวบนเหลืองได้อัตราส่วนแค่ ~1.7:1 อ่านไม่ออก)
-     ธีมมืดใช้เหลืองสว่างขึ้นหนึ่งขั้นเพื่อให้ชิปเด่นออกจากพื้นม่วงเข้ม */
-  --lab-chip-bg: #fbbf24;
-  --lab-chip-ink: #3b2500;
-  --lab-line: rgba(251, 191, 36, 0.4);
-  --lab-bg: rgba(245, 158, 11, 0.07);
-
-  /* แท็บข้อมูลประกอบในหน้าประเมิน DUE — คนละสีต่อหนึ่งชุดข้อมูล
-     เภสัชกรสลับไปมาระหว่างสามชุดตลอดการกรอก สีช่วยให้รู้ทันทีว่ากำลังดูชุดไหน
-     โดยไม่ต้องอ่านป้าย เลี่ยงม่วงเพราะชนกับ accent ของทั้งระบบ
-     บนพื้นม่วงเข้มใช้สีสว่างและพื้นโปร่งเข้ม ๆ ให้ตัวอักษรลอยขึ้นมา */
-  --ref-renal-ink: #38bdf8;
-  --ref-renal-bg: rgba(56, 189, 248, 0.18);
-  --ref-renal-line: rgba(56, 189, 248, 0.45);
-  --ref-culture-ink: #fb7185;
-  --ref-culture-bg: rgba(251, 113, 133, 0.18);
-  --ref-culture-line: rgba(251, 113, 133, 0.45);
-  --ref-abx-ink: #34d399;
-  --ref-abx-bg: rgba(52, 211, 153, 0.18);
-  --ref-abx-line: rgba(52, 211, 153, 0.45);
-  /* ส้มอำพัน — แท็บวิเคราะห์ที่ข้อความมาจากโมเดล ไม่ใช่ข้อมูลตรงจากฐาน
-     ตั้งใจให้ต่างจากสามชุดบนชัด ๆ จะได้ไม่อ่านปนกับผลจริง */
-  --ref-rdu-ink: #fbbf24;
-  --ref-rdu-bg: rgba(251, 191, 36, 0.18);
-  --ref-rdu-line: rgba(251, 191, 36, 0.45);
-
-  /* เขียวอ่อน — ใช้กับปุ่มของงานที่ทำไปแล้วและกดซ้ำเพื่อแก้ได้ ไม่ใช่ปุ่มหลัก
-     แยกจาก --ref-abx-* ที่ผูกกับแท็บข้อมูลยาต้าน ถึงจะเป็นโทนเดียวกันก็ตาม */
+  /* เขียวอ่อน — ใช้กับปุ่มของงานที่ทำไปแล้วและกดซ้ำเพื่อแก้ได้ ไม่ใช่ปุ่มหลัก */
   --ok-ink: #34d399;
   --ok-bg: rgba(52, 211, 153, 0.16);
   --ok-line: rgba(52, 211, 153, 0.4);
-
-  /* ระดับความรุนแรงของค่าไตในใบคำขอ DUE — สามขั้น ไล่จากเหลืองไปแดง
-     ใช้ย้อมพื้นช่อง Cr / CrCl / eGFR ตามระดับ ไม่ใช่แค่แดงหรือไม่แดง เพราะ
-     การตัดสินใจเรื่องขนาดยาต่างกันตามขั้น ไม่ได้ต่างกันแค่ "ผิดปกติ/ปกติ"
-     กล่องค่าไตมีพื้นเหลืองจาง (--lab-bg) อยู่แล้ว ขั้นแรกจึงต้องเข้มพอจะแยกออก
-     ไม่ได้พึ่งสีเดียว — มีป้ายบอกระดับเป็นตัวอักษรกำกับทุกช่องด้วย คนตาบอดสี
-     ต้องอ่านได้เท่ากัน */
-  --renal-1-ink: #fcd34d;
-  --renal-1-bg: rgba(250, 204, 21, 0.22);
-  --renal-1-line: rgba(250, 204, 21, 0.5);
-  --renal-2-ink: #fdba74;
-  --renal-2-bg: rgba(249, 115, 22, 0.26);
-  --renal-2-line: rgba(249, 115, 22, 0.55);
-  --renal-3-ink: #fca5a5;
-  --renal-3-bg: rgba(239, 68, 68, 0.3);
-  --renal-3-line: rgba(239, 68, 68, 0.6);
 }
 
-/* พาสเทลม่วง–ขาว: พื้นขาวนวลอมม่วง ตัวอักษรม่วงเข้ม เส้นขอบเป็นม่วงจาง ๆ
-   แทนที่จะเป็นขาวโปร่งแบบธีมมืด (ขาวบนขาวจะมองไม่เห็น) */
+/* ธีมสว่าง (ค่าเริ่มต้น): พื้นหน้าเทาอมม่วงจาง ๆ การ์ดขาวทึบ ขอบเทากลาง
+   ม่วงใช้เฉพาะจุดที่ต้องการให้เห็น (ปุ่มหลัก เมนูที่เลือก ลิงก์) ไม่ย้อมทั้งหน้า */
 :root[data-theme='light'] {
-  --background: #faf7ff;
-  --foreground: #2b2140;
+  --background: #f6f5fa;
+  --foreground: #1c1729;
 
-  --surface-panel: rgba(255, 255, 255, 0.72);
-  --surface-card: rgba(255, 255, 255, 0.86);
-  --surface-raised: #ffffff;
+  --surface-panel: #ffffff;
+  --surface-card: #ffffff;
+  --surface-raised: #f9f8fc;
   --surface-elevated: #ffffff;
-  --surface-bar: rgba(255, 255, 255, 0.82);
+  --surface-bar: #ffffff;
 
-  --diagram-paper: #f7f5fb;
+  --diagram-paper: #f9f8fc;
   --diagram-node: #ffffff;
-  --line-soft: rgba(124, 58, 237, 0.16);
-  --line-faint: rgba(124, 58, 237, 0.08);
+  --line-soft: #e4e1ec;
+  --line-faint: #efedf4;
 
-  --ink: #2b2140;
-  --ink-2: #4b4165;
-  --ink-3: #78708f;
+  --ink: #1c1729;
+  --ink-2: #463f5a;
+  --ink-3: #6a6480;
 
-  --accent: #7c3aed;
-  --accent-strong: #6d28d9;
-  --accent-soft: rgba(167, 139, 250, 0.18);
-  --accent-line: rgba(124, 58, 237, 0.22);
+  --accent: #6d28d9;
+  --accent-strong: #5b21b6;
+  --accent-soft: #efe9fd;
+  --accent-line: #d9ccf8;
 
-  --glow-1: rgba(196, 181, 253, 0.5);
-  --glow-2: rgba(216, 180, 254, 0.4);
-  --grid-line: rgba(124, 58, 237, 0.55);
-  --grid-opacity: 0.07;
-
-  --row-hover: #f1ebff;
-  --row-marker: #7c3aed;
+  --row-hover: #f3effc;
+  --row-marker: #6d28d9;
 
   /* บนพื้นขาวต้องใช้แดงเข้มขึ้น ไม่งั้นอ่านไม่ออก */
   --danger-text: #b91c1c;
   --danger-bg: rgba(239, 68, 68, 0.08);
   --danger-line: rgba(220, 38, 38, 0.28);
 
-  --headline-grad: linear-gradient(to right, #7c3aed, #9333ea, #6d28d9);
-  --card-shadow: rgba(109, 40, 217, 0.12);
-  --drawer-shadow: rgba(109, 40, 217, 0.18);
-  --drawer-mask: rgba(43, 33, 64, 0.45);
-
-  --hero-image-opacity: 0.22;
-  --hero-tint: #ffffff;
-  --hero-tint-opacity: 0.35;
-  --hero-wash: linear-gradient(to bottom right, rgba(250, 247, 255, 0.92), rgba(243, 237, 255, 0.85), rgba(237, 233, 254, 0.8));
-  --hero-fade: linear-gradient(to top, #faf7ff, transparent, rgba(250, 247, 255, 0.65));
-  --hero-vignette: inset 0 0 220px 80px rgba(250, 247, 255, 0.9);
+  --card-shadow: rgba(28, 23, 41, 0.08);
+  --drawer-shadow: rgba(28, 23, 41, 0.14);
+  --drawer-mask: rgba(28, 23, 41, 0.35);
 
   /* พื้นอ่อนลงและตัวเลขเป็นสีเข้ม — บนพื้นขาวถ้าใช้ชุดของธีมมืดจะจางจนอ่านไม่ออก */
   --plan-cont-bg: rgba(124, 58, 237, 0.14);
@@ -191,41 +123,9 @@
   --plan-stat-bg: rgba(217, 119, 6, 0.18);
   --plan-stat-ink: #92400e;
 
-  /* บนพื้นขาวใช้เหลืองเข้มลงหนึ่งขั้น ไม่งั้นชิปจะกลืนไปกับพื้น */
-  --lab-chip-bg: #f59e0b;
-  --lab-chip-ink: #3b2500;
-  --lab-line: rgba(217, 119, 6, 0.32);
-  --lab-bg: rgba(245, 158, 11, 0.09);
-
-  /* บนพื้นขาวต้องลดความสว่างลงสองขั้น ไม่งั้นตัวอักษรอ่านไม่ออก
-     และพื้นแท็บต้องจางลงด้วยเพราะพื้นหลังเป็นขาว ไม่ใช่ม่วงเข้ม */
-  --ref-renal-ink: #0369a1;
-  --ref-renal-bg: rgba(2, 132, 199, 0.1);
-  --ref-renal-line: rgba(2, 132, 199, 0.35);
-  --ref-culture-ink: #be123c;
-  --ref-culture-bg: rgba(225, 29, 72, 0.09);
-  --ref-culture-line: rgba(225, 29, 72, 0.32);
-  --ref-abx-ink: #047857;
-  --ref-abx-bg: rgba(5, 150, 105, 0.1);
-  --ref-abx-line: rgba(5, 150, 105, 0.32);
-  --ref-rdu-ink: #b45309;
-  --ref-rdu-bg: rgba(217, 119, 6, 0.1);
-  --ref-rdu-line: rgba(217, 119, 6, 0.32);
-
   --ok-ink: #047857;
   --ok-bg: rgba(5, 150, 105, 0.12);
   --ok-line: rgba(5, 150, 105, 0.32);
-
-  /* ธีมสว่างใช้ตัวอักษรเข้มบนพื้นจาง — สลับบทบาทของ ink กับ bg จากธีมมืด */
-  --renal-1-ink: #92400e;
-  --renal-1-bg: rgba(250, 204, 21, 0.28);
-  --renal-1-line: rgba(217, 119, 6, 0.45);
-  --renal-2-ink: #9a3412;
-  --renal-2-bg: rgba(249, 115, 22, 0.22);
-  --renal-2-line: rgba(234, 88, 12, 0.45);
-  --renal-3-ink: #991b1b;
-  --renal-3-bg: rgba(239, 68, 68, 0.18);
-  --renal-3-line: rgba(220, 38, 38, 0.45);
 }
 
 @theme inline {
@@ -233,6 +133,13 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-app);
   --font-mono: var(--font-geist-mono);
+
+  /* มุมโค้งลดลงหนึ่งขั้นทั้งแอป — การ์ดโค้งมากดูเป็นของเล่นในหน้าตารางข้อมูลแน่น
+     ปรับที่ scale ตรงนี้ที่เดียว ไม่ต้องไล่แก้ rounded-2xl ทีละหน้า */
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 1rem;
 
   /* พื้นผิว */
   --color-panel: var(--surface-panel);
@@ -261,40 +168,9 @@
   --color-danger-bg: var(--danger-bg);
   --color-danger-line: var(--danger-line);
 
-  /* ช่องค่าแล็บ (โทนเหลือง) */
-  --color-lab-chip: var(--lab-chip-bg);
-  --color-lab-chip-ink: var(--lab-chip-ink);
-  --color-lab-line: var(--lab-line);
-  --color-lab-bg: var(--lab-bg);
-
-  /* แท็บข้อมูลประกอบ (หน้าประเมิน DUE) */
-  --color-ref-renal: var(--ref-renal-ink);
-  --color-ref-renal-bg: var(--ref-renal-bg);
-  --color-ref-renal-line: var(--ref-renal-line);
-  --color-ref-culture: var(--ref-culture-ink);
-  --color-ref-culture-bg: var(--ref-culture-bg);
-  --color-ref-culture-line: var(--ref-culture-line);
-  --color-ref-abx: var(--ref-abx-ink);
-  --color-ref-abx-bg: var(--ref-abx-bg);
-  --color-ref-abx-line: var(--ref-abx-line);
-  --color-ref-rdu: var(--ref-rdu-ink);
-  --color-ref-rdu-bg: var(--ref-rdu-bg);
-  --color-ref-rdu-line: var(--ref-rdu-line);
-
   --color-ok: var(--ok-ink);
   --color-ok-bg: var(--ok-bg);
   --color-ok-line: var(--ok-line);
-
-  /* ระดับความรุนแรงของค่าไต */
-  --color-renal-1: var(--renal-1-ink);
-  --color-renal-1-bg: var(--renal-1-bg);
-  --color-renal-1-line: var(--renal-1-line);
-  --color-renal-2: var(--renal-2-ink);
-  --color-renal-2-bg: var(--renal-2-bg);
-  --color-renal-2-line: var(--renal-2-line);
-  --color-renal-3: var(--renal-3-ink);
-  --color-renal-3-bg: var(--renal-3-bg);
-  --color-renal-3-line: var(--renal-3-line);
 }
 
 body {
@@ -302,7 +178,49 @@ body {
   color: var(--foreground);
   font-family: var(--font-app);
   /* ให้การสลับธีมค่อย ๆ ไล่สี ไม่กระตุกทั้งหน้า */
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
+}
+
+/* เส้นสั้นใต้หัวข้อหน้า — เดิมเป็นเส้นไล่สีจางที่เขียนซ้ำไว้ทุกหน้า
+   รวมมาไว้ที่ class เดียว หน้าที่ต้องการสีประจำหมวดใช้ตัวแปร --rule-color */
+.title-rule {
+  height: 2px;
+  width: 32px;
+  border-radius: 2px;
+  background: var(--rule-color, var(--accent));
+}
+
+.title-rule-sky {
+  --rule-color: #0284c7;
+}
+
+.title-rule-rose {
+  --rule-color: #e11d48;
+}
+
+/* หัวหน้าทุกหน้าเขียนแบบเดียวกัน: <section> › <Title level={2}> ที่ขึ้นต้นด้วยไอคอน
+   ให้ไอคอนหน้าชื่อเป็นสีเน้น ตัวชื่อเป็นสีหลัก — ปรับที่นี่ที่เดียวทั้งแอป */
+main section > h2.ant-typography > .anticon:first-child {
+  color: var(--accent);
+  margin-inline-end: 2px;
+}
+
+/* breadcrumb เหนือหัวข้อ — ห่างจากหัวข้อพอดี ไม่ติดกันเป็นก้อน */
+main section > .ant-breadcrumb {
+  margin-bottom: 6px;
+  font-size: 12.5px;
+}
+
+/* วงแหวนโฟกัสของตัวควบคุมที่เขียนเอง (ไม่ใช่ของ antd) — ต้องเห็นได้ตอนใช้คีย์บอร์ด */
+:where(a, button, [role='button'], summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ───────── ลิ้นชัก (Drawer) ─────────
@@ -358,8 +276,14 @@ body {
   vertical-align: top;
 }
 
+/* หัวตารางทุกตัว — ตัวหนาน้อยลง สีรอง ไม่ให้แย่งสายตาจากข้อมูล */
+.ant-table-wrapper .ant-table-thead > tr > th {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
 /* ───────── ตารางประวัติยา ─────────
-   ใช้ธีมมืดของ antd ตามปกติเหมือนตารางอื่นในแอป กฎที่เหลือด้านล่างเป็นแค่
+   ใช้ธีมของ antd ตามปกติเหมือนตารางอื่นในแอป กฎที่เหลือด้านล่างเป็นแค่
    ส่วนที่ antd ไม่มีให้ตั้งผ่าน token (ตรึงความกว้างคอลัมน์ / เน้นแถวที่ชี้อยู่) */
 
 /* ไฮไลต์แถวตอนชี้เมาส์ให้เห็นชัดกว่าค่าเริ่มต้น
@@ -391,26 +315,4 @@ body {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 15px;
-}
-
-/* ───────── ช่องค่าแล็บในใบคำขอ DUE ─────────
-   ป้ายชื่อค่าเป็นชิปเหลืองต่อกับช่องกรอกเป็นชิ้นเดียว จึงต้องลบมุมโค้งด้านซ้าย
-   ของตัวควบคุมออก ใช้ค่า logical (start) เพื่อให้ยังถูกด้านเมื่อเป็นภาษาขวาไปซ้าย
-
-   ต้องใช้ !important เพราะ cssinjs ของ antd ฉีดสไตล์เข้า <head> ทีหลังไฟล์นี้
-   — เหตุผลเดียวกับบล็อกลิ้นชักด้านบน */
-.lab-control .ant-input-outlined,
-.lab-control .ant-input-number,
-.lab-control .ant-picker {
-  border-start-start-radius: 0 !important;
-  border-end-start-radius: 0 !important;
-  border-color: var(--lab-line) !important;
-}
-
-/* ตอนโฟกัสให้กลับไปใช้สีเน้นของธีมตามปกติ ไม่งั้นจะดูเหมือนช่องไม่รับโฟกัส */
-.lab-control .ant-input-outlined:focus,
-.lab-control .ant-input-outlined:focus-within,
-.lab-control .ant-input-number-focused,
-.lab-control .ant-picker-focused {
-  border-color: var(--accent) !important;
 }

@@ -4,7 +4,7 @@ import { coreKonDb } from '@/lib/db/core-kon'
 import { authOtpChallenges, users } from '@/lib/db/schema/core-kon'
 import { isPositionAllowed, POSITION_DENIED_MESSAGE } from '@/lib/auth/access'
 import { auditMfa } from '@/lib/auth/mfa'
-import { buildLoginSuccess } from '@/lib/auth/session'
+import { buildLoginSuccess, clearMfaChallengeCookie, readMfaChallengeCookie } from '@/lib/auth/session'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -15,7 +15,7 @@ const PER_IP = { limit: 30, windowSeconds: 300 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-type VerifyBody = { challenge_token?: unknown; otp?: unknown }
+type VerifyBody = { otp?: unknown }
 
 export async function POST(request: Request) {
   let body: VerifyBody
@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     return Response.json({ success: false, message: 'รูปแบบคำขอไม่ถูกต้อง' }, { status: 400 })
   }
 
-  const token = typeof body.challenge_token === 'string' ? body.challenge_token : ''
+  // รหัสรอบอ่านจากคุกกี้ httpOnly ที่ /api/auth/login ตั้งไว้ — ไม่รับจาก body อีกแล้ว
+  const token = await readMfaChallengeCookie()
   const otp = typeof body.otp === 'string' ? body.otp.trim() : ''
   const ip = clientIp(request)
 
@@ -35,7 +36,14 @@ export async function POST(request: Request) {
   }
 
   // token ผิดรูป uuid จะทำให้ postgres error — ตัดทิ้งตั้งแต่ต้นทาง
-  if (!UUID_RE.test(token) || !/^\d{6}$/.test(otp)) {
+  // ไม่มีคุกกี้รอบ (หมดอายุ/ถูกล้าง/เปิดหน้าใหม่) → เริ่มล็อกอินใหม่
+  if (!UUID_RE.test(token)) {
+    return Response.json(
+      { success: false, message: 'รอบยืนยันหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่', can_resend: false },
+      { status: 400 },
+    )
+  }
+  if (!/^\d{6}$/.test(otp)) {
     return Response.json(
       { success: false, message: 'รหัสยืนยันไม่ถูกต้อง', can_resend: true },
       { status: 400 },
@@ -57,6 +65,7 @@ export async function POST(request: Request) {
       challenge.failedAt ||
       challenge.challengeExpiresAt <= now
     ) {
+      await clearMfaChallengeCookie()
       return Response.json(
         { success: false, message: 'รอบยืนยันหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่', can_resend: false },
         { status: 400 },
@@ -68,6 +77,7 @@ export async function POST(request: Request) {
         .update(authOtpChallenges)
         .set({ failedAt: now })
         .where(eq(authOtpChallenges.id, challenge.id))
+      await clearMfaChallengeCookie()
       return Response.json(
         { success: false, message: 'กรอกรหัสผิดเกินจำนวนที่กำหนด กรุณาเข้าสู่ระบบใหม่', can_resend: false },
         { status: 400 },
@@ -104,6 +114,7 @@ export async function POST(request: Request) {
           .update(authOtpChallenges)
           .set({ failedAt: now })
           .where(eq(authOtpChallenges.id, challenge.id))
+        await clearMfaChallengeCookie()
         return Response.json(
           { success: false, message: 'กรอกรหัสผิดเกินจำนวนที่กำหนด กรุณาเข้าสู่ระบบใหม่', can_resend: false },
           { status: 400 },
@@ -124,6 +135,7 @@ export async function POST(request: Request) {
       .returning({ id: authOtpChallenges.id })
 
     if (consumed.length === 0) {
+      await clearMfaChallengeCookie()
       return Response.json(
         { success: false, message: 'รอบยืนยันนี้ถูกใช้ไปแล้ว กรุณาเข้าสู่ระบบใหม่', can_resend: false },
         { status: 400 },
@@ -155,6 +167,7 @@ export async function POST(request: Request) {
       .limit(1)
 
     if (!user || user.isActive !== 'Y') {
+      await clearMfaChallengeCookie()
       return Response.json(
         { success: false, message: 'บัญชีนี้ถูกระงับการใช้งาน', can_resend: false },
         { status: 403 },
@@ -164,6 +177,7 @@ export async function POST(request: Request) {
     // ตรวจซ้ำอีกครั้งตรงนี้ ไม่ได้เชื่อผลจากตอนกรอกรหัสผ่าน — ตำแหน่งอาจถูกแก้
     // ระหว่างรอกรอก OTP และขั้นนี้เป็นด่านสุดท้ายก่อนออก token
     if (!isPositionAllowed(user.userPositionId)) {
+      await clearMfaChallengeCookie()
       return Response.json(
         { success: false, message: POSITION_DENIED_MESSAGE, can_resend: false },
         { status: 403 },

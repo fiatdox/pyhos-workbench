@@ -6,6 +6,8 @@
  * จึงรวมไว้ที่เดียว: เจอ 401 = ล้าง cookie แล้วกลับไปหน้าเข้าสู่ระบบทันที
  */
 
+import { withBase } from '@/lib/base-path'
+
 /** query string ที่ติดไปกับ URL หน้า login เพื่อบอกสาเหตุที่ถูกส่งกลับมา */
 export const SESSION_EXPIRED_PARAM = 'expired'
 
@@ -21,7 +23,7 @@ export const SESSION_EXPIRED_MESSAGE = 'เซสชันหมดอายุ 
  */
 export async function goToLogin() {
   try {
-    await fetch('/api/auth/logout', {
+    await fetch(withBase('/api/auth/logout'), {
       method: 'POST',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -31,7 +33,7 @@ export async function goToLogin() {
   }
   // ใช้ location.replace ไม่ใช่ router.push — ล้าง state ของหน้าที่ค้างอยู่ให้หมด
   // และไม่ให้ปุ่ม back ย้อนกลับมาหน้าที่เข้าไม่ได้แล้ว
-  window.location.replace(`/?${SESSION_EXPIRED_PARAM}=1`)
+  window.location.replace(withBase(`/?${SESSION_EXPIRED_PARAM}=1`))
 }
 
 /**
@@ -42,7 +44,7 @@ export async function goToLogin() {
  * (ถ้า resolve ตามปกติ หน้าจะแวบข้อความ error ขึ้นมาก่อนโดยไม่จำเป็น)
  */
 export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(input, {
+  const res = await fetch(input.startsWith('/') ? withBase(input) : input, {
     cache: 'no-store',
     credentials: 'same-origin',
     ...init,

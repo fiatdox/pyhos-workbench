@@ -97,12 +97,12 @@ export default function HealthRiderStaffTypesPage() {
             ข้อมูลตั้งต้นจากฐาน HIS — หน้านี้ดูอย่างเดียว แก้ไขหรือลบไม่ได้
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
 
-      <section className="data-sheet rounded-2xl border border-line bg-panel p-2 backdrop-blur">
+      <section className="data-sheet rounded-2xl border border-line bg-panel p-2">
           {/* โครงร่างแถวอยู่ในช่อง emptyText — หัวตารางยังอยู่ ความกว้างคอลัมน์จึงไม่ขยับ
           ตอนข้อมูลมาถึง ส่วน loading ของ Table ไว้สำหรับการโหลดทับรายการที่มีอยู่แล้ว
           ซึ่งต้องเป็นวงกลมหมุนคลุมของเดิม ไม่ใช่โครงร่างที่ลบของเดิมหายไปจากจอ */}

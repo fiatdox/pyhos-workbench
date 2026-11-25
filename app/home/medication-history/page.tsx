@@ -1,5 +1,6 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
+import { withBase } from '@/lib/base-path'
 import { useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import {
@@ -1005,19 +1006,15 @@ export default function MedicationHistoryPage() {
 
   return (
     <>
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-accent-soft text-lg text-accent">
-          <MedicineBoxOutlined />
-        </div>
-        <div>
-          <Title level={3} style={{ color: 'var(--ink)', margin: 0 }}>
-            ประวัติการได้รับยา
-            <PageHint>
-              ค้นด้วย HN — เลือกช่วงย้อนหลังได้ ครอบคลุมทั้ง OPD, ยากลับบ้าน (HME) และยาต่อเนื่อง (BCH)
-            </PageHint>
-          </Title>
-        </div>
-      </div>
+      <section className="mb-6">
+        <Title level={2} style={{ color: 'var(--ink)', marginBottom: 8 }}>
+          <MedicineBoxOutlined /> ประวัติการได้รับยา
+          <PageHint>
+            ค้นด้วย HN — เลือกช่วงย้อนหลังได้ ครอบคลุมทั้ง OPD, ยากลับบ้าน (HME) และยาต่อเนื่อง (BCH)
+          </PageHint>
+        </Title>
+        <div className="title-rule" />
+      </section>
 
       {/* ───────────── ช่องค้นหา ───────────── */}
       <div className="mb-5 flex flex-wrap items-start gap-3">
@@ -1071,12 +1068,12 @@ export default function MedicationHistoryPage() {
             ไม่ให้ state ภายในของ antd (tooltip/tag ที่ค้างอยู่) ตกค้างข้ามคนไข้ */}
         <div
           key={data.patient.hn}
-          className="flex min-w-0 gap-4 rounded-2xl border border-line bg-panel p-3 backdrop-blur-md lg:w-[60%]"
+          className="flex min-w-0 gap-4 rounded-2xl border border-line bg-panel p-3 lg:w-[60%]"
         >
           {/* รูปผู้ป่วยจากตาราง patient_image — ไม่มีรูปก็ไม่กันพื้นที่ไว้ */}
           {data.hasPhoto && (
             <Image
-              src={`/api/his/patient-image?hn=${data.patient.hn}`}
+              src={withBase(`/api/his/patient-image?hn=${data.patient.hn}`)}
               alt={`รูปผู้ป่วย HN ${data.patient.hn}`}
               width={92}
               height={116}
@@ -1174,7 +1171,7 @@ export default function MedicationHistoryPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-line bg-panel p-3 backdrop-blur-md lg:w-[40%]">
+        <div className="rounded-2xl border border-line bg-panel p-3 lg:w-[40%]">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-3">
             ข้อมูลเพิ่มเติม
           </div>
@@ -1417,7 +1414,7 @@ export default function MedicationHistoryPage() {
                     {item.images.map(index => (
                       <Image
                         key={index}
-                        src={`/api/his/hla-b5801/image?lab_order_number=${item.labOrderNumber}&index=${index}`}
+                        src={withBase(`/api/his/hla-b5801/image?lab_order_number=${item.labOrderNumber}&index=${index}`)}
                         alt={`ใบรายงานผล HLA-B*5801 แผ่นที่ ${index}`}
                         width={240}
                         loading="lazy"
@@ -1536,7 +1533,7 @@ export default function MedicationHistoryPage() {
                 {visibleScans.map(scan => (
                   <div key={scan.scanId} className="w-44">
                     <Image
-                      src={`/api/his/opd-scan/image?hn=${scan.hn}&scan_id=${scan.scanId}`}
+                      src={withBase(`/api/his/opd-scan/image?hn=${scan.hn}&scan_id=${scan.scanId}`)}
                       alt={`สแกนหน้า ${scan.pageNo ?? '-'} วันที่ ${scan.scannedAt ?? '-'}`}
                       width={176}
                       height={220}
@@ -1883,7 +1880,7 @@ export default function MedicationHistoryPage() {
               </div>
             </>
           ) : (
-            <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+            <div className="rounded-2xl border border-line bg-panel py-16">
               <Empty description={`ไม่พบประวัติการได้รับยาในช่วง ${data.months} เดือนล่าสุด`} />
             </div>
           )
@@ -1892,7 +1889,7 @@ export default function MedicationHistoryPage() {
              กว่าจะครบใช้เวลา ปล่อยว่างไว้ไม่บอกอะไรว่ากำลังจะได้อะไรมา */
           <TableRowsSkeleton columns={8} rows={10} />
         ) : (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="กรอก HN แล้วกดค้นหา" />
           </div>
         )}

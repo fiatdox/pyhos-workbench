@@ -24,22 +24,12 @@ import 'server-only'
 const ALLOWED_POSITION_IDS: Set<number> | null = parseAllowList('ALLOWED_USER_POSITION_IDS')
 
 /**
- * ตำแหน่งที่เห็นเมนู DUE — DUE_USER_POSITION_IDS
- *
- * แยกจากรายการเข้าระบบเพราะเป็นคนละคำถาม: เข้าระบบได้ ไม่ได้แปลว่าต้องเห็นทุกงาน
- * ไม่ได้ตั้ง = ทุกคนที่เข้าระบบได้เห็นเมนูนี้ (พฤติกรรมเดิมก่อนมีการจำกัด)
- */
-const DUE_POSITION_IDS: Set<number> | null = parseAllowList('DUE_USER_POSITION_IDS')
-
-/**
  * ตำแหน่งที่เห็นเมนู RDU — RDU_USER_POSITION_IDS
  *
- * แยกจากรายการของ DUE ทั้งที่เป็นงานของกลุ่มงานเภสัชกรรมเหมือนกัน เพราะคนดู
- * คนละกลุ่ม: DUE เป็นงานประจำวันของคนอนุมัติคำขอ ส่วน RDU เป็นตัวชี้วัดที่
- * แพทย์และคณะกรรมการต้องเห็นด้วย การผูกไว้ด้วยกันแปลว่าเปิด RDU ให้ใคร
- * ก็ต้องเปิดให้เขาอนุมัติคำขอ DUE ไปด้วย ซึ่งไม่ใช่สิ่งที่ต้องการ
+ * แยกจากรายการเข้าระบบเพราะเป็นคนละคำถาม: เข้าระบบได้ ไม่ได้แปลว่าต้องเห็นทุกงาน
+ * (งาน DUE ที่เคยมีรายการตำแหน่งของตัวเองแยกออกไปเป็นระบบต่างหากแล้ว)
  *
- * ไม่ได้ตั้ง = ทุกคนที่เข้าระบบได้เห็นเมนูนี้ (เหมือนกติกาของ DUE)
+ * ไม่ได้ตั้ง = ทุกคนที่เข้าระบบได้เห็นเมนูนี้
  */
 const RDU_POSITION_IDS: Set<number> | null = parseAllowList('RDU_USER_POSITION_IDS')
 
@@ -88,19 +78,10 @@ export function isPositionAllowed(userPositionId: number | null | undefined): bo
 }
 
 /**
- * ตำแหน่งนี้ใช้งานเมนู DUE ได้หรือไม่
+ * ตำแหน่งนี้ใช้งานเมนู RDU ได้หรือไม่
  *
  * บัญชีที่ไม่ได้ระบุตำแหน่งถือว่าไม่ผ่านเมื่อเปิดการจำกัดไว้ ด้วยเหตุผลเดียวกับ
  * การเข้าระบบ — ตรวจไม่ได้ก็ไม่ควรให้ผ่าน
- */
-export function canUseDue(userPositionId: number | null | undefined): boolean {
-  if (DUE_POSITION_IDS === null) return true
-  if (userPositionId == null) return false
-  return DUE_POSITION_IDS.has(userPositionId)
-}
-
-/**
- * ตำแหน่งนี้ใช้งานเมนู RDU ได้หรือไม่ — กติกาเดียวกับ canUseDue คนละรายการ
  */
 export function canUseRdu(userPositionId: number | null | undefined): boolean {
   if (RDU_POSITION_IDS === null) return true

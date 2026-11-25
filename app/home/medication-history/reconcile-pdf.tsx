@@ -1,5 +1,6 @@
 'use client'
 
+import { withBase } from '@/lib/base-path'
 import {
   Document,
   Font,
@@ -21,8 +22,8 @@ import {
 Font.register({
   family: 'Sarabun',
   fonts: [
-    { src: '/fonts/Sarabun-Regular.ttf' },
-    { src: '/fonts/Sarabun-Bold.ttf', fontWeight: 'bold' },
+    { src: withBase('/fonts/Sarabun-Regular.ttf') },
+    { src: withBase('/fonts/Sarabun-Bold.ttf'), fontWeight: 'bold' },
   ],
 })
 

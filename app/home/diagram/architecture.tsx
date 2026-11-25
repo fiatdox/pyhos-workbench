@@ -8,7 +8,8 @@ import { BusLink, Callout, DiagramFrame, Legend, Link, Node, Zone, ZoneLabel } f
  * เขียนเฉพาะตาราง fiat_pyhos_* ที่เป็นของเราเอง จึงให้สีเน้นกับสองกล่องนั้น
  * (ตัวแอปกับตารางของเราเอง) ตามงบที่ให้ใช้สีเน้นได้ไม่เกินสองกล่อง
  *
- * แปดกล่อง เจ็ดเส้น อยู่ในงบไม่เกินเก้ากล่องและสิบสองเส้น
+ * เจ็ดกล่อง หกเส้น อยู่ในงบไม่เกินเก้ากล่องและสิบสองเส้น
+ * (เดิมมีกล่องโมเดลภาษาด้วย ใช้กับงาน DUE ที่แยกออกไปเป็นระบบต่างหากแล้ว)
  *
  * เส้นที่แตกจากกล่องแอปไปฐานสี่ตัวใช้ช่องกลางคนละค่า (588 · 604 · 620) ห่างกัน
  * 16px ตามกฎที่ห้ามเส้นขนานซ้อนกันใกล้กว่า 12px และออกจากขอบขวาคนละจุด
@@ -20,7 +21,7 @@ export default function ArchitectureDiagram() {
       <DiagramFrame
         slug="architecture"
         title="ภาพรวมสถาปัตยกรรม pyhos-workbench"
-        desc="ระบบอ่านข้อมูลจากฐาน HIS ฐานผู้ใช้ และฐานภาพสแกนโดยตรง เขียนเฉพาะตารางของตัวเองในฐาน HIS และต่อออกไปที่โมเดลภาษาในเครือข่ายโรงพยาบาลกับบริการแจ้งเตือนหมอพร้อม"
+        desc="ระบบอ่านข้อมูลจากฐาน HIS ฐานผู้ใช้ และฐานภาพสแกนโดยตรง เขียนเฉพาะตารางของตัวเองในฐาน HIS และต่อออกไปที่บริการแจ้งเตือนหมอพร้อม"
         width={960}
         height={472}
       >
@@ -40,7 +41,6 @@ export default function ArchitectureDiagram() {
         <BusLink from={{ x: 536, y: 120 }} to={{ x: 640, y: 168 }} via={{ midX: 588 }} tone="accent" />
         <BusLink from={{ x: 536, y: 152 }} to={{ x: 640, y: 248 }} via={{ midX: 604 }} />
         <BusLink from={{ x: 536, y: 184 }} to={{ x: 640, y: 324 }} via={{ midX: 620 }} />
-        <Link from={{ x: 372, y: 196 }} to={{ x: 372, y: 296 }} label="สรุปข้อความ" />
         <BusLink
           from={{ x: 316, y: 196 }}
           to={{ x: 144, y: 296 }}
@@ -99,7 +99,6 @@ export default function ArchitectureDiagram() {
           sub="MariaDB · opdscan"
           tone="store"
         />
-        <Node x={296} y={296} w={152} h={56} name="โมเดลภาษา" sub="in-network" tone="external" />
         <Node x={68} y={296} w={152} h={56} name="หมอพร้อม" sub="MOPH Alerting" tone="external" />
 
         <Callout

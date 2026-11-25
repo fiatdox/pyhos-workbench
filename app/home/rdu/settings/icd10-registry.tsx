@@ -272,7 +272,7 @@ export default function Icd10RegistryPage({
             {intro} — ย้ายรายการแล้วบันทึกทันที ไม่ต้องกดปุ่มบันทึก
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
@@ -334,7 +334,7 @@ export default function Icd10RegistryPage({
         />
       )}
 
-      <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+      <section className="rounded-2xl border border-line bg-panel p-4">
         {/* กรองด้วยการใช้งานจริงก่อนเลือก — รหัสหมวดกับรหัสย่อยอยู่ปนกันในตาราง
             icd101 และแยกด้วยตาไม่ออก ตัวเลขการใช้เป็นตัวเดียวที่แยกให้ได้ */}
         <div className="mb-3">

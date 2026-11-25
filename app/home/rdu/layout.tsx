@@ -7,11 +7,10 @@ import { userCanUseRdu } from '@/lib/auth/permissions'
 export const dynamic = 'force-dynamic'
 
 /**
- * กันการเข้าถึงงาน RDU ทุกหน้าย่อยไว้ที่ชั้นนี้ชั้นเดียว (แบบเดียวกับ DUE)
+ * กันการเข้าถึงงาน RDU ทุกหน้าย่อยไว้ที่ชั้นนี้ชั้นเดียว
  *
- * ใช้รายการตำแหน่งของตัวเอง (RDU_USER_POSITION_IDS) ไม่ใช่ของ DUE — คนที่ต้อง
- * เห็นตัวชี้วัดคือเภสัชกร แพทย์ และคณะกรรมการ ซึ่งไม่ใช่กลุ่มเดียวกับคนที่อนุมัติ
- * คำขอ DUE (ดูเหตุผลเต็มที่ lib/auth/access.ts)
+ * ใช้รายการตำแหน่งของตัวเอง (RDU_USER_POSITION_IDS) — คนที่ต้องเห็นตัวชี้วัดคือ
+ * เภสัชกร แพทย์ และคณะกรรมการ (ดูเหตุผลเต็มที่ lib/auth/access.ts)
  */
 export default async function RduLayout({ children }: LayoutProps<'/home/rdu'>) {
   const token = (await cookies()).get('auth_token')?.value

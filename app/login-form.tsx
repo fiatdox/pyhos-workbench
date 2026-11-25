@@ -1,7 +1,8 @@
 'use client'
+import { withBase } from '@/lib/base-path'
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
+import { BrandMark } from '@/app/brand-mark'
 import { ThemeToggleButton } from '@/app/theme'
 import {
   FaUser,
@@ -9,26 +10,34 @@ import {
   FaEye,
   FaEyeSlash,
   FaShieldAlt,
-  FaLayerGroup,
   FaArrowRight,
   FaMobileAlt,
   FaArrowLeft,
-  FaArrowUp,
-  FaArrowDown,
+  FaCheck,
 } from 'react-icons/fa'
 
-// ภาพพื้นหลังเต็มจอ — โฮสต์ที่ images.unsplash.com (อนุญาตไว้ใน next.config.ts › images.remotePatterns)
-const BG_IMAGE =
-  'https://images.unsplash.com/photo-1624727828489-a1e03b79bba8?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-
-// ตัวอย่างข้อมูลสำหรับ mock แดชบอร์ดฝั่งซ้าย — ใช้ตกแต่งเท่านั้น ไม่ได้ยิง API
-const PREVIEW_STATS = [
-  { label: 'ผู้ป่วยนอกวันนี้', value: '1,284', delta: '+8.2%', up: true },
-  { label: 'เตียงว่าง', value: '46', delta: '-3.1%', up: false },
-  { label: 'รอผลแล็บ', value: '312', delta: '+1.7%', up: true },
-  { label: 'ชุดข้อมูลที่เชื่อม', value: '27', delta: '+2', up: true },
+/**
+ * งานที่ระบบมีอยู่จริง — แสดงบนแผงซ้ายของจอกว้าง
+ * ตรงกับเมนูใน app/home/app-shell.tsx (MENU_ITEMS) เพิ่ม/ถอดเมนูแล้วต้องแก้ที่นี่ด้วย
+ * ไม่ได้ import จากที่นั่นตรง ๆ เพราะหน้านี้เปิดก่อนล็อกอิน ไม่ควรโหลดโครงหน้าหลังล็อกอินมาด้วย
+ * และไม่ใส่เมนูที่จำกัดสิทธิ์อย่างร่องรอยการใช้งาน
+ */
+const FEATURES = [
+  'ประวัติการได้รับยา',
+  'Drug Profile ผู้ป่วยใน',
+  'ผลตรวจ HLA-B*5801 / 1502',
+  'ตัวชี้วัด RDU',
+  'ตรวจสุขภาพ พร้อมใบรายงานผล',
+  'Service Plan',
+  'Health Rider ส่งยาถึงบ้าน',
 ]
-const PREVIEW_BARS = [38, 62, 45, 78, 55, 88, 70, 96, 64, 82, 58, 74]
+
+/* สไตล์ของตัวควบคุมในฟอร์ม — ใช้ซ้ำทั้งขั้นรหัสผ่านและขั้น OTP */
+const LABEL = 'mb-1.5 block text-xs font-semibold text-ink-2'
+const INPUT =
+  'block w-full rounded-lg border border-line bg-raised text-ink placeholder:text-ink-3 outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20'
+const SUBMIT =
+  'group flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#6d28d9] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#5b21b6] disabled:cursor-not-allowed disabled:opacity-60'
 
 export default function LoginForm({ initialError = '' }: { initialError?: string }) {
   const [showPassword, setShowPassword] = useState(false)
@@ -39,7 +48,8 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
   const [error, setError] = useState(initialError)
 
   // ── ขั้นยืนยัน OTP ผ่าน Line หมอพร้อม (แสดงเฉพาะเมื่อ backend ตอบ mfa_required) ──
-  const [challengeToken, setChallengeToken] = useState<string | null>(null)
+  // รหัสรอบ OTP อยู่ในคุกกี้ httpOnly (เซิร์ฟเวอร์ตั้ง) — หน้าเว็บรู้แค่ว่าอยู่ขั้นไหน
+  const [otpStep, setOtpStep] = useState(false)
   const [otp, setOtp] = useState('')
   const [otpNotice, setOtpNotice] = useState('')
   const [cooldown, setCooldown] = useState(0)
@@ -54,8 +64,8 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
 
   // โฟกัสช่อง OTP อัตโนมัติเมื่อเข้าสู่ขั้นยืนยัน
   useEffect(() => {
-    if (challengeToken) otpInputRef.current?.focus()
-  }, [challengeToken])
+    if (otpStep) otpInputRef.current?.focus()
+  }, [otpStep])
 
   // เข้าระบบ — ใช้ร่วมกันทั้งเส้นทางปกติและเส้นทาง MFA
   //
@@ -79,7 +89,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
     //
     // การโหลดใหม่ทั้งหน้ายังการันตีว่าเซิร์ฟเวอร์เห็น cookie ที่เพิ่งตั้ง และ
     // ไม่มี RSC cache ของรอบก่อนค้าง (กรณีออกจากระบบแล้วล็อกอินซ้ำในแท็บเดิม)
-    window.location.assign(destination)
+    window.location.assign(withBase(destination))
   }
 
   const handleLogin = async (e: { preventDefault: () => void }) => {
@@ -87,7 +97,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
     setError('')
     setLoading(true)
     try {
-      const res = await fetch(`/api/auth/login`, {
+      const res = await fetch(withBase('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -99,7 +109,7 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
       }
       // ต้องยืนยัน OTP ก่อน — ยังไม่ได้ token
       if (json.mfa_required) {
-        setChallengeToken(json.challenge_token)
+        setOtpStep(true)
         setCooldown(json.resend_after_seconds ?? 60)
         setOtpNotice('ส่งรหัสยืนยันไปยัง Line หมอพร้อมแล้ว')
         setPassword('')
@@ -119,10 +129,10 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
     setOtpNotice('')
     setLoading(true)
     try {
-      const res = await fetch(`/api/auth/verify-otp`, {
+      const res = await fetch(withBase('/api/auth/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challenge_token: challengeToken, otp }),
+        body: JSON.stringify({ otp }),
       })
       const json = await res.json()
       if (!res.ok || !json.success) {
@@ -147,10 +157,10 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
     setOtpNotice('')
     setLoading(true)
     try {
-      const res = await fetch(`/api/auth/resend-otp`, {
+      const res = await fetch(withBase('/api/auth/resend-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challenge_token: challengeToken }),
+        body: '{}',
       })
       const json = await res.json()
       if (!res.ok || !json.success) {
@@ -169,305 +179,226 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
   }
 
   const backToPassword = () => {
-    setChallengeToken(null)
+    setOtpStep(false)
     setOtp('')
     setOtpNotice('')
     setCooldown(0)
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-background text-foreground selection:bg-accent-soft">
-      {/* ───────────── พื้นหลัง: ภาพเต็มจอ + ชั้นไล่สีตามธีม ─────────────
-          ทุกชั้นอ่านค่าจาก token --hero-* ธีมสว่างจึงหรี่ภาพลงแล้วไล่เป็นขาวอมม่วง
-          แทนที่จะไล่เป็นม่วงเกือบดำ */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <Image
-          src={BG_IMAGE}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-          style={{ opacity: 'var(--hero-image-opacity)' }}
-        />
-        {/* ย้อมสี + ไล่ทึบเพื่อให้ข้อความอ่านง่าย */}
-        <div
-          className="absolute inset-0 mix-blend-color"
-          style={{ background: 'var(--hero-tint)', opacity: 'var(--hero-tint-opacity)' }}
-        />
-        <div className="absolute inset-0" style={{ backgroundImage: 'var(--hero-wash)' }} />
-        <div className="absolute inset-0" style={{ backgroundImage: 'var(--hero-fade)' }} />
-        {/* vignette */}
-        <div className="absolute inset-0" style={{ boxShadow: 'var(--hero-vignette)' }} />
-        {/* แสงม่วงนวล */}
-        <div className="absolute -top-40 -left-40 h-120 w-120 rounded-full bg-(--glow-1) blur-[150px]" />
-        <div className="absolute top-1/3 -right-40 h-130 w-130 rounded-full bg-(--glow-2) blur-[170px]" />
-        {/* เส้นตารางบางๆ */}
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: 'var(--grid-opacity)',
-            backgroundImage:
-              'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
-            backgroundSize: '56px 56px',
-          }}
-        />
-      </div>
-
-      {/* ปุ่มสลับธีม — หน้านี้ยังไม่มีแถบบน จึงลอยไว้มุมขวาบน */}
+    <div className="flex min-h-screen w-full bg-background text-foreground selection:bg-accent-soft">
+      {/* ปุ่มสลับธีม — หน้านี้ไม่มีแถบบน จึงลอยไว้มุมขวาบน */}
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <ThemeToggleButton />
       </div>
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col lg:flex-row">
-        {/* ============================ LEFT — BRAND PANEL ============================ */}
-        <div className="relative hidden w-full lg:flex lg:w-1/2 xl:w-3/5">
-          <div className="flex h-full w-full flex-col justify-between p-10 xl:p-16">
-            {/* Brand mark */}
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-accent-line bg-linear-to-br from-violet-500 to-purple-800 shadow-lg shadow-violet-500/25">
-                <FaLayerGroup className="text-xl text-ink" />
-              </div>
-              <div className="leading-tight">
-                <div className="text-lg font-semibold tracking-[0.18em] text-ink">PYHOS WORKBENCH</div>
-                <div className="text-xs tracking-wide text-accent/80">Hospital Data Workspace</div>
-              </div>
-            </div>
+      {/* ============================ ซ้าย — แนะนำระบบ (จอกว้าง) ============================
+          ภาพพื้นหลังเก็บไว้ในโปรเจกต์ (public/images/login-bg.webp) ไม่ได้ดึงจาก Unsplash
+          ตอนเปิดหน้า — เครื่องในวง LAN ของโรงพยาบาลที่ออกเน็ตไม่ได้ก็ยังเห็น และไม่ต้องเปิด
+          ให้ตัวปรับขนาดรูปของ Next ดึงรูปจากโดเมนภายนอก (ต้นฉบับ: images.unsplash.com
+          photo-1758110197549-7e94845ad04b ใช้ได้ตามสัญญาอนุญาตของ Unsplash)
 
-            {/* Hero text */}
-            <div className="max-w-lg">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-accent-line bg-panel px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-accent backdrop-blur">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_#a78bfa]" />
-                Secure Access
-              </div>
-              <h1 className="mb-5 text-4xl font-semibold leading-[1.15] tracking-tight text-ink xl:text-5xl">
-                เวิร์กเบนช์<br />
-                {/* ไล่สีของหัวข้อสลับตามธีม — ม่วงอ่อนบนพื้นมืด, ม่วงเข้มบนพื้นขาว */}
-                <span
-                  className="bg-clip-text font-bold text-transparent"
-                  style={{ backgroundImage: 'var(--headline-grad)' }}
-                >
-                  สืบค้นข้อมูลโรงพยาบาล
-                </span>
-              </h1>
-              <div className="mb-5 h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
-              <p className="text-base leading-relaxed text-ink-2/75">
-                ค้นหา กรอง และเปรียบเทียบข้อมูลจากทุกระบบในที่เดียว — เปิดดูเป็นตาราง สรุปเป็นแดชบอร์ด
-                หรือส่งออกไปทำงานต่อ ได้ในไม่กี่คลิก
-              </p>
+          ภาพหกเหลี่ยมหลายสีลายตามาก ตัวหนังสือวางทับตรง ๆ อ่านไม่ออก จึงทับด้วยม่วงเข้ม
+          วัดกรณีแย่สุด (ภาพข้างใต้เป็นขาวล้วน): ครึ่งซ้ายที่มีตัวหนังสือ ตัวขาวได้ ≥ 10:1
+          ตัวขาว 70% ได้ ≥ 6:1 ส่วนมุมขวาล่างที่ทับบางสุด (ไม่มีตัวหนังสือ) ตัวขาวยังได้ 6.8:1
+          ใช้ชุดสีนี้ทั้งสองธีม — แผงนี้เป็นภาพ ไม่ใช่พื้นผิวของแอปที่ต้องสลับตามโหมด
 
-              {/* Mini dashboard preview */}
-              <div className="mt-8 rounded-2xl border border-line bg-panel p-4 shadow-2xl shadow-black/40 backdrop-blur-md">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">
-                    ภาพรวมวันนี้
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[10px] text-accent">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-                    อัปเดตสด
-                  </span>
-                </div>
+          (เคยมีแดชบอร์ดจำลองที่ตัวเลขแต่งขึ้น เช่น "ผู้ป่วยนอกวันนี้ 1,284" ถูกเอาออกแล้ว
+          เพราะตัวเลขที่ดูเหมือนจริงแต่ไม่จริงทำให้เข้าใจผิดได้) */}
+      <div className="relative hidden w-full overflow-hidden lg:flex lg:w-1/2 xl:w-[55%]">
+        <Image
+          src={withBase('/images/login-bg.webp')}
+          alt=""
+          fill
+          priority
+          sizes="(min-width: 1280px) 55vw, 50vw"
+          className="object-cover"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-linear-to-br from-[#160b30]/92 via-[#2e1065]/86 to-[#4c1d95]/82"
+        />
 
-                <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
-                  {PREVIEW_STATS.map((s) => (
-                    <div key={s.label} className="rounded-xl border border-line-faint bg-raised p-3">
-                      <div className="truncate text-[10px] text-ink-3">{s.label}</div>
-                      <div className="mt-1 font-mono text-lg font-semibold text-ink">{s.value}</div>
-                      <div
-                        className={`mt-0.5 flex items-center gap-1 text-[10px] ${
-                          s.up ? 'text-accent' : 'text-ink-3'
-                        }`}
-                      >
-                        {s.up ? <FaArrowUp className="text-[8px]" /> : <FaArrowDown className="text-[8px]" />}
-                        {s.delta}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Sparkline-style bars */}
-                <div className="mt-4 flex h-16 items-end gap-1.5">
-                  {PREVIEW_BARS.map((h, i) => (
-                    <div
-                      key={i}
-                      style={{ height: `${h}%` }}
-                      className="flex-1 rounded-sm bg-linear-to-t from-violet-700/40 to-violet-300/80"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Feature pills */}
-              <div className="mt-6 flex flex-wrap gap-2">
-                {['สืบค้นข้อมูล', 'แดชบอร์ด', 'รายงาน', 'เปรียบเทียบย้อนหลัง', 'ส่งออก Excel/CSV'].map((f) => (
-                  <span
-                    key={f}
-                    className="rounded-full border border-line bg-panel px-3 py-1 text-xs text-ink-2/90 backdrop-blur"
-                  >
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Footer note */}
-            <div className="flex items-center gap-2 text-xs text-ink-3">
-              <FaShieldAlt className="text-accent" />
-              เข้ารหัสด้วย TLS 1.3 · เข้าถึงข้อมูลตามสิทธิ์ที่ได้รับมอบหมาย
+        <div className="relative flex w-full flex-col justify-between p-10 text-white xl:p-14">
+          <div className="flex items-center gap-3">
+            <BrandMark size={40} />
+            <div className="leading-tight">
+              <div className="text-base font-semibold tracking-[0.16em]">PYHOS WORKBENCH</div>
+              <div className="text-xs text-white/70">Hospital Data Workspace</div>
             </div>
           </div>
-        </div>
 
-        {/* ============================ RIGHT — LOGIN PANEL ============================ */}
-        <div className="flex w-full flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:w-1/2 lg:px-10 xl:w-2/5 xl:px-16">
-          <div className="w-full max-w-md">
-            {/* Mobile-only branding */}
-            <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-accent-line bg-linear-to-br from-violet-500 to-purple-800 shadow-lg shadow-violet-500/25">
-                <FaLayerGroup className="text-lg text-ink" />
-              </div>
-              <div className="leading-tight">
-                <div className="text-base font-semibold tracking-[0.16em] text-ink">PYHOS WORKBENCH</div>
-                <div className="text-[11px] text-accent/80">Hospital Data Workspace</div>
-              </div>
+          <div className="max-w-lg">
+            <h1 className="mb-4 text-4xl font-semibold leading-[1.2] tracking-tight xl:text-[2.75rem]">
+              เวิร์กเบนช์
+              <br />
+              <span className="text-[#ddd6fe]">งานยาและข้อมูลผู้ป่วย</span>
+            </h1>
+            <div className="title-rule mb-5 [--rule-color:#c4b5fd]" />
+            <p className="mb-8 text-base leading-relaxed text-white/85">
+              ดูประวัติการได้รับยา ผลแล็บ และผลตรวจสุขภาพของผู้ป่วยจากฐาน HIS ในที่เดียว
+              ติดตามตัวชี้วัด RDU และ Service Plan พิมพ์ใบรายงาน หรือส่งออกไปทำงานต่อได้
+            </p>
+
+            <ul className="m-0 grid list-none gap-2.5 p-0 sm:grid-cols-2">
+              {FEATURES.map(feature => (
+                <li key={feature} className="flex items-center gap-2.5 text-sm text-white/90">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/15 text-[10px] text-[#ddd6fe]">
+                    <FaCheck />
+                  </span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-white/70">
+            <FaShieldAlt className="text-[#c4b5fd]" />
+            เข้ารหัสด้วย TLS 1.3 · เข้าถึงข้อมูลตามสิทธิ์ที่ได้รับมอบหมาย
+          </div>
+        </div>
+      </div>
+
+      {/* ============================ ขวา — ฟอร์มเข้าสู่ระบบ ============================ */}
+      <div className="flex w-full flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:w-1/2 lg:px-10 xl:w-[45%]">
+        <div className="w-full max-w-sm">
+          {/* โลโก้สำหรับจอเล็ก — จอกว้างมีอยู่บนแผงซ้ายแล้ว */}
+          <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
+            <BrandMark size={36} />
+            <div className="leading-tight">
+              <div className="text-sm font-semibold tracking-[0.16em] text-ink">PYHOS WORKBENCH</div>
+              <div className="text-[11px] text-ink-3">Hospital Data Workspace</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-panel p-6 shadow-[0_8px_32px_var(--card-shadow)] sm:p-8">
+            <div className="mb-6">
+              <h2 className="mb-1 text-2xl font-semibold tracking-tight text-ink">
+                {otpStep ? 'ยืนยันตัวตน' : 'เข้าสู่ระบบ'}
+              </h2>
+              <p className="mb-0 text-sm text-ink-3">
+                {otpStep
+                  ? 'กรอกรหัส 6 หลักที่ส่งไปยัง Line หมอพร้อม'
+                  : 'ลงชื่อเข้าใช้ด้วยบัญชีของโรงพยาบาล'}
+              </p>
             </div>
 
-            {/* Glass card */}
-            <div className="relative rounded-3xl border border-line bg-card p-6 shadow-2xl shadow-(color:--card-shadow) backdrop-blur-2xl sm:p-8">
-              {/* corner glow */}
-              <div className="pointer-events-none absolute -top-px left-10 right-10 h-px bg-linear-to-r from-transparent via-accent/60 to-transparent" />
-
-              <div className="mb-7 text-center">
-                <h2 className="mb-1.5 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-                  {challengeToken ? 'ยืนยันตัวตน' : 'เข้าสู่ระบบ'}
-                </h2>
-                <p className="text-sm text-ink-3">
-                  {challengeToken
-                    ? 'กรอกรหัส 6 หลักที่ส่งไปยัง Line หมอพร้อม'
-                    : 'ยินดีต้อนรับกลับ — ลงชื่อเข้าใช้เพื่อเปิดพื้นที่ทำงานข้อมูลของท่าน'}
-                </p>
-              </div>
-
-              {/* ─────────────── ขั้นที่ 2: ยืนยัน OTP ─────────────── */}
-              {challengeToken ? (
-                <form className="space-y-5" onSubmit={handleVerifyOtp}>
-                  <div className="flex items-start gap-3 rounded-xl border border-accent-line bg-accent-soft px-4 py-3">
-                    <FaMobileAlt className="mt-0.5 shrink-0 text-accent" />
-                    <div className="text-xs leading-relaxed text-ink-2">
-                      ส่งรหัสยืนยันไปยัง <span className="font-semibold">Line หมอพร้อม</span> ที่ผูกกับบัญชีของท่านแล้ว
-                      <div className="mt-1 text-accent/70">
-                        หากไม่ได้รับ กรุณาตรวจสอบว่าเพิ่มเพื่อนและผูกบัญชี Line หมอพร้อมไว้แล้ว
-                      </div>
+            {/* ─────────────── ขั้นที่ 2: ยืนยัน OTP ─────────────── */}
+            {otpStep ? (
+              <form className="space-y-4" onSubmit={handleVerifyOtp}>
+                <div className="flex items-start gap-3 rounded-lg border border-accent-line bg-accent-soft px-3.5 py-3">
+                  <FaMobileAlt className="mt-0.5 shrink-0 text-accent" />
+                  <div className="text-xs leading-relaxed text-ink-2">
+                    ส่งรหัสยืนยันไปยัง <span className="font-semibold">Line หมอพร้อม</span> ที่ผูกกับบัญชีของท่านแล้ว
+                    <div className="mt-1 text-ink-3">
+                      หากไม่ได้รับ กรุณาตรวจสอบว่าเพิ่มเพื่อนและผูกบัญชี Line หมอพร้อมไว้แล้ว
                     </div>
                   </div>
+                </div>
 
-                  <div>
-                    <label htmlFor="otp" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-3">
-                      รหัสยืนยัน (OTP)
-                    </label>
-                    <input
-                      id="otp"
-                      name="otp"
-                      ref={otpInputRef}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      pattern="[0-9]*"
-                      maxLength={6}
-                      required
-                      placeholder="000000"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className="block w-full rounded-xl border border-line bg-raised py-3 text-center font-mono text-2xl tracking-[0.5em] text-ink placeholder:text-ink-3/40 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25"
-                    />
-                  </div>
-
-                  {otpNotice && !error && (
-                    <div className="rounded-xl border border-accent-line bg-accent-soft px-4 py-2.5 text-sm text-accent">
-                      {otpNotice}
-                    </div>
-                  )}
-                  {error && (
-                    <div className="rounded-xl border border-danger-line bg-danger-bg px-4 py-2.5 text-sm text-danger">
-                      {error}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading || otp.length < 6}
-                    className="group flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-linear-to-r from-violet-600 to-purple-700 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-violet-500/25 transition-all hover:shadow-violet-800/40 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'กำลังยืนยัน...' : 'ยืนยันรหัส'}
-                    {!loading && <FaArrowRight className="text-xs transition-transform group-hover:translate-x-0.5" />}
-                  </button>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <button
-                      type="button"
-                      onClick={backToPassword}
-                      className="flex items-center gap-1.5 text-ink-3 transition hover:text-ink-2"
-                    >
-                      <FaArrowLeft className="text-[10px]" /> ย้อนกลับ
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      disabled={cooldown > 0 || loading}
-                      className="font-medium text-accent transition hover:text-accent disabled:cursor-not-allowed disabled:text-ink-3"
-                    >
-                      {cooldown > 0 ? `ขอรหัสใหม่ได้ใน ${cooldown} วินาที` : 'ขอรหัสใหม่'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-              <form className="space-y-5" onSubmit={handleLogin}>
-                {/* Username */}
                 <div>
-                  <label htmlFor="username" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-3">
+                  <label htmlFor="otp" className={LABEL}>
+                    รหัสยืนยัน (OTP)
+                  </label>
+                  <input
+                    id="otp"
+                    name="otp"
+                    ref={otpInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    required
+                    placeholder="000000"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className={`${INPUT} py-2.5 text-center font-mono text-2xl tracking-[0.5em] placeholder:text-ink-3/40`}
+                  />
+                </div>
+
+                {otpNotice && !error && (
+                  <div role="status" className="rounded-lg border border-accent-line bg-accent-soft px-3.5 py-2.5 text-sm text-accent">
+                    {otpNotice}
+                  </div>
+                )}
+                {error && (
+                  <div role="alert" className="rounded-lg border border-danger-line bg-danger-bg px-3.5 py-2.5 text-sm text-danger">
+                    {error}
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading || otp.length < 6} className={SUBMIT}>
+                  {loading ? 'กำลังยืนยัน...' : 'ยืนยันรหัส'}
+                  {!loading && <FaArrowRight className="text-xs transition-transform group-hover:translate-x-0.5" />}
+                </button>
+
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={backToPassword}
+                    className="flex cursor-pointer items-center gap-1.5 text-ink-3 transition-colors hover:text-ink"
+                  >
+                    <FaArrowLeft className="text-[10px]" /> ย้อนกลับ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={cooldown > 0 || loading}
+                    className="cursor-pointer font-medium text-accent transition-colors hover:text-accent-strong disabled:cursor-not-allowed disabled:text-ink-3"
+                  >
+                    {cooldown > 0 ? `ขอรหัสใหม่ได้ใน ${cooldown} วินาที` : 'ขอรหัสใหม่'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form className="space-y-4" onSubmit={handleLogin}>
+                <div>
+                  <label htmlFor="username" className={LABEL}>
                     ชื่อผู้ใช้งาน
                   </label>
                   <div className="group relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-ink-3 transition-colors group-focus-within:text-accent">
+                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-3 transition-colors group-focus-within:text-accent">
                       <FaUser className="text-sm" />
                     </span>
                     <input
                       id="username"
                       name="username"
                       type="text"
+                      autoComplete="username"
                       required
                       placeholder="เช่น somchai.j"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="block w-full rounded-xl border border-line bg-raised py-3 pl-10 pr-3 text-sm text-ink placeholder:text-ink-3 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25"
+                      className={`${INPUT} py-2.5 pl-9 pr-3 text-sm`}
                     />
                   </div>
                 </div>
 
-                {/* Password */}
                 <div>
-                  <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-3">
+                  <label htmlFor="password" className={LABEL}>
                     รหัสผ่าน
                   </label>
                   <div className="group relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-ink-3 transition-colors group-focus-within:text-accent">
+                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-3 transition-colors group-focus-within:text-accent">
                       <FaLock className="text-sm" />
                     </span>
                     <input
                       id="password"
                       name="password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       required
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full rounded-xl border border-line bg-raised py-3 pl-10 pr-12 text-sm text-ink placeholder:text-ink-3 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25"
+                      className={`${INPUT} py-2.5 pl-9 pr-11 text-sm`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
                       tabIndex={-1}
-                      className="absolute inset-y-0 right-3 flex items-center text-ink-3 transition-colors hover:text-accent"
+                      className="absolute inset-y-0 right-1 flex w-9 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-accent"
                       aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
                     >
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -475,69 +406,28 @@ export default function LoginForm({ initialError = '' }: { initialError?: string
                   </div>
                 </div>
 
-                {/* Row: remember + forgot */}
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex cursor-pointer items-center gap-2 text-ink-2">
-                    <input
-                      type="checkbox"
-                      name="remember-me"
-                      className="h-4 w-4 cursor-pointer rounded border-accent-line bg-raised accent-violet-500 focus:ring-violet-500/40"
-                    />
-                    <span className="text-xs">จดจำฉันไว้</span>
-                  </label>
-                  <Link
-                    href="#"
-                    className="text-xs font-medium text-accent transition hover:text-accent"
-                  >
-                    ลืมรหัสผ่าน?
-                  </Link>
-                </div>
-
-                {/* Error message */}
                 {error && (
-                  <div className="rounded-xl border border-danger-line bg-danger-bg px-4 py-2.5 text-sm text-danger">
+                  <div role="alert" className="rounded-lg border border-danger-line bg-danger-bg px-3.5 py-2.5 text-sm text-danger">
                     {error}
                   </div>
                 )}
 
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-linear-to-r from-violet-600 to-purple-700 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-violet-500/25 transition-all hover:shadow-violet-800/40 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
+                <button type="submit" disabled={loading} className={SUBMIT}>
                   {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
                   {!loading && <FaArrowRight className="text-xs transition-transform group-hover:translate-x-0.5" />}
                 </button>
               </form>
-              )}
+            )}
 
-              {/* Divider */}
-              <div className="my-6 flex items-center gap-3">
-                <div className="h-px flex-1 bg-line" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
-                  หรือ
-                </span>
-                <div className="h-px flex-1 bg-line" />
-              </div>
+            {/* เดิมมีช่อง "จดจำฉันไว้" และลิงก์ "ลืมรหัสผ่าน?" / "ติดต่อผู้ดูแลระบบ" ที่ชี้ไป #
+                ซึ่งไม่ได้ทำอะไรเลย — เหลือเป็นข้อความบอกทางที่ใช้ได้จริงแทน */}
+            <p className="mt-6 mb-0 border-t border-line pt-4 text-center text-xs text-ink-3">
+              ลืมรหัสผ่านหรือยังไม่มีสิทธิ์เข้าถึงข้อมูล กรุณาติดต่อผู้ดูแลระบบ
+            </p>
+          </div>
 
-              {/* Helper card */}
-              <div className="rounded-xl border border-line-faint bg-raised p-3 text-center">
-                <p className="text-xs text-ink-3">
-                  ยังไม่มีสิทธิ์เข้าถึงข้อมูล?{' '}
-                  <a href="#" className="font-medium text-accent hover:text-accent">
-                    ติดต่อผู้ดูแลระบบ
-                  </a>
-                </p>
-              </div>
-            </div>
-
-            {/* Bottom legal */}
-            <div className="mt-6 text-center text-[11px] text-ink-3">
-              © {new Date().getFullYear()} PYHOS Workbench
-              <span className="mx-2">·</span>
-              <a href="#" className="hover:text-ink-2">นโยบายความเป็นส่วนตัว</a>
-            </div>
+          <div className="mt-6 text-center text-[11px] text-ink-3">
+            © {new Date().getFullYear()} PYHOS Workbench
           </div>
         </div>
       </div>

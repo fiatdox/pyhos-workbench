@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { coreKonDb } from '@/lib/db/core-kon'
 import { authMfaUsers, majors, userPositions, userTypes, users } from '@/lib/db/schema/core-kon'
-import { canUseDue, canUseRdu, isPositionAllowed } from '@/lib/auth/access'
+import { canUseRdu, isPositionAllowed } from '@/lib/auth/access'
 import { userCanAudit } from '@/lib/auth/audit-user'
 import { userIsRiderAdmin } from '@/lib/auth/rider-admin'
 import { verifyAuthToken } from '@/lib/auth/jwt'
@@ -53,7 +53,6 @@ export default async function HomeLayout({ children }: LayoutProps<'/home'>) {
     <AppShell
       // สิทธิ์คำนวณที่นี่ที่เดียวแล้วส่งลงไป หน้าลูกจึงไม่ต้องรู้กติกาเอง
       permissions={{
-        due: canUseDue(user.userPositionId),
         rdu: canUseRdu(user.userPositionId),
         // สิทธิ์ดูร่องรอยคุมด้วย role ไม่ใช่ตำแหน่ง จึงต้องถามฐานแยกอีกครั้ง
         audit: await userCanAudit(claims.sub),

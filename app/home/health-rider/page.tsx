@@ -74,7 +74,7 @@ export default function HealthRiderPage() {
             และการแบ่งพื้นที่รับผิดชอบ
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

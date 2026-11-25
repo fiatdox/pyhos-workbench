@@ -75,10 +75,10 @@ export default function DiagramPage() {
             และผังอยู่ในรีโปเดียวกับโค้ด จะได้แก้พร้อมกันเมื่อโครงสร้างเปลี่ยน
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
-      <section className="rounded-2xl border border-line bg-panel p-5 backdrop-blur">
+      <section className="rounded-2xl border border-line bg-panel p-5">
         <Segmented<View>
           className="mb-4"
           value={view}

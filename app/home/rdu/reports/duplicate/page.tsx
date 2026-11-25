@@ -700,10 +700,10 @@ export default function DuplicateSearchPage() {
             ผ่าน/ไม่ผ่าน ต่างจากรายงานอื่นในหมวดนี้ที่ผูกกับทะเบียนยาซึ่งตกลงกันไว้แล้ว
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
-      <section className="mb-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+      <section className="mb-4 rounded-2xl border border-line bg-panel p-4">
         {loadingDrugs ? (
           <Spin />
         ) : (
@@ -943,7 +943,7 @@ export default function DuplicateSearchPage() {
       ) : (
         <Spin spinning={loading}>
           <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <div className="rounded-2xl border border-line bg-panel p-4">
               <div className="text-xs text-ink-3">เคสที่พบ</div>
               <div className="mt-1 text-2xl font-semibold text-ink">
                 {(summary ?? 0).toLocaleString('th-TH')}
@@ -955,7 +955,7 @@ export default function DuplicateSearchPage() {
                   ` · หน้าต่าง ${windowText(report.windowDays)} · ${PAIR_LABEL[report.pairRule].short}`}
               </div>
             </div>
-            <div className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <div className="rounded-2xl border border-line bg-panel p-4">
               <div className="text-xs text-ink-3">
                 ตัวหาร — {report.scope === 'across' ? 'ผู้ป่วย' : 'ครั้ง'}ที่ได้รับยาในชุดนี้
               </div>
@@ -975,7 +975,7 @@ export default function DuplicateSearchPage() {
                   : '—'}
               </div>
             </div>
-            <div className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <div className="rounded-2xl border border-line bg-panel p-4">
               <div className="text-xs text-ink-3">ชุดยาที่ค้น</div>
               <div className="mt-1 text-2xl font-semibold text-ink">{report.icodes.length}</div>
               <div className="mt-1 text-[11px] text-ink-3">
@@ -986,7 +986,7 @@ export default function DuplicateSearchPage() {
             {/* ตารางเทียบสี่แบบ — คิดมาจากข้อมูลชุดเดียวกันที่อ่านมาแล้ว ไม่ได้ยิงฐานเพิ่ม
                 มีไว้เพราะการเลือกหน่วยการนับผิดทำให้ตัวเลขต่างกันเป็นร้อยเท่า
                 ถ้าไม่เห็นอีกสามแบบ คนอ่านไม่มีทางรู้ว่ากำลังดูแบบที่แคบหรือกว้าง */}
-            <div className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <div className="rounded-2xl border border-line bg-panel p-4">
               <div className="mb-1.5 text-xs text-ink-3">
                 เทียบทุกแบบในชุดนี้ — ข้าม visit ใช้หน้าต่าง {windowText(report.windowDays)}
               </div>
@@ -1050,7 +1050,7 @@ export default function DuplicateSearchPage() {
             />
           )}
 
-          <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+          <section className="rounded-2xl border border-line bg-panel p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm font-semibold text-ink">
                 {report.scope === 'across'

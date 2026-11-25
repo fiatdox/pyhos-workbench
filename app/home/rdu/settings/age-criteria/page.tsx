@@ -159,7 +159,7 @@ export default function AgeCriteriaSettingsPage() {
             มีผลกับหน้ารายงาน หน้าวิเคราะห์ และหน้าสรุปสามปีทันทีที่กดบันทึก ไม่ต้องรอรอบแก้โปรแกรม
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {/* บอกไว้ก่อนแก้ ไม่ใช่หลังแก้ — คนที่เข้ามาลองขยับเส้นเล่นควรรู้ตั้งแต่ต้นว่า
@@ -187,7 +187,7 @@ export default function AgeCriteriaSettingsPage() {
           /* โหลดครั้งแรกขึ้นโครงร่างการ์ดเกณฑ์ ไม่ใช่ที่ว่างเปล่า */
           <StatCardsSkeleton count={4} className="grid gap-3 sm:grid-cols-2" />
         ) : settings.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="ไม่มีเกณฑ์ให้ตั้งค่า" />
           </div>
         ) : (
@@ -201,7 +201,7 @@ export default function AgeCriteriaSettingsPage() {
               return (
                 <div
                   key={item.name}
-                  className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur"
+                  className="rounded-xl border border-line bg-panel px-4 py-3"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -292,7 +292,7 @@ export default function AgeCriteriaSettingsPage() {
                 return (
                   <div
                     key={item.name}
-                    className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur"
+                    className="rounded-xl border border-line bg-panel px-4 py-3"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">

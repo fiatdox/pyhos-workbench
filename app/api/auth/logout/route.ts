@@ -1,3 +1,4 @@
+import { COOKIE_PATH } from '@/lib/base-path'
 import { after } from 'next/server'
 import { cookies } from 'next/headers'
 import { eq } from 'drizzle-orm'
@@ -5,7 +6,7 @@ import { coreKonDb } from '@/lib/db/core-kon'
 import { users } from '@/lib/db/schema/core-kon'
 import { verifyAuthToken } from '@/lib/auth/jwt'
 import { describeDevice, notifyLogout } from '@/lib/auth/notify'
-import { AUTH_COOKIE } from '@/lib/auth/session'
+import { AUTH_COOKIE, clearMfaChallengeCookie } from '@/lib/auth/session'
 import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
 import { recordActivity } from '@/lib/audit/activity-log'
 
@@ -28,10 +29,12 @@ export async function POST(request: Request) {
 
   // ล้างทันทีและล้างทุกเส้นทางออกจากฟังก์ชันนี้ — cookie เป็น httpOnly แล้ว
   // ฝั่งหน้าเว็บลบเองไม่ได้อีก ถ้าตรงนี้พลาดจะกลายเป็น "กดออกแล้วไม่ออกจริง"
-  cookieStore.delete(AUTH_COOKIE)
+  // ต้องระบุ path ตรงกับตอนตั้ง (lib/auth/session.ts) — delete() เปล่า ๆ ลบที่ path=/
+  cookieStore.delete({ name: AUTH_COOKIE, path: COOKIE_PATH })
   // cookie ชุดเดิมที่เคยเก็บข้อมูลผู้ใช้ไว้ให้ JS อ่าน — เก็บกวาดของเก่าให้ด้วย
   cookieStore.delete('user_data')
   cookieStore.delete('user_type_id')
+  await clearMfaChallengeCookie()
 
   // ไม่มี token หรือ token หมดอายุ ก็ถือว่าออกจากระบบสำเร็จ (cookie ถูกล้างไปแล้ว)
   if (!claims?.sub) return Response.json({ success: true, notified: false })

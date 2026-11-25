@@ -374,7 +374,7 @@ export default function MetforminReportPage() {
             ตารางจึงแสดงเฉพาะคนที่ยังไม่ได้ใช้ หนึ่งแถวคือผู้ป่วยหนึ่งคน ไม่ใช่หนึ่งครั้งที่มา
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <div className="mb-5">
@@ -576,7 +576,7 @@ export default function MetforminReportPage() {
              นานขนาดนั้นไม่บอกอะไรว่ากำลังจะได้การ์ดสรุป กราฟ แล้วตารางเคส */
           <ReportSkeleton />
         ) : (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="เลือกช่วงวันที่แล้วกดค้นหา" />
           </div>
         )}
@@ -615,7 +615,7 @@ function StatCard({
   const toneClass =
     tone === 'good' ? 'text-emerald-500' : tone === 'warn' ? 'text-amber-500' : 'text-ink'
   return (
-    <div className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur">
+    <div className="rounded-xl border border-line bg-panel px-4 py-3">
       <div className="text-[11px] text-ink-3">{label}</div>
       <div className={`mt-0.5 text-xl font-semibold ${toneClass}`}>
         <span className="qty">{value}</span>

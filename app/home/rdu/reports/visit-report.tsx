@@ -461,7 +461,7 @@ export default function VisitReportPage({
             กดปุ่มดูเพื่อเปิดรายการยาและการวินิจฉัยของครั้งนั้น
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <div className="mb-5">
@@ -663,7 +663,7 @@ export default function VisitReportPage({
           /* โหลดครั้งแรกขึ้นโครงร่าง ไม่ใช่ที่ว่างเปล่า — คิวรีชุดนี้ใช้เวลาหลายวินาที */
           <ReportSkeleton />
         ) : (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="เลือกช่วงวันที่แล้วกดค้นหา" />
           </div>
         )}
@@ -695,7 +695,7 @@ function StatCard({
   hint?: string
 }) {
   return (
-    <div className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur">
+    <div className="rounded-xl border border-line bg-panel px-4 py-3">
       <div className="text-[11px] text-ink-3">{label}</div>
       <div className="mt-0.5 text-xl font-semibold text-ink">
         <span className="qty">{value}</span>

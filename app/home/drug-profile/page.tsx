@@ -1,6 +1,7 @@
 'use client'
 // antd v6 และ @ant-design/icons ใช้ createContext จึงต้องเป็น Client Component
 // (การตรวจสิทธิ์ยังทำที่ app/home/layout.tsx ซึ่งเป็น Server Component)
+import { withBase } from '@/lib/base-path'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
@@ -953,14 +954,14 @@ export default function DrugProfilePage() {
             เพราะใบยาผูกกับการนอนแต่ละครั้ง ไม่ใช่ผูกกับตัวผู้ป่วย
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-5" />}
 
       {/* พับเก็บเมื่อเลือกผู้ป่วยได้แล้ว — เหลือแถบสรุปให้กดกลับมาเปลี่ยนคน */}
       {!pickerOpen && admission ? (
-        <section className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel px-4 py-2.5 backdrop-blur">
+        <section className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel px-4 py-2.5">
           <Text className="text-xs text-ink-3">กำลังดู</Text>
           <span className="text-sm font-medium text-ink">{admission.name}</span>
           {mono(admission.an)}
@@ -1133,7 +1134,7 @@ export default function DrugProfilePage() {
       {(planLoading || plan || planError) && (
         <section
           ref={planRef}
-          className="scroll-mt-20 rounded-2xl border border-line bg-panel p-5 backdrop-blur"
+          className="scroll-mt-20 rounded-2xl border border-line bg-panel p-5"
         >
           {planError && <Alert type="error" showIcon title={planError} className="mb-4" />}
 
@@ -1453,7 +1454,7 @@ export default function DrugProfilePage() {
                 {visibleScans.map(scan => (
                   <div key={scan.scanId} className="w-44">
                     <Image
-                      src={`/api/his/opd-scan/image?hn=${scan.hn}&scan_id=${scan.scanId}`}
+                      src={withBase(`/api/his/opd-scan/image?hn=${scan.hn}&scan_id=${scan.scanId}`)}
                       alt={`สแกนหน้า ${scan.pageNo ?? '-'} วันที่ ${scan.scannedAt ?? '-'}`}
                       width={176}
                       height={220}

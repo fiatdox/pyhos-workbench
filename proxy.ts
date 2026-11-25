@@ -36,7 +36,9 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
 async function track(request: NextRequest): Promise<void> {
   try {
     const url = new URL(request.url)
-    const path = url.pathname
+    // nextUrl ตัด basePath (/workbench) ออกให้แล้ว — url.pathname ยังติดอยู่ ถ้าใช้ตัวนั้น
+    // featureOf() จะได้ 'workbench' ทุกแถว และ path ในล็อกจะไม่ตรงกับเส้นทางของแอป
+    const path = request.nextUrl.pathname
 
     // Next ดึงหน้าไว้ล่วงหน้าตอนเมาส์ผ่านลิงก์ ผู้ใช้ยังไม่ได้เข้าหน้านั้นจริง
     // ถ้านับด้วย ล็อกจะเต็มไปด้วยหน้าที่ไม่มีใครเปิด จนของจริงหาไม่เจอ

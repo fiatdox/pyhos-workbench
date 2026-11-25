@@ -1,3 +1,4 @@
+import { COOKIE_PATH, withBase } from '@/lib/base-path'
 import 'server-only'
 import { after } from 'next/server'
 import { cookies } from 'next/headers'
@@ -9,8 +10,45 @@ import { recordActivity } from '@/lib/audit/activity-log'
 /** ชื่อ cookie ที่เก็บ JWT — ทุกฝั่งเซิร์ฟเวอร์อ่านจากตัวนี้ */
 export const AUTH_COOKIE = 'auth_token'
 
+/**
+ * รหัสรอบยืนยัน OTP (challenge_token) — ใครถือค่านี้คู่กับรหัส 6 หลักก็ได้ session
+ * จึงเก็บเป็นคุกกี้ httpOnly ให้สคริปต์ในหน้าอ่านไม่ได้ เดิมส่งใน JSON แล้วหน้าเว็บ
+ * เก็บใน state ส่งกลับมาเอง ซึ่งสคริปต์ใดก็ตามที่รันในหน้า login อ่านได้
+ *
+ * path จำกัดแค่ /api/auth (ใต้ basePath) — ส่งไปเฉพาะ login/verify-otp/resend-otp/logout
+ * ไม่ติดไปกับคำขออื่นของระบบ
+ */
+export const MFA_COOKIE = 'mfa_challenge'
+const MFA_COOKIE_PATH = withBase('/api/auth')
+
 /** อายุ cookie (วินาที) ต้องเท่ากับ TOKEN_TTL ใน jwt.ts */
 const COOKIE_MAX_AGE = 8 * 60 * 60
+
+/** ตั้งคุกกี้รอบ OTP — อายุเท่ากับอายุของรอบในฐานข้อมูล (challenge_expires_at) */
+export async function setMfaChallengeCookie(
+  request: Request,
+  challengeToken: string,
+  maxAgeSeconds: number,
+): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(MFA_COOKIE, challengeToken, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: isSecureRequest(request),
+    path: MFA_COOKIE_PATH,
+    maxAge: Math.max(1, Math.trunc(maxAgeSeconds)),
+  })
+}
+
+/** รหัสรอบ OTP จากคุกกี้ — ว่าง = ไม่มีรอบค้างอยู่ */
+export async function readMfaChallengeCookie(): Promise<string> {
+  return (await cookies()).get(MFA_COOKIE)?.value ?? ''
+}
+
+/** ล้างคุกกี้รอบ OTP — เรียกเมื่อรอบจบ (สำเร็จ ถูกตัด หมดอายุ) หรือออกจากระบบ */
+export async function clearMfaChallengeCookie(): Promise<void> {
+  ;(await cookies()).delete({ name: MFA_COOKIE, path: MFA_COOKIE_PATH })
+}
 
 /**
  * ต่อ TLS อยู่หรือไม่ — ตั้ง flag Secure ตามจริงแทนการเดาจาก NODE_ENV
@@ -74,7 +112,7 @@ export async function buildLoginSuccess(
     // ระบบใช้ภายในล้วน ไม่มีลิงก์เข้าจากเว็บอื่น จึงตัด cross-site ทิ้งได้หมด
     sameSite: 'strict',
     secure: isSecureRequest(context.request),
-    path: '/',
+    path: COOKIE_PATH,
     maxAge: COOKIE_MAX_AGE,
   })
 
@@ -82,6 +120,8 @@ export async function buildLoginSuccess(
   // prop จาก home/layout แทนแล้ว เครื่องที่เคยล็อกอินไว้จะได้ไม่มีค้าง
   cookieStore.delete('user_data')
   cookieStore.delete('user_type_id')
+  // รอบ OTP จบแล้ว (หรือไม่ได้ใช้) — ไม่ปล่อยรหัสรอบค้างในเบราว์เซอร์
+  await clearMfaChallengeCookie()
 
   // after() ให้การยิง API หมอพร้อม (~1 วินาที) ไม่ไปหน่วงหน้าล็อกอิน
   const ip = clientIp(context.request)

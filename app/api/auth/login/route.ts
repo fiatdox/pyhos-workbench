@@ -5,7 +5,7 @@ import { isPositionAllowed, POSITION_DENIED_MESSAGE } from '@/lib/auth/access'
 import { fakeVerify, verifyPassword } from '@/lib/auth/password'
 import { getAuthSettings } from '@/lib/auth/settings'
 import { isMfaRequired, startOtpChallenge } from '@/lib/auth/mfa'
-import { buildLoginSuccess } from '@/lib/auth/session'
+import { buildLoginSuccess, setMfaChallengeCookie } from '@/lib/auth/session'
 import { clientIp, rateLimit, resetRateLimit, tooManyRequests } from '@/lib/rate-limit'
 
 // ต้องรันบน Node.js runtime — ใช้ไดรเวอร์ postgres และ argon2 (native)
@@ -119,10 +119,11 @@ export async function POST(request: Request) {
       }
 
       // ยังไม่ออก token — ต้องผ่าน /api/auth/verify-otp ก่อน
+      // รหัสรอบส่งเป็นคุกกี้ httpOnly ไม่ใส่ใน body (ดูเหตุผลที่ MFA_COOKIE)
+      await setMfaChallengeCookie(request, challenge.challengeToken, settings.mfaChallengeTtlSeconds)
       return Response.json({
         success: true,
         mfa_required: true,
-        challenge_token: challenge.challengeToken,
         resend_after_seconds: challenge.resendAfterSeconds,
       })
     }

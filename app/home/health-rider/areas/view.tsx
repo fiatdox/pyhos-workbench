@@ -319,7 +319,7 @@ export default function HealthRiderAreasView() {
             เลือกเจ้าหน้าที่เพื่อดูพื้นที่ที่รับผิดชอบ — หนึ่งแถวคือหนึ่งหมู่ เพิ่มและลบได้ทีละแถว
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
@@ -355,11 +355,11 @@ export default function HealthRiderAreasView() {
       </section>
 
       {riderId == null ? (
-        <section className="rounded-2xl border border-line bg-panel p-8 backdrop-blur">
+        <section className="rounded-2xl border border-line bg-panel p-8">
           <Empty description="เลือกเจ้าหน้าที่เพื่อดูพื้นที่รับผิดชอบ" />
         </section>
       ) : (
-        <section className="data-sheet rounded-2xl border border-line bg-panel p-2 backdrop-blur">
+        <section className="data-sheet rounded-2xl border border-line bg-panel p-2">
           {/* แถบนี้โผล่เฉพาะตอนมีแถวถูกเลือก จะได้ไม่กินที่ตอนใช้งานปกติ */}
           {selected.length > 0 && (
             <div className="mb-2 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel px-3 py-2">

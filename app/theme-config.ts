@@ -6,6 +6,8 @@
  * (root layout ต้องอ่านคุกกี้ธีมตั้งแต่ฝั่งเซิร์ฟเวอร์ จึงต้องเรียกได้จริง)
  */
 
+import { COOKIE_PATH } from '@/lib/base-path'
+
 export type ThemeMode = 'dark' | 'light'
 
 /** ชื่อเดียวกันทั้งใน localStorage และคุกกี้ — เก็บสองที่เพราะคนละคนอ่าน
@@ -13,7 +15,8 @@ export type ThemeMode = 'dark' | 'light'
  *  อ่านตอนเรนเดอร์ จะได้ส่ง HTML ที่เป็นธีมเดียวกับที่เบราว์เซอร์จะใช้ */
 export const THEME_KEY = 'pyhos-theme'
 
-export const DEFAULT_MODE: ThemeMode = 'dark'
+/** ธีมของผู้ที่ยังไม่เคยเลือกเอง — ใช้โหมดสว่างเสมอ ไม่ตามธีมของเครื่อง */
+export const DEFAULT_MODE: ThemeMode = 'light'
 
 /** ค่าที่อ่านได้จากคุกกี้อาจเป็นอะไรก็ได้ ค่านอกสองแบบนี้ถือเป็นค่าเริ่มต้น */
 export function normalizeMode(value: string | undefined | null): ThemeMode {
@@ -21,4 +24,4 @@ export function normalizeMode(value: string | undefined | null): ThemeMode {
 }
 
 export const themeCookie = (mode: ThemeMode) =>
-  `${THEME_KEY}=${mode};path=/;max-age=31536000;samesite=lax`
+  `${THEME_KEY}=${mode};path=${COOKIE_PATH};max-age=31536000;samesite=lax`

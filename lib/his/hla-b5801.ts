@@ -5,15 +5,25 @@ import { hisScanPool } from '@/lib/db/his-scan'
 import { labCodes } from '@/lib/his/lab-codes'
 
 /**
- * ผลตรวจ HLA-B*5801 (ชื่อรายการในระบบคือ "HLA B 5801")
+ * ผลตรวจ HLA-B*5801 และ HLA-B*1502 (ชื่อรายการในระบบคือ "HLA B 5801" / "HLA B 1502")
  *
  * ผลของรายการนี้ไม่ได้เก็บเป็นตัวเลข — ช่อง lab_order_result เขียนว่า "ดูผลที่ image"
  * ตัวผลจริงเป็นรูปที่สแกนไว้ในตาราง lab_order_image ของฐานภาพ (คนละเครื่องกับ HIS)
  * หน้าจอจึงต้องเปิดรูปให้ดูได้ ไม่ใช่แค่แสดงข้อความ
  */
 
+/** ชนิดการตรวจที่หน้าจอเลือกได้ */
+export const HLA_TESTS = ['b5801', 'b1502'] as const
+export type HlaTest = (typeof HLA_TESTS)[number]
+
+export const isHlaTest = (value: unknown): value is HlaTest =>
+  HLA_TESTS.includes(value as HlaTest)
+
 /** รหัสรายการตรวจใน lab_items — อ่านจาก .env (ดู lib/his/lab-codes.ts) */
-const LAB_ITEMS_CODE = labCodes.hlaB5801
+const LAB_ITEMS_CODES: Record<HlaTest, number> = {
+  b5801: labCodes.hlaB5801,
+  b1502: labCodes.hlaB1502,
+}
 
 /** ช่องเก็บรูปในหนึ่งใบรายงาน */
 export const IMAGE_SLOTS = [1, 2, 3, 4, 5] as const
@@ -57,12 +67,15 @@ export function detectImageType(data: Buffer): string {
  *   แต่ไม่รู้ว่าผลออกวันไหน (ทั้งฐานมีรายการที่ยืนยันแล้ว 875 รายการ ค้นทีละครั้งไม่หนัก)
  */
 export async function listHlaResults(filter: {
+  /** ชนิดการตรวจ — ไม่ระบุคือ HLA-B*5801 ตามเดิม */
+  test?: HlaTest
   from?: string
   to?: string
   keyword?: string
   /** ผลของผู้ป่วยรายเดียว ไม่จำกัดช่วงวันที่ — ใช้ในหน้าประวัติยา */
   hn?: string
 }): Promise<HlaResult[]> {
+  const labItemsCode = LAB_ITEMS_CODES[filter.test ?? 'b5801']
   const keyword = filter.keyword?.trim()
   // escape อักขระพิเศษของ LIKE ไม่ให้ % หรือ _ ที่ผู้ใช้พิมพ์กลายเป็น wildcard
   const pattern = keyword ? `%${keyword.replace(/[\\%_]/g, ch => `\\${ch}`)}%` : ''
@@ -85,7 +98,7 @@ export async function listHlaResults(filter: {
     INNER JOIN lab_head b ON b.lab_order_number = a.lab_order_number
     LEFT OUTER JOIN patient p ON p.hn = b.hn
     LEFT OUTER JOIN doctor doc ON doc.code = b.doctor_code
-    WHERE a.lab_items_code = ${LAB_ITEMS_CODE} AND a.confirm = 'Y'
+    WHERE a.lab_items_code = ${labItemsCode} AND a.confirm = 'Y'
       AND ${scope}
     ORDER BY b.report_date DESC, b.report_time DESC
     LIMIT ${MAX_RESULTS}`)
@@ -140,8 +153,8 @@ async function loadImageSlots(orderNumbers: number[]): Promise<Map<number, numbe
 }
 
 /**
- * รูปหนึ่งใบ — ตรวจก่อนว่า lab_order_number นี้เป็นรายการ HLA-B*5801 ที่ยืนยันผลแล้วจริง
- * กันเปิดดูรูปของรายการตรวจอื่นด้วยการเดาเลข
+ * รูปหนึ่งใบ — ตรวจก่อนว่า lab_order_number นี้เป็นรายการ HLA ที่หน้านี้ดูแล (5801/1502)
+ * และยืนยันผลแล้วจริง กันเปิดดูรูปของรายการตรวจอื่นด้วยการเดาเลข
  */
 export async function getHlaImage(
   labOrderNumber: number,
@@ -149,9 +162,12 @@ export async function getHlaImage(
 ): Promise<{ data: Buffer; mime: string } | null> {
   if (!IMAGE_SLOTS.includes(index as (typeof IMAGE_SLOTS)[number])) return null
 
+  const codes = HLA_TESTS.map(test => LAB_ITEMS_CODES[test])
   const [check] = await hisDb.execute(sql`
     SELECT 1 AS ok FROM lab_order
-    WHERE lab_order_number = ${labOrderNumber} AND lab_items_code = ${LAB_ITEMS_CODE} AND confirm = 'Y'
+    WHERE lab_order_number = ${labOrderNumber}
+      AND lab_items_code IN (${sql.join(codes.map(code => sql`${code}`), sql`, `)})
+      AND confirm = 'Y'
     LIMIT 1`)
   if ((check as unknown as Row[]).length === 0) return null
 

@@ -285,7 +285,7 @@ export default function ServicePlanStrokePage() {
             ไม่มีข้อมูลรายบุคคลในหน้านี้
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <PeriodPicker
@@ -459,7 +459,7 @@ export default function ServicePlanStrokePage() {
               </Panel>
             </div>
 
-            <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <section className="rounded-2xl border border-line bg-panel p-4">
               <div className="mb-3 text-sm font-semibold text-ink">ตาราง{rangeLabel}</div>
               <Table
                 size="small"
@@ -590,7 +590,7 @@ export default function ServicePlanStrokePage() {
                 </Panel>
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-3 text-sm font-semibold text-ink">
                   ตารางภาวะแทรกซ้อน {rangeLabel}
                 </div>
@@ -744,7 +744,7 @@ export default function ServicePlanStrokePage() {
                 </Panel>
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-3 text-sm font-semibold text-ink">
                   ตารางวันนอนและค่าบริการ {rangeLabel}
                 </div>
@@ -883,7 +883,7 @@ export default function ServicePlanStrokePage() {
                 />
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <div className="text-sm font-semibold text-ink">
                     <EnvironmentOutlined />{' '}
@@ -954,7 +954,7 @@ export default function ServicePlanStrokePage() {
               <BlockSkeleton height={300} />
               <BlockSkeleton height={300} />
             </div>
-            <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <section className="rounded-2xl border border-line bg-panel p-4">
               <TableRowsSkeleton columns={6} rows={5} />
             </section>
           </div>

@@ -66,7 +66,7 @@ export default function ServicePlanPage() {
             ทั้งสี่สาขามีสถิติห้าปีงบแล้ว ดูรายเดือนและรายไตรมาสได้
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

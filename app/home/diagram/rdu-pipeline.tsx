@@ -9,7 +9,7 @@ import { BusLink, Callout, DiagramFrame, Legend, Link, Node, ZoneLabel } from '.
  * อยู่ที่กล่องทะเบียนกับกล่องผลสิบสี่ตัวชี้วัด — ต้นทางที่คนคุมได้ กับปลายทาง
  * ที่เอาไปใช้จริง
  *
- * แปดกล่อง หกเส้น · เส้นที่เข้ากล่องคำนวณจากสามทะเบียนใช้ช่องกลาง 312 กับ 328
+ * เจ็ดกล่อง ห้าเส้น · เส้นที่เข้ากล่องคำนวณจากสามทะเบียนใช้ช่องกลาง 312 กับ 328
  * ห่างกัน 16px และเข้าขอบซ้ายคนละระดับ (148 · 180 · 212) ห่างกัน 32px
  */
 export default function RduPipelineDiagram() {
@@ -18,7 +18,7 @@ export default function RduPipelineDiagram() {
       <DiagramFrame
         slug="rdu-pipeline"
         title="ท่อข้อมูลตัวชี้วัด RDU"
-        desc="ตัวชี้วัดสิบสี่ข้อคำนวณจากข้อมูลบริการในฐาน HIS ประกบกับทะเบียนรหัสโรค รหัสยา และเกณฑ์ที่เภสัชกรแก้ได้เองจากหน้าตั้งค่า ผลออกเป็นหน้ารายงานรายเคส หน้าสรุปเทียบสามปีงบ และตัวช่วยทบทวนด้วยโมเดลภาษา"
+        desc="ตัวชี้วัดสิบสี่ข้อคำนวณจากข้อมูลบริการในฐาน HIS ประกบกับทะเบียนรหัสโรค รหัสยา และเกณฑ์ที่เภสัชกรแก้ได้เองจากหน้าตั้งค่า ผลออกเป็นหน้ารายงานรายเคสและหน้าสรุปเทียบสามปีงบ"
         width={960}
         height={468}
       >
@@ -31,7 +31,6 @@ export default function RduPipelineDiagram() {
         <BusLink from={{ x: 244, y: 264 }} to={{ x: 384, y: 212 }} via={{ midX: 328 }} label="เกณฑ์" />
         <Link from={{ x: 568, y: 180 }} to={{ x: 700, y: 180 }} label="ผลตัวชี้วัด" tone="accent" />
         <Link from={{ x: 790, y: 220 }} to={{ x: 790, y: 268 }} label="รายเคส" />
-        <Link from={{ x: 476, y: 240 }} to={{ x: 476, y: 332 }} label="ทบทวน" />
 
         <Node
           x={36}
@@ -88,15 +87,6 @@ export default function RduPipelineDiagram() {
           name="สรุปเทียบ 3 ปีงบ"
           sub="pyhos_rdu_yearly"
           tone="store"
-        />
-        <Node
-          x={384}
-          y={332}
-          w={184}
-          h={60}
-          name="ทบทวนด้วยโมเดลภาษา"
-          sub="optional"
-          tone="external"
         />
 
         <Link from={{ x: 790, y: 328 }} to={{ x: 790, y: 372 }} />

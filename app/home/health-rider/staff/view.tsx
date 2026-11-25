@@ -338,7 +338,7 @@ export default function HealthRiderStaffView() {
             รายชื่อเจ้าหน้าที่ส่งยาจากฐาน HIS — เพิ่มคนใหม่และปิด/เปิดสถานะได้ ไม่มีการลบทิ้ง
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
@@ -364,7 +364,7 @@ export default function HealthRiderStaffView() {
         </Button>
       </section>
 
-      <section className="data-sheet rounded-2xl border border-line bg-panel p-2 backdrop-blur">
+      <section className="data-sheet rounded-2xl border border-line bg-panel p-2">
           {/* โครงร่างแถวอยู่ในช่อง emptyText — หัวตารางยังอยู่ ความกว้างคอลัมน์จึงไม่ขยับ
           ตอนข้อมูลมาถึง ส่วน loading ของ Table ไว้สำหรับการโหลดทับรายการที่มีอยู่แล้ว
           ซึ่งต้องเป็นวงกลมหมุนคลุมของเดิม ไม่ใช่โครงร่างที่ลบของเดิมหายไปจากจอ */}

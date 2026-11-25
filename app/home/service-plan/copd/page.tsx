@@ -305,7 +305,7 @@ function DiseaseSection({
         </Panel>
       </div>
 
-      <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+      <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
         <div className="mb-3 text-sm font-semibold text-ink">
           ตารางผู้ป่วยในแยกตามช่วงอายุ {rangeLabel}
         </div>
@@ -612,7 +612,7 @@ export default function ServicePlanCopdPage() {
             ปีงบประมาณ 1 ต.ค. ถึง 30 ก.ย. ไม่มีข้อมูลรายบุคคลในหน้านี้
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <PeriodPicker
@@ -754,7 +754,7 @@ export default function ServicePlanCopdPage() {
                 </Panel>
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-3 text-sm font-semibold text-ink">
                   ตารางผู้ป่วยปอดบวม {rangeLabel}
                 </div>
@@ -995,7 +995,7 @@ export default function ServicePlanCopdPage() {
                 </Panel>
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-3 text-sm font-semibold text-ink">
                   ตารางการใช้ยาสูดพ่นแยกตามขั้น {rangeLabel}
                 </div>
@@ -1069,7 +1069,7 @@ export default function ServicePlanCopdPage() {
               <BlockSkeleton height={300} />
               <BlockSkeleton height={300} />
             </div>
-            <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <section className="rounded-2xl border border-line bg-panel p-4">
               <TableRowsSkeleton columns={6} rows={6} />
             </section>
           </div>

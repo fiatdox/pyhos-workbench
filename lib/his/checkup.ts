@@ -53,6 +53,19 @@ const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F�]/g
 const str = (v: unknown): string | null =>
   v == null || v === '' ? null : String(v).replace(CONTROL_CHARS, '').trim() || null
 
+/**
+ * วันที่จากฐาน — วันที่ศูนย์ถือว่าไม่มีวันที่
+ *
+ * MariaDB ยอมให้เก็บ '0000-00-00' ได้และในฐานนี้มีจริง **21,286 แถวจาก 7,540,746**
+ * ของ vn_stat (เจอตอนค้นข้ามทุกสิทธิซึ่งไปแตะแถวเก่า ๆ) ถ้าปล่อยผ่านไปจนถึง
+ * หน้าจอ ตัวแปลงวันเป็น พ.ศ. จะเติม 543 ให้ปีศูนย์แล้วพิมพ์ว่า "00/00/543"
+ * ซึ่งอ่านเหมือนเป็นวันที่จริง การคืน null ทำให้หน้าจอแสดงขีดตามที่ควร
+ */
+const dateStr = (v: unknown): string | null => {
+  const text = str(v)
+  return text == null || text.startsWith('0000') ? null : text
+}
+
 /** สิทธิการรักษาหนึ่งรายการ สำหรับช่องเลือกสิทธิ */
 export type CheckupRight = {
   /** รหัสสิทธิ (pttype.pttype) */
@@ -92,7 +105,15 @@ export type CheckupVisit = {
   date: string | null
   patientName: string
   ageYears: number | null
-  /** '1' ชาย '2' หญิง ตามรหัสของ HIS */
+  /**
+   * เพศเป็นคำอ่านได้ มาจากตาราง sex ของ HIS ไม่ใช่รหัสที่หน้าจอต้องแปลเอง
+   *
+   * ตาราง sex มีสองแถว ('1' ชาย · '2' หญิง) ถ้าแปลรหัสเองในหน้าจอแล้ววันหนึ่ง
+   * โรงพยาบาลเพิ่มรหัสใหม่ หน้าจอจะขึ้นขีดโดยไม่มีใครรู้ว่าฐานมีค่าอยู่
+   *
+   * null = รหัสเพศไม่ตรงกับตาราง sex (ในทะเบียนผู้ป่วยมีค่า '0' อยู่ 83 ราย
+   * และ '7' อยู่ 1 ราย ซึ่งไม่ใช่รหัสที่ใช้ได้) หรือไม่มีค่าทั้งสองที่
+   */
   sex: string | null
   pttype: string | null
   pttypeName: string | null
@@ -113,6 +134,10 @@ export type CheckupReport = {
   to: string
   /** สิทธิที่เลือก */
   pttypes: string[]
+  /** คำค้นที่ใช้ — null = ค้นตามช่วงวันที่ */
+  keyword: string | null
+  /** ค้นด้วยคำค้นจึงไม่จำกัดช่วงวันที่ — หน้าจอต้องบอกว่าตัวเลขไม่ใช่ของช่วงที่เลือก */
+  allTime: boolean
   /** รายชื่อ — ไม่เกิน CHECKUP_MAX_ROWS แถว เรียงวันใหม่สุดขึ้นก่อน */
   visits: CheckupVisit[]
   /** จำนวนครั้งทั้งหมดในช่วงนี้ตามสิทธิที่เลือก — นับจากทั้งหมด ไม่ใช่จากแถวที่ส่ง */
@@ -131,14 +156,99 @@ export type CheckupInput = {
   to: string
   /** รหัสสิทธิที่ต้องการ — ต้องมีอย่างน้อยหนึ่งรหัส */
   pttypes: string[]
+  /**
+   * HN หรือชื่อ-สกุล — ใส่มาแล้วจะค้นทุกช่วงเวลา ไม่ใช้ from/to
+   *
+   * เพราะคนที่ถือ HN หรือชื่อมาคนหนึ่งมักไม่รู้ว่าคนนั้นมาตรวจวันไหน ซึ่งเป็น
+   * เหตุผลเดียวกับหน้าผลตรวจ HLA-B*5801 ที่ค้นด้วยคำค้นแล้วข้ามช่วงวันที่ไป
+   */
+  keyword?: string
+}
+
+/** พิมพ์ชื่อสั้นกว่านี้ไม่ค้น — ตัวอักษรเดียวตรงกับคนเป็นหมื่น */
+export const CHECKUP_MIN_KEYWORD = 2
+
+/**
+ * จำนวนผู้ป่วยสูงสุดที่คำค้นหนึ่งคำจะตรงได้
+ *
+ * เกินนี้**ปฏิเสธแล้วบอกให้พิมพ์เจาะจงขึ้น ไม่ได้ตัดเอาส่วนแรกมา** — ชื่อขึ้นต้น
+ * "สม" ตรงกับผู้ป่วย 31,306 ราย ถ้าตัดเอาแค่ส่วนหนึ่ง คนใช้จะได้รายชื่อที่ดู
+ * เหมือนครบแต่เป็นเพียงส่วนที่ฐานหยิบมาให้ โดยไม่มีอะไรบอกว่าขาดไป
+ *
+ * ตั้งไว้ 2,000 เพราะวัดมาจากสองด้าน:
+ *
+ * **ด้านความพอใช้** ชื่อต้นภาษาไทยทั่วไปตรงกับผู้ป่วยหลักร้อยถึงหลักพัน
+ * (ขึ้นต้น "อนุชา" 463 · "ยุพิน" 898 · "สุดา" 941 · "สมชาย" 1,277) ถ้าตั้งเพดาน
+ * ไว้หลักร้อย การค้นด้วยชื่อเดียวจะถูกปฏิเสธแทบทุกคำ เหลือใช้ได้แค่ชื่อ+สกุล
+ * ที่ 2,000 ครอบได้เกือบทั้งหมด เหลือที่ยังปฏิเสธคือชื่อที่พบบ่อยที่สุดในฐานจริง ๆ
+ * (จันทร์ 4,168 · แก้ว 4,104 · คำ 3,878) ซึ่งการค้นด้วยคำเดียวแบบนั้นไม่ใช่
+ * การหาคนอยู่แล้ว
+ *
+ * **ด้านภาระฐาน** เวลาขึ้นเป็นเส้นตรงกับจำนวน HN และถูกมาก วัดกรณีแย่สุด
+ * (คูณทุกสิทธิที่เปิดใช้งาน ทุกช่วงเวลา): 200 HN ใช้ 0.18+0.04 วินาที ·
+ * 1,000 HN ใช้ 0.59+0.13 · **2,000 HN ใช้ 0.89+0.24** · 5,000 HN ใช้ 2.06+0.63
+ * ที่ 2,000 จึงยังอยู่ระดับเดียวกับโหมดช่วงวันที่ (0.54-0.92 วินาที)
+ */
+export const CHECKUP_MAX_KEYWORD_PATIENTS = 2000
+
+/** escape อักขระพิเศษของ LIKE ไม่ให้ % หรือ _ ที่ผู้ใช้พิมพ์กลายเป็น wildcard */
+const likeValue = (value: string) => value.replace(/[\\%_]/g, ch => `\\${ch}`)
+
+/**
+ * แปลงคำค้นเป็นรายการ HN
+ *
+ * หา HN ให้ได้ก่อนแล้วค่อยถามครั้งที่มารับบริการด้วย HN — ไม่ได้ join patient
+ * เข้าไปในคิวรีหลักแล้วกรองชื่อที่นั้น **วัดแล้วต่างกัน 540 เท่า**: แบบ join
+ * แล้วกรองชื่อ ตัววางแผนจะไล่ดัชนี pttype ทั้งก้อน (สิทธิเดียวมีได้ถึง 1,254,293
+ * ครั้ง) แล้วเช็กชื่อทีหลัง กรณีทุกสิทธิ + ชื่อที่พบบ่อยใช้ 49 วินาที ส่วนแบบหา HN
+ * ก่อนใช้ 91 มิลลิวินาทีในกรณีเดียวกัน เพราะ vn_stat มีดัชนีที่ hn
+ *
+ * กติกาการตีความคำค้นเหมือน lib/his/patient-search.ts ที่ใช้อยู่ทั้งระบบ —
+ * ตัวเลขล้วนคือ HN (เติมศูนย์หน้าให้) คำเดียวค้นทั้งชื่อและสกุล สองคำขึ้นไปถือว่า
+ * คำแรกเป็นชื่อที่เหลือเป็นสกุล และค้นแบบ**ขึ้นต้น**เท่านั้นเพราะดัชนี ix_fname
+ * กับ ix_lname ใช้ได้แค่แบบขึ้นต้น ถ้าใช้ LIKE '%คำ%' จะไล่ทั้งตาราง 628,462 แถว
+ */
+async function keywordHns(keyword: string): Promise<string[]> {
+  const digits = keyword.replace(/\D/g, '')
+  let where: ReturnType<typeof sql>
+
+  if (/^\d{1,9}$/.test(keyword)) {
+    where = sql`a.hn = ${digits.padStart(9, '0')}`
+  } else {
+    const parts = keyword.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) {
+      const prefix = `${likeValue(parts[0])}%`
+      where = sql`(a.fname LIKE ${prefix} OR a.lname LIKE ${prefix})`
+    } else {
+      const first = `${likeValue(parts[0])}%`
+      const last = `${likeValue(parts.slice(1).join(' '))}%`
+      where = sql`(a.fname LIKE ${first} AND a.lname LIKE ${last})`
+    }
+  }
+
+  const [result] = await hisDb.execute(sql`
+    SELECT a.hn FROM patient a
+    WHERE ${where}
+    LIMIT ${CHECKUP_MAX_KEYWORD_PATIENTS + 1}`)
+
+  const hns = rows(result)
+    .map(row => String(row.hn ?? '').trim())
+    .filter(hn => hn !== '')
+
+  if (hns.length > CHECKUP_MAX_KEYWORD_PATIENTS) {
+    throw new Error(
+      `คำค้นนี้ตรงกับผู้ป่วยมากกว่า ${CHECKUP_MAX_KEYWORD_PATIENTS} ราย กรุณาพิมพ์ให้เจาะจงขึ้น เช่น ใส่นามสกุลด้วย หรือค้นด้วย HN`,
+    )
+  }
+  return hns
 }
 
 /**
  * ค้นรายชื่อผู้ที่มารับบริการตามสิทธิที่เลือก
  *
- * ขับจาก vn_stat ซึ่งมีดัชนีทั้งที่ vstdate และ pttype — วัดแล้ว 18 สิทธิตรวจสุขภาพ
- * ทั้งปีงบใช้ 0.54 วินาที และสิทธิที่ใหญ่ที่สุดในฐานก็ยังอยู่ที่ 0.92 วินาที
- * คิวรีเดียวได้ครบ ไม่ต้องคัดกรองแล้วค่อยอ่านรายละเอียดเป็นสองรอบ
+ * ขับจาก vn_stat ซึ่งมีดัชนีทั้งที่ vstdate, pttype และ hn — วัดแล้ว 18 สิทธิ
+ * ตรวจสุขภาพทั้งปีงบใช้ 0.54 วินาที สิทธิที่ใหญ่ที่สุดในฐานอยู่ที่ 0.92 วินาที
+ * และโหมดคำค้น (ถามด้วย HN ทุกช่วงเวลา) อยู่ที่ 0.09 วินาที
  *
  * ยอดสรุปแยกเป็นคิวรีของตัวเอง ยิงพร้อมกัน ไม่ได้นับจากแถวที่คืนมา — เพราะแถวที่
  * คืนมาถูก LIMIT ตัดไว้ ถ้านับจากแถวที่เหลือ ยอดรวมจะต่ำกว่าความจริงโดยที่คนอ่าน
@@ -148,16 +258,55 @@ export async function searchCheckups(input: CheckupInput): Promise<CheckupReport
   const pttypes = [...new Set(input.pttypes.filter(code => code !== ''))]
   if (pttypes.length === 0) throw new Error('กรุณาเลือกสิทธิอย่างน้อยหนึ่งรายการ')
 
+  const keyword = input.keyword?.trim() ?? ''
+  if (keyword !== '' && keyword.length < CHECKUP_MIN_KEYWORD) {
+    throw new Error(`พิมพ์คำค้นอย่างน้อย ${CHECKUP_MIN_KEYWORD} ตัวอักษร`)
+  }
+
   const codeList = sql.join(
     pttypes.map(code => sql`${code}`),
     sql`, `,
   )
 
+  /**
+   * เงื่อนไขขอบเขตของทั้งสองโหมด — ใช้ร่วมกันทั้งคิวรีรายชื่อและคิวรียอดสรุป
+   *
+   * เขียนไว้ที่เดียวแล้วส่งเข้าไปทั้งสองคิวรี ไม่ได้เขียนซ้ำสองที่ — ถ้าเขียนซ้ำ
+   * แล้ววันหนึ่งแก้ที่เดียว รายชื่อกับยอดสรุปจะมาจากคนละขอบเขตโดยไม่มีใครรู้
+   */
+  let scope: ReturnType<typeof sql>
+  if (keyword === '') {
+    scope = sql`v.vstdate BETWEEN ${input.from} AND ${input.to}`
+  } else {
+    const hns = await keywordHns(keyword)
+    // ไม่เจอผู้ป่วยที่ตรงคำค้นเลย — คืนผลว่างไปตรง ๆ ไม่ต้องถามฐานต่อ
+    // (IN () ที่ว่างเปล่าเป็น syntax error ของ MySQL อยู่แล้ว)
+    if (hns.length === 0) {
+      return {
+        from: input.from,
+        to: input.to,
+        pttypes,
+        keyword,
+        allTime: true,
+        visits: [],
+        totalVisits: 0,
+        totalPatients: 0,
+        byRight: [],
+        truncated: false,
+      }
+    }
+    scope = sql`v.hn IN (${sql.join(
+      hns.map(hn => sql`${hn}`),
+      sql`, `,
+    )})`
+  }
+
   const [listResult, summaryResult] = await Promise.all([
     hisDb.execute(sql`
       SELECT v.vn, v.hn,
              DATE_FORMAT(v.vstdate, '%Y-%m-%d') AS vstdate,
-             v.age_y, v.sex, v.pttype,
+             v.age_y, v.pttype,
+             sx.name AS sex_name,
              pt.name AS pttype_name,
              dep.department AS dep_name,
              doc.name AS doctor_name,
@@ -168,7 +317,14 @@ export async function searchCheckups(input: CheckupInput): Promise<CheckupReport
       LEFT OUTER JOIN kskdepartment dep ON dep.depcode = ov.main_dep
       LEFT OUTER JOIN doctor doc ON doc.code = ov.doctor
       LEFT OUTER JOIN patient p ON p.hn = v.hn
-      WHERE v.vstdate BETWEEN ${input.from} AND ${input.to}
+      /* เพศเอาจากทะเบียนผู้ป่วยก่อน แล้วถอยมาใช้ของ vn_stat
+         — vn_stat.sex เป็นค่าที่ HOSxP เติมย้อนหลัง แถวของเดือนปัจจุบันจึงยังว่าง
+         อยู่บางส่วน (วัดเดือน ต.ค. 2569: ว่าง 130 จาก 17,980 ครั้ง ขณะที่หกเดือน
+         ก่อนหน้าว่างรวมกันแค่ 2 ครั้ง) ส่วน patient.sex เติมครบทุกคนที่มาใน 30 วัน
+         (43,514 จาก 43,514) และเมื่อสองที่ไม่ตรงกัน ทะเบียนผู้ป่วยคือค่าที่ถูก
+         NULLIF กันค่าว่างที่เก็บเป็นสตริงว่าง ซึ่ง COALESCE เฉย ๆ จะไม่ข้ามให้ */
+      LEFT OUTER JOIN sex sx ON sx.code = COALESCE(NULLIF(p.sex, ''), NULLIF(v.sex, ''))
+      WHERE ${scope}
         AND v.pttype IN (${codeList})
       ORDER BY v.vstdate DESC, v.vn DESC
       LIMIT ${CHECKUP_MAX_ROWS}`),
@@ -187,7 +343,7 @@ export async function searchCheckups(input: CheckupInput): Promise<CheckupReport
              COUNT(*) AS visits, COUNT(DISTINCT v.hn) AS patients
       FROM vn_stat v
       LEFT OUTER JOIN pttype pt ON pt.pttype = v.pttype
-      WHERE v.vstdate BETWEEN ${input.from} AND ${input.to}
+      WHERE ${scope}
         AND v.pttype IN (${codeList})
       GROUP BY v.pttype WITH ROLLUP`),
   ])
@@ -199,10 +355,10 @@ export async function searchCheckups(input: CheckupInput): Promise<CheckupReport
     visits.push({
       vn,
       hn: String(row.hn ?? '').trim(),
-      date: str(row.vstdate),
+      date: dateStr(row.vstdate),
       patientName: str(row.patient_name) ?? '—',
       ageYears: row.age_y == null ? null : Number(row.age_y),
-      sex: str(row.sex),
+      sex: str(row.sex_name),
       pttype: str(row.pttype),
       pttypeName: str(row.pttype_name),
       department: str(row.dep_name),
@@ -237,6 +393,8 @@ export async function searchCheckups(input: CheckupInput): Promise<CheckupReport
     from: input.from,
     to: input.to,
     pttypes,
+    keyword: keyword === '' ? null : keyword,
+    allTime: keyword !== '',
     visits,
     totalVisits,
     totalPatients,

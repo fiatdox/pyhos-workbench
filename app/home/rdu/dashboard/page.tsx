@@ -354,7 +354,7 @@ export default function RduDashboardPage() {
             นับเฉพาะผู้ป่วยนอก ไม่รวมครั้งที่รับไว้เป็นผู้ป่วยใน
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {/* ───────────── เลือกตัวชี้วัดและช่วงเวลา ───────────── */}
@@ -431,7 +431,7 @@ export default function RduDashboardPage() {
         {facts ? (
           <>
             {/* ───────────── ตัวกรองสี่มุม ───────────── */}
-            <section className="mb-4 rounded-2xl border border-line bg-panel p-3 backdrop-blur">
+            <section className="mb-4 rounded-2xl border border-line bg-panel p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Text type="secondary" className="text-xs">
                   กรองดู
@@ -523,7 +523,7 @@ export default function RduDashboardPage() {
             </section>
 
             {stats.total === 0 ? (
-              <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+              <div className="rounded-2xl border border-line bg-panel py-16">
                 <Empty
                   description={
                     filtered ? 'ไม่มีข้อมูลที่ตรงกับตัวกรองนี้' : 'ไม่พบข้อมูลในช่วงวันที่ที่เลือก'
@@ -601,7 +601,7 @@ export default function RduDashboardPage() {
           /* โหลดครั้งแรกขึ้นโครงร่าง ไม่ใช่ที่ว่างเปล่า — คิวรีชุดนี้ใช้เวลาหลายวินาที */
           <ReportSkeleton cards={6} cardsClassName="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" />
         ) : (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="เลือกตัวชี้วัดกับช่วงเวลาแล้วกดดึงข้อมูล" />
           </div>
         )}
@@ -622,7 +622,7 @@ function StatCard({
   tag?: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur">
+    <div className="rounded-xl border border-line bg-panel px-4 py-3">
       <div className="flex items-center justify-between gap-2">
         <div className="text-[11px] text-ink-3">{label}</div>
         {tag}

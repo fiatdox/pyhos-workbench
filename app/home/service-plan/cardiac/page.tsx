@@ -325,7 +325,7 @@ export default function ServicePlanCardiacPage() {
             มาด้วย · ไม่มีข้อมูลรายบุคคลในหน้านี้
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <PeriodPicker
@@ -504,7 +504,7 @@ export default function ServicePlanCardiacPage() {
                 </Panel>
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-3 text-sm font-semibold text-ink">
                   ตารางอัตราตายทุกกลุ่ม {rangeLabel}
                 </div>
@@ -598,7 +598,7 @@ export default function ServicePlanCardiacPage() {
                 </Panel>
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-3 text-sm font-semibold text-ink">
                   ตารางรายรหัสที่ลงเป็นโรคหลัก {rangeLabel}
                 </div>
@@ -802,7 +802,7 @@ export default function ServicePlanCardiacPage() {
                 </Panel>
               </div>
 
-              <section className="mt-4 rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+              <section className="mt-4 rounded-2xl border border-line bg-panel p-4">
                 <div className="mb-3 text-sm font-semibold text-ink">
                   ตารางอัตราป่วยและอัตราตายของโรคหัวใจขาดเลือด {rangeLabel}
                 </div>
@@ -886,7 +886,7 @@ export default function ServicePlanCardiacPage() {
               <BlockSkeleton height={300} />
               <BlockSkeleton height={300} />
             </div>
-            <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+            <section className="rounded-2xl border border-line bg-panel p-4">
               <TableRowsSkeleton columns={6} rows={6} />
             </section>
           </div>

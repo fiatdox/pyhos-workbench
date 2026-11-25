@@ -1,3 +1,4 @@
+import { stripBase } from '@/lib/base-path'
 import { apiFetch } from '@/lib/client/session'
 
 /**
@@ -16,7 +17,7 @@ export function trackExport(input: { label: string; rows: number }): void {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          page: window.location.pathname,
+          page: stripBase(window.location.pathname),
           label: input.label,
           rows: input.rows,
         }),

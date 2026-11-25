@@ -1,8 +1,10 @@
 import { cookies } from 'next/headers'
 import { verifyAuthToken } from '@/lib/auth/jwt'
 import {
+  CHECKUP_MAX_KEYWORD_PATIENTS,
   CHECKUP_MAX_RANGE_DAYS,
   CHECKUP_MAX_ROWS,
+  CHECKUP_MIN_KEYWORD,
   listCheckupRights,
   searchCheckups,
 } from '@/lib/his/checkup'
@@ -63,6 +65,8 @@ export async function GET() {
       rights,
       maxRangeDays: CHECKUP_MAX_RANGE_DAYS,
       maxRows: CHECKUP_MAX_ROWS,
+      minKeyword: CHECKUP_MIN_KEYWORD,
+      maxKeywordPatients: CHECKUP_MAX_KEYWORD_PATIENTS,
     })
   } catch (error) {
     console.error('[his/checkup] อ่านรายการสิทธิไม่สำเร็จ:', error)
@@ -94,12 +98,25 @@ export async function POST(request: Request) {
   const to = typeof body.to === 'string' ? body.to.trim() : ''
   if (!DATE_PATTERN.test(from) || !DATE_PATTERN.test(to)) return bad('รูปแบบวันที่ไม่ถูกต้อง')
 
+  /**
+   * คำค้น HN หรือชื่อ-สกุล — ไม่ใส่มาก็ได้ แปลว่าค้นตามช่วงวันที่
+   *
+   * ตัดความยาวไว้ที่ 60 ตัวอักษร ชื่อ-สกุลไทยที่ยาวสุดในฐานยังไม่ถึงครึ่งของ
+   * จำนวนนี้ ที่เหลือคือคำขอที่ไม่ได้มาจากหน้าจอ
+   */
+  const keyword = typeof body.keyword === 'string' ? body.keyword.trim().slice(0, 60) : ''
+  if (keyword !== '' && keyword.length < CHECKUP_MIN_KEYWORD) {
+    return bad(`พิมพ์คำค้นอย่างน้อย ${CHECKUP_MIN_KEYWORD} ตัวอักษร`)
+  }
+
   // เทียบเป็นเวลา UTC ทั้งคู่ ทั้งสองฝั่งจึงไม่มีเรื่องเขตเวลามาเกี่ยว
   const start = Date.parse(`${from}T00:00:00Z`)
   const end = Date.parse(`${to}T00:00:00Z`)
   if (!Number.isFinite(start) || !Number.isFinite(end)) return bad('วันที่ไม่ถูกต้อง')
   if (end < start) return bad('วันที่เริ่มต้นต้องไม่หลังวันที่สิ้นสุด')
-  if ((end - start) / MS_PER_DAY + 1 > CHECKUP_MAX_RANGE_DAYS) {
+  /* เพดานช่วงวันที่ตรวจเฉพาะโหมดที่ใช้ช่วงวันที่จริง — โหมดคำค้นค้นทุกช่วงเวลา
+     อยู่แล้ว ถ้าปฏิเสธเพราะช่วงกว้างเกินจะเป็นการปฏิเสธด้วยเงื่อนไขที่ไม่ได้ใช้ */
+  if (keyword === '' && (end - start) / MS_PER_DAY + 1 > CHECKUP_MAX_RANGE_DAYS) {
     return bad(`เลือกช่วงวันที่ได้ครั้งละไม่เกิน ${CHECKUP_MAX_RANGE_DAYS} วัน`)
   }
 
@@ -117,9 +134,15 @@ export async function POST(request: Request) {
   if (pttypes.length > MAX_PTTYPES) return bad(`เลือกสิทธิได้ครั้งละไม่เกิน ${MAX_PTTYPES} รายการ`)
 
   try {
-    const report = await searchCheckups({ from, to, pttypes })
+    const report = await searchCheckups({ from, to, pttypes, keyword })
     return Response.json({ success: true, ...report })
   } catch (error) {
+    /* เพดานจำนวนผู้ป่วยที่คำค้นตรงได้โยน Error ที่เขียนข้อความไว้ให้ผู้ใช้อ่านแล้ว
+       — ส่งกลับไปตรง ๆ เพราะบอกวิธีแก้ (ใส่นามสกุล หรือค้นด้วย HN) ส่วนข้อผิดพลาด
+       อื่นไม่ส่งรายละเอียดออกไป ไม่รู้ว่ามีอะไรติดมาด้วย */
+    if (error instanceof Error && error.message.startsWith('คำค้นนี้ตรงกับผู้ป่วยมากกว่า')) {
+      return bad(error.message)
+    }
     console.error('[his/checkup] ล้มเหลว:', error)
     return Response.json(
       { success: false, message: 'ค้นรายงานไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' },

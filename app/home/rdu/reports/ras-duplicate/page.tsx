@@ -309,7 +309,7 @@ export default function RasDuplicateReportPage() {
             เกณฑ์ของตัวชี้วัดข้อนี้คือไม่ควรมีเลย
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       <div className="mb-5">
@@ -405,7 +405,7 @@ export default function RasDuplicateReportPage() {
             {cases.length === 0 && !noRegistry ? (
               /* ผลลัพธ์ที่ต้องการของตัวชี้วัดข้อนี้คือไม่พบเลย จึงบอกให้ชัดว่าผ่านเกณฑ์
                  ไม่ใช่ปล่อยตารางว่างซึ่งอ่านได้ว่าค้นไม่เจอหรือระบบยังไม่ทำงาน */
-              <div className="rounded-2xl border border-line bg-panel py-10 backdrop-blur-md">
+              <div className="rounded-2xl border border-line bg-panel py-10">
                 <Result
                   status="success"
                   title="ไม่พบการได้รับยากลุ่ม RAS ซ้ำซ้อนในช่วงวันที่ที่เลือก"
@@ -469,7 +469,7 @@ export default function RasDuplicateReportPage() {
              นานขนาดนั้นไม่บอกอะไรว่ากำลังจะได้การ์ดสรุป กราฟ แล้วตารางเคส */
           <ReportSkeleton />
         ) : (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="เลือกช่วงวันที่แล้วกดค้นหา" />
           </div>
         )}
@@ -501,7 +501,7 @@ function StatCard({
   hint?: string
 }) {
   return (
-    <div className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur">
+    <div className="rounded-xl border border-line bg-panel px-4 py-3">
       <div className="text-[11px] text-ink-3">{label}</div>
       <div className="mt-0.5 text-xl font-semibold text-ink">
         <span className="qty">{value}</span>

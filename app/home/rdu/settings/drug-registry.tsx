@@ -213,7 +213,7 @@ export default function DrugRegistryPage({
             {intro} — ย้ายรายการแล้วบันทึกทันที ไม่ต้องกดปุ่มบันทึก
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
@@ -233,7 +233,7 @@ export default function DrugRegistryPage({
         />
       )}
 
-      <section className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+      <section className="rounded-2xl border border-line bg-panel p-4">
         {/* กรองด้วยชื่อสามัญก่อนเลือก — ยาตัวเดียวกันกระจายอยู่หลายรหัสตามยี่ห้อ
             และปีที่ซื้อ การกรองแล้วกด "เลือกทั้งหมด" ในช่องซ้ายจึงเป็นทางที่เก็บ
             ได้ครบโดยไม่ต้องไล่จำชื่อการค้าทีละยี่ห้อ */}

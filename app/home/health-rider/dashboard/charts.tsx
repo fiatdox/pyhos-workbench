@@ -22,20 +22,20 @@ import type {
 /**
  * กราฟของหน้าภาพรวมงานส่งยาถึงบ้าน
  *
- * รวมไว้ไฟล์เดียวด้วยเหตุผลเดียวกับหน้าภาพรวม DUE — ทุกกราฟใช้ชุดสีและโครง
+ * รวมไว้ไฟล์เดียว — ทุกกราฟใช้ชุดสีและโครง
  * ตั้งค่าเดียวกัน แยกไฟล์แล้วจะต้องคัดลอกโครงซ้ำจนวันหนึ่งแก้ไม่ครบ
  *
- * ต่างจากหน้า DUE ตรงที่ข้อมูลมาจากฐานจริงผ่าน props ไม่ใช่ค่าจำลองในโมดูล
- * ตัวเลือกกราฟจึงต้องคำนวณใหม่เมื่อข้อมูลเปลี่ยน ไม่ใช่แค่ตอนสลับธีม
+ * ข้อมูลมาจากฐานจริงผ่าน props ตัวเลือกกราฟจึงต้องคำนวณใหม่เมื่อข้อมูลเปลี่ยน
+ * ไม่ใช่แค่ตอนสลับธีม
  */
 
 function palette(dark: boolean) {
   return dark
     ? {
-        ink: '#cbd5e1',
+        ink: '#c8c3d5',
         faint: '#94a3b8',
-        grid: 'rgba(255,255,255,0.08)',
-        tooltipBg: '#1b1033',
+        grid: '#2c2938',
+        tooltipBg: '#201d2a',
         good: '#34d399',
         warn: '#fbbf24',
         bad: '#fb7185',
@@ -44,15 +44,15 @@ function palette(dark: boolean) {
         neutral: '#94a3b8',
       }
     : {
-        ink: '#4b4165',
-        faint: '#78708f',
-        grid: 'rgba(124,58,237,0.12)',
+        ink: '#463f5a',
+        faint: '#6a6480',
+        grid: '#ebe8f0',
         tooltipBg: '#ffffff',
         good: '#047857',
         warn: '#b45309',
         bad: '#be123c',
         info: '#0369a1',
-        accent: '#7c3aed',
+        accent: '#6d28d9',
         neutral: '#64748b',
       }
 }
@@ -73,7 +73,7 @@ function baseOptions(dark: boolean, height: number): Highcharts.Options {
     title: { text: undefined },
     legend: {
       itemStyle: { color: color.ink, fontWeight: '500', fontSize: '11px' },
-      itemHoverStyle: { color: dark ? '#ffffff' : '#2b2140' },
+      itemHoverStyle: { color: dark ? '#ffffff' : '#1c1729' },
     },
     xAxis: {
       labels: { style: { color: color.faint, fontSize: '11px' } },

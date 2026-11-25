@@ -15,7 +15,7 @@
 
 /** แท่งเดียว — animate-pulse ของ Tailwind ทำงานกับทั้งธีมสว่างและมืด */
 function Bar({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
-  return <div className={`animate-pulse rounded bg-line ${className}`} style={style} />
+  return <div className={`animate-pulse rounded bg-line motion-reduce:animate-none ${className}`} style={style} />
 }
 
 /**
@@ -112,7 +112,7 @@ export function StatCardsSkeleton({
   return (
     <div className={className}>
       {Array.from({ length: count }, (_, card) => (
-        <div key={card} className="rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur">
+        <div key={card} className="rounded-xl border border-line bg-panel px-4 py-3">
           <Bar className="h-2.5 w-24" />
           <Bar className="mt-2 h-6 w-20" />
           <Bar className="mt-2 h-2.5 w-32" />
@@ -145,7 +145,7 @@ export function BlockSkeleton({
   className?: string
 }) {
   return (
-    <div className={`rounded-2xl border border-line bg-panel p-4 backdrop-blur ${className}`}>
+    <div className={`rounded-2xl border border-line bg-panel p-4 ${className}`}>
       <Bar className="h-3 w-40" />
       <Bar className="mt-3 w-full" style={{ height }} />
     </div>
@@ -174,7 +174,7 @@ export function ReportSkeleton({
         <StatCardsSkeleton count={cards} />
       )}
       <BlockSkeleton height={220} className="mb-4" />
-      <div className="rounded-2xl border border-line bg-panel p-4 backdrop-blur">
+      <div className="rounded-2xl border border-line bg-panel p-4">
         <Bar className="h-3 w-32" />
         <TableRowsSkeleton columns={6} rows={6} />
       </div>

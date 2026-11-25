@@ -331,7 +331,7 @@ export default function RduSummaryPage() {
             เครื่องหมาย * ท้ายปีแปลว่าปีงบนั้นยังไม่จบ ตัวเลขจึงยังไม่ครบปี
           </PageHint>
         </Title>
-        <div className="h-px w-24 bg-linear-to-r from-violet-400/70 to-transparent" />
+        <div className="title-rule" />
       </section>
 
       {error && <Alert type="error" showIcon title={error} className="mb-4" />}
@@ -392,7 +392,7 @@ export default function RduSummaryPage() {
       </div>
 
       {running != null && (
-        <div className="mb-5 rounded-xl border border-line bg-panel px-4 py-3 backdrop-blur">
+        <div className="mb-5 rounded-xl border border-line bg-panel px-4 py-3">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
             <span>กำลังคำนวณ: {running.now || 'เตรียมคิว'}</span>
             <span className="qty">
@@ -418,7 +418,7 @@ export default function RduSummaryPage() {
           /* โหลดครั้งแรกขึ้นโครงร่างการ์ดตัวชี้วัด ไม่ใช่ที่ว่างเปล่า */
           <StatCardsSkeleton count={6} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" />
         ) : indicators.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+          <div className="rounded-2xl border border-line bg-panel py-16">
             <Empty description="ไม่มีตัวชี้วัด" />
           </div>
         ) : (
@@ -538,7 +538,7 @@ export default function RduSummaryPage() {
             })}
 
             {shown.length === 0 && (
-              <div className="rounded-2xl border border-line bg-panel py-16 backdrop-blur-md">
+              <div className="rounded-2xl border border-line bg-panel py-16">
                 <Empty description="ไม่มีตัวชี้วัดในกลุ่มที่กรองอยู่" />
               </div>
             )}
